@@ -4,11 +4,31 @@ import (
     "log"
     router "github.com/jattinmanhas/GearboxV2/services/auth-service/internal/http"
     "net/http"
+    "os"
+
+    "github.com/joho/godotenv"
+    "github.com/jattinmanhas/GearboxV2/services/auth-service/db"
 )
 
 func main() {
-    r := router.NewRouter()
+    if err := godotenv.Load(); err != nil {
+        log.Fatal("Error loading .env file")
+    }
 
-    log.Println("Auth Service Running on port :8080")
-    log.Fatal(http.ListenAndServe(":8080", r))
+    // Connect to DB
+    database, err := db.Connect()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+    }
+    defer database.Close()
+
+    r := router.NewRouter(database)
+
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+    
+    log.Println("Auth Service Running on port:", port)
+    log.Fatal(http.ListenAndServe(":"+port, r))
 }
