@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
@@ -24,18 +23,7 @@ func NewUserService(userRepo repository.IUserRepository) IUserService {
 }
 
 func (s *userService) RegisterNewUser(ctx context.Context, u *domain.User) error {
-	if(u.Username == "") {
-		return fmt.Errorf("username is required")
-	}
-
-	if(u.Password == "" || len(u.Password) < 6) {
-		return fmt.Errorf("password is required and must be at least 6 characters long")
-	}
-
-	if(u.Email == "") {
-		return fmt.Errorf("email is required")
-	}
-
+	// Hash the password
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

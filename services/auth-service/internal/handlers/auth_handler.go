@@ -11,24 +11,42 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/httpx"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
 )
 
 type registerRequest struct {
-	Username    string     `json:"username"`
-	Password    string     `json:"password"`
-	Email       string     `json:"email"`
-	FirstName   string     `json:"first_name"`
-	MiddleName  string     `json:"middle_name"`
-	LastName    string     `json:"last_name"`
-	Avatar      string     `json:"avatar"`
-	Gender      string     `json:"gender"`
-	DateOfBirth *time.Time `json:"date_of_birth"`
+	Username    string     `json:"username" validate:"required,username"`
+	Password    string     `json:"password" validate:"required,password"`
+	Email       string     `json:"email" validate:"required,email"`
+	FirstName   string     `json:"first_name" validate:"required,min=1,max=50"`
+	MiddleName  string     `json:"middle_name" validate:"omitempty,max=50"`
+	LastName    string     `json:"last_name" validate:"required,min=1,max=50"`
+	Avatar      string     `json:"avatar" validate:"omitempty,url"`
+	Gender      string     `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"`
+	DateOfBirth *time.Time `json:"date_of_birth" validate:"required,date_of_birth"`
+}
+
+type updateUserRequest struct {
+	FirstName   string     `json:"first_name" validate:"omitempty,min=1,max=50"`
+	MiddleName  string     `json:"middle_name" validate:"omitempty,max=50"`
+	LastName    string     `json:"last_name" validate:"omitempty,min=1,max=50"`
+	Avatar      string     `json:"avatar" validate:"omitempty,url"`
+	Gender      string     `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"`
+	DateOfBirth *time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,password"`
 }
 
 type IAuthHandler interface {
 	RegisterUser(w http.ResponseWriter, r *http.Request)
 	GetUserByID(w http.ResponseWriter, r *http.Request)
 	GetAllUsers(w http.ResponseWriter, r *http.Request)
+	UpdateUser(w http.ResponseWriter, r *http.Request)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
+	DeleteUser(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -46,8 +64,9 @@ func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.DateOfBirth == nil {
-		httpx.Error(w, http.StatusBadRequest, "date_of_birth is required", nil)
+	// Validate the request using our validation package
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, "validation failed", validationErrors)
 		return
 	}
 
@@ -123,4 +142,19 @@ func (h *authHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "fetched users", users)
+}
+
+func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement user update logic
+	httpx.Error(w, http.StatusNotImplemented, "update user not implemented yet", nil)
+}
+
+func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement password change logic
+	httpx.Error(w, http.StatusNotImplemented, "change password not implemented yet", nil)
+}
+
+func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement user deletion logic
+	httpx.Error(w, http.StatusNotImplemented, "delete user not implemented yet", nil)
 }
