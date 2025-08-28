@@ -60,7 +60,12 @@ func TestAPIResponse(t *testing.T) {
 		assert.Equal(t, response.Status, unmarshaled.Status)
 		assert.Equal(t, response.Success, unmarshaled.Success)
 		assert.Equal(t, response.Message, unmarshaled.Message)
-		assert.Equal(t, response.Data, unmarshaled.Data)
+
+		// When unmarshaling, the Data field becomes map[string]interface{}
+		// So we need to check the values individually
+		expectedData := response.Data.(map[string]int)
+		actualData := unmarshaled.Data.(map[string]interface{})
+		assert.Equal(t, expectedData["id"], int(actualData["id"].(float64)))
 	})
 }
 
@@ -86,7 +91,10 @@ func TestWriteJSON(t *testing.T) {
 
 		assert.True(t, response.Success)
 		assert.Equal(t, "Success message", response.Message)
-		assert.Equal(t, map[string]string{"key": "value"}, response.Data)
+
+		// Data becomes map[string]interface{} when unmarshaled
+		actualData := response.Data.(map[string]interface{})
+		assert.Equal(t, "value", actualData["key"])
 		assert.Nil(t, response.Error)
 	})
 
@@ -109,7 +117,10 @@ func TestWriteJSON(t *testing.T) {
 		assert.False(t, response.Success)
 		assert.Equal(t, "Error message", response.Message)
 		assert.Nil(t, response.Data)
-		assert.Equal(t, map[string]string{"detail": "error detail"}, response.Error)
+
+		// Error becomes map[string]interface{} when unmarshaled
+		actualError := response.Error.(map[string]interface{})
+		assert.Equal(t, "error detail", actualError["detail"])
 	})
 
 	t.Run("should handle nil data and error gracefully", func(t *testing.T) {
@@ -153,7 +164,10 @@ func TestOK(t *testing.T) {
 		assert.Equal(t, http.StatusOK, response.Status)
 		assert.True(t, response.Success)
 		assert.Equal(t, "User found", response.Message)
-		assert.Equal(t, map[string]string{"username": "john_doe"}, response.Data)
+
+		// Data becomes map[string]interface{} when unmarshaled
+		actualData := response.Data.(map[string]interface{})
+		assert.Equal(t, "john_doe", actualData["username"])
 		assert.Nil(t, response.Error)
 	})
 }
@@ -180,7 +194,11 @@ func TestCreated(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, response.Status)
 		assert.True(t, response.Success)
 		assert.Equal(t, "User registered", response.Message)
-		assert.Equal(t, map[string]int{"id": 123}, response.Data)
+
+		// Data becomes map[string]interface{} when unmarshaled
+		// Numbers become float64 in JSON
+		actualData := response.Data.(map[string]interface{})
+		assert.Equal(t, float64(123), actualData["id"])
 		assert.Nil(t, response.Error)
 	})
 }
@@ -212,8 +230,8 @@ func TestError(t *testing.T) {
 		assert.Equal(t, "Validation failed", response.Message)
 		assert.Nil(t, response.Data)
 
-		// Verify error payload
-		errorPayload, ok := response.Error.(map[string]string)
+		// Verify error payload - Error becomes map[string]interface{} when unmarshaled
+		errorPayload, ok := response.Error.(map[string]interface{})
 		require.True(t, ok)
 		assert.Equal(t, "Validation failed", errorPayload["message"])
 		assert.Equal(t, testError.Error(), errorPayload["detail"])
@@ -236,11 +254,13 @@ func TestError(t *testing.T) {
 		assert.False(t, response.Success)
 		assert.Equal(t, "Server error", response.Message)
 
-		// Verify error payload
-		errorPayload, ok := response.Error.(map[string]string)
+		// Verify error payload - Error becomes map[string]interface{} when unmarshaled
+		errorPayload, ok := response.Error.(map[string]interface{})
 		require.True(t, ok)
 		assert.Equal(t, "Server error", errorPayload["message"])
-		assert.Equal(t, "", errorPayload["detail"]) // No error detail
+		// When err is nil, the "detail" field is not set in the payload
+		_, hasDetail := errorPayload["detail"]
+		assert.False(t, hasDetail, "Detail field should not be present when err is nil")
 	})
 
 	t.Run("should handle different HTTP status codes", func(t *testing.T) {

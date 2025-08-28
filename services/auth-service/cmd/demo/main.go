@@ -10,7 +10,7 @@ import (
 
 func main() {
 	fmt.Println("🚀 Validation System Demo")
-	fmt.Println("========================\n")
+	fmt.Println("========================")
 
 	// Demo 1: Valid user registration
 	fmt.Println("1. Valid User Registration:")

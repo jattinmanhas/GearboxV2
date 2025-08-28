@@ -13,12 +13,21 @@ func TestLoadConfig(t *testing.T) {
 		// 🔧 Setup: Set environment variables for testing
 		os.Setenv("PORT", "8080")
 		os.Setenv("DATABASE_URL", "postgres://user:pass@localhost/testdb")
+		os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing-purposes-only")
+		os.Setenv("JWT_REFRESH_SECRET", "test-jwt-refresh-secret-key-for-testing-purposes-only")
+		os.Setenv("ENVIRONMENT", "test")
 
 		// 🧹 Cleanup: Restore environment after test
 		defer func() {
 			os.Unsetenv("PORT")
 			os.Unsetenv("DATABASE_URL")
+			os.Unsetenv("JWT_SECRET")
+			os.Unsetenv("JWT_REFRESH_SECRET")
+			os.Unsetenv("ENVIRONMENT")
 		}()
+
+		// Reset config before test
+		ResetConfig()
 
 		// 🚀 Action: Load configuration
 		cfg := LoadConfig()
@@ -35,12 +44,35 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.DatabaseURL != "postgres://user:pass@localhost/testdb" {
 			t.Errorf("Expected database URL 'postgres://user:pass@localhost/testdb', got %s", cfg.DatabaseURL)
 		}
+
+		if cfg.JWTSecret != "test-jwt-secret-key-for-testing-purposes-only" {
+			t.Errorf("Expected JWT secret 'test-jwt-secret-key-for-testing-purposes-only', got %s", cfg.JWTSecret)
+		}
+
+		if cfg.JWTRefreshSecret != "test-jwt-refresh-secret-key-for-testing-purposes-only" {
+			t.Errorf("Expected JWT refresh secret 'test-jwt-refresh-secret-key-for-testing-purposes-only', got %s", cfg.JWTRefreshSecret)
+		}
+
+		if cfg.Environment != "test" {
+			t.Errorf("Expected environment 'test', got %s", cfg.Environment)
+		}
 	})
 
 	t.Run("should use default port when PORT is not set", func(t *testing.T) {
-		// 🔧 Setup: Set only DATABASE_URL, leave PORT unset
+		// 🔧 Setup: Reset the singleton and set required environment variables
+		ResetConfig()
 		os.Setenv("DATABASE_URL", "postgres://user:pass@localhost/testdb")
-		defer os.Unsetenv("DATABASE_URL")
+		os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing-purposes-only")
+		os.Setenv("JWT_REFRESH_SECRET", "test-jwt-refresh-secret-key-for-testing-purposes-only")
+		os.Setenv("ENVIRONMENT", "test")
+		os.Unsetenv("PORT")
+		defer func() {
+			os.Unsetenv("DATABASE_URL")
+			os.Unsetenv("JWT_SECRET")
+			os.Unsetenv("JWT_REFRESH_SECRET")
+			os.Unsetenv("ENVIRONMENT")
+			os.Unsetenv("PORT")
+		}()
 
 		// 🚀 Action: Load configuration
 		cfg := LoadConfig()
@@ -54,7 +86,15 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("should return same config instance on multiple calls (singleton)", func(t *testing.T) {
 		// 🔧 Setup: Set environment variables
 		os.Setenv("DATABASE_URL", "postgres://user:pass@localhost/testdb")
-		defer os.Unsetenv("DATABASE_URL")
+		os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing-purposes-only")
+		os.Setenv("JWT_REFRESH_SECRET", "test-jwt-refresh-secret-key-for-testing-purposes-only")
+		os.Setenv("ENVIRONMENT", "test")
+		defer func() {
+			os.Unsetenv("DATABASE_URL")
+			os.Unsetenv("JWT_SECRET")
+			os.Unsetenv("JWT_REFRESH_SECRET")
+			os.Unsetenv("ENVIRONMENT")
+		}()
 
 		// 🚀 Action: Load configuration multiple times
 		cfg1 := LoadConfig()
@@ -98,8 +138,11 @@ func TestConfigStruct(t *testing.T) {
 	t.Run("should have correct field types", func(t *testing.T) {
 		// 🔧 Setup: Create a config instance
 		cfg := &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://localhost/testdb",
+			Port:             "8080",
+			DatabaseURL:      "postgres://localhost/testdb",
+			JWTSecret:        "test-jwt-secret",
+			JWTRefreshSecret: "test-jwt-refresh-secret",
+			Environment:      "test",
 		}
 
 		// ✅ Assertions: Verify field types and values
@@ -109,6 +152,18 @@ func TestConfigStruct(t *testing.T) {
 
 		if cfg.DatabaseURL != "postgres://localhost/testdb" {
 			t.Errorf("Expected database URL 'postgres://localhost/testdb', got %s", cfg.DatabaseURL)
+		}
+
+		if cfg.JWTSecret != "test-jwt-secret" {
+			t.Errorf("Expected JWT secret 'test-jwt-secret', got %s", cfg.JWTSecret)
+		}
+
+		if cfg.JWTRefreshSecret != "test-jwt-refresh-secret" {
+			t.Errorf("Expected JWT refresh secret 'test-jwt-refresh-secret', got %s", cfg.JWTRefreshSecret)
+		}
+
+		if cfg.Environment != "test" {
+			t.Errorf("Expected environment 'test', got %s", cfg.Environment)
 		}
 	})
 }

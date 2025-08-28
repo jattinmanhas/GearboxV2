@@ -8,35 +8,38 @@ import (
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/config"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/db"
-    "github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
-    "github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
-    "github.com/jattinmanhas/GearboxV2/services/auth-service/internal/handlers"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/handlers"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 )
 
 func main() {
-    cfg := config.LoadConfig()
-    log.Println("Configuration loaded successfully.")
+	cfg := config.LoadConfig()
+	log.Println("Configuration loaded successfully.")
 
-    // Connect to DB
-    database, err := db.NewConnection(cfg.DatabaseURL)
-    if err != nil {
-        log.Fatalf("❌ Failed to connect to the database: %v", err)
-    }
-    defer database.Close()
-    log.Println("✅ Database connection established successfully.")
+	// Connect to DB
+	database, err := db.NewConnection(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to the database: %v", err)
+	}
+	defer database.Close()
+	log.Println("✅ Database connection established successfully.")
 
-    // Initialize repository
-    userRepo := repository.NewUserRepository(database)
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(database)
+	refreshTokenRepo := repository.NewRefreshTokenRepository(database)
 
-    // Initialize service
-    userService := services.NewUserService(userRepo)
+	// Initialize services
+	userService := services.NewUserService(userRepo)
+	jwtService := services.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, jwtService)
 
-    // Initialize handler
-    authHandler := handlers.NewAuthHandler(userService)
+	// Initialize handler
+	authHandler := handlers.NewAuthHandler(userService, authService, jwtService)
 
-    // Initialize router
-    r := router.NewRouter(authHandler)
+	// Initialize router
+	r := router.NewRouter(authHandler, authService)
 
-    log.Println("🚀 Auth Service Running on port:", cfg.Port)
-    log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+	log.Println("🚀 Auth Service Running on port:", cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
 }
