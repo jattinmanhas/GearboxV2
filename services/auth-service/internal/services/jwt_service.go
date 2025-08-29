@@ -1,13 +1,10 @@
 package services
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 )
 
@@ -22,12 +19,14 @@ type Claims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	Role     string `json:"role"` // User's role for authorization
 	jwt.RegisteredClaims
 }
 
 type RefreshTokenClaims struct {
-	TokenID string `json:"token_id"`
-	UserID  uint   `json:"user_id"`
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 	jwt.RegisteredClaims
 }
 
@@ -46,6 +45,7 @@ func (j *JWTService) GenerateAccessToken(user *domain.User) (string, error) {
 		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
+		Role:     user.Role, // Include user's role in claims
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.accessTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -61,19 +61,10 @@ func (j *JWTService) GenerateAccessToken(user *domain.User) (string, error) {
 
 // GenerateRefreshToken creates a new refresh token and returns both token and claims
 func (j *JWTService) GenerateRefreshToken(user *domain.User) (*domain.RefreshToken, error) {
-	// Generate a unique token ID
-	tokenID := uuid.New().String()
-
-	// Generate a cryptographically secure random string for additional security
-	randomBytes := make([]byte, 32)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	_ = base64.URLEncoding.EncodeToString(randomBytes) // Additional entropy
-
 	claims := &RefreshTokenClaims{
-		TokenID: tokenID,
-		UserID:  user.ID,
+		UserID:   user.ID,
+		Username: user.Username,
+		Email:    user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.refreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

@@ -65,26 +65,34 @@ type MockAuthService struct {
 	mock.Mock
 }
 
-func (m *MockAuthService) Login(ctx context.Context, username, password, userAgent, ipAddress string) (*domain.User, *domain.RefreshToken, error) {
+func (m *MockAuthService) Login(ctx context.Context, username, password, userAgent, ipAddress string) (*domain.User, *domain.RefreshToken, string, error) {
 	args := m.Called(ctx, username, password, userAgent, ipAddress)
 	if args.Get(0) == nil {
-		return nil, nil, args.Error(2)
+		return nil, nil, "", args.Error(3)
 	}
 	if args.Get(1) == nil {
-		return args.Get(0).(*domain.User), nil, args.Error(2)
+		return args.Get(0).(*domain.User), nil, "", args.Error(3)
 	}
-	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Error(2)
+	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
 }
 
-func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, error) {
+func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error) {
 	args := m.Called(ctx, refreshToken)
 	if args.Get(0) == nil {
-		return nil, nil, args.Error(2)
+		return nil, nil, "", args.Error(3)
 	}
 	if args.Get(1) == nil {
-		return args.Get(0).(*domain.User), nil, args.Error(2)
+		return args.Get(0).(*domain.User), nil, "", args.Error(3)
 	}
-	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Error(2)
+	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
+}
+
+func (m *MockAuthService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*services.RefreshTokenClaims, error) {
+	args := m.Called(ctx, refreshTokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*services.RefreshTokenClaims), args.Error(1)
 }
 
 func (m *MockAuthService) Logout(ctx context.Context, refreshToken string) error {
@@ -111,6 +119,11 @@ func (m *MockAuthService) GetUserFromToken(ctx context.Context, tokenString stri
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockAuthService) GenerateAccessTokenFromUser(ctx context.Context, user *domain.User) (string, error) {
+	args := m.Called(ctx, user)
+	return args.Get(0).(string), args.Error(1)
 }
 
 // TestAuthHandler_Login tests the login handler
@@ -142,8 +155,8 @@ func TestAuthHandler_Login(t *testing.T) {
 		}
 
 		// 🎭 Mock Expectations: Auth service should handle login
-		mockAuthService.On("Login", mock.Anything, "testuser", "password123", "test-agent", "127.0.0.1:12345").
-			Return(user, refreshToken, nil)
+		mockAuthService.On("Login", mock.Anything, "testuser", "password123", "test-agent", "127.0.0.1").
+			Return(user, refreshToken, "test-access-token", nil)
 
 		// Create request
 		loginReq := loginRequest{
@@ -258,8 +271,8 @@ func TestAuthHandler_Login(t *testing.T) {
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// 🎭 Mock Expectations: Auth service should return error
-		mockAuthService.On("Login", mock.Anything, "testuser", "wrongpassword", "test-agent", "127.0.0.1:12345").
-			Return(nil, nil, assert.AnError)
+		mockAuthService.On("Login", mock.Anything, "testuser", "wrongpassword", "test-agent", "127.0.0.1").
+			Return(nil, nil, "", assert.AnError)
 
 		// Create request
 		loginReq := loginRequest{
@@ -320,15 +333,14 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 
 		// 🎭 Mock Expectations: Auth service should handle refresh
 		mockAuthService.On("RefreshToken", mock.Anything, "old-refresh-token").
-			Return(user, newRefreshToken, nil)
+			Return(user, newRefreshToken, "new-access-token", nil)
 
-		// Create request
-		refreshReq := refreshTokenRequest{
-			RefreshToken: "old-refresh-token",
-		}
-		reqBody, _ := json.Marshal(refreshReq)
-		req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(reqBody))
-		req.Header.Set("Content-Type", "application/json")
+		// Create request with refresh token cookie
+		req := httptest.NewRequest("POST", "/refresh", nil)
+		req.AddCookie(&http.Cookie{
+			Name:  "refresh_token",
+			Value: "old-refresh-token",
+		})
 
 		// Create response recorder
 		w := httptest.NewRecorder()

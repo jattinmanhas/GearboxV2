@@ -203,7 +203,6 @@ func TestJWTService_ValidateRefreshToken(t *testing.T) {
 		assert.Equal(t, user.ID, claims.UserID)
 		assert.Equal(t, "auth-service", claims.Issuer)
 		assert.Equal(t, "1", claims.Subject)
-		assert.NotEmpty(t, claims.TokenID)
 	})
 
 	t.Run("should reject invalid refresh token", func(t *testing.T) {

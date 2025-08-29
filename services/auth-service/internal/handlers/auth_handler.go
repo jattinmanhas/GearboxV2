@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ type registerRequest struct {
 	LastName    string     `json:"last_name" validate:"required,min=1,max=50"`
 	Avatar      string     `json:"avatar" validate:"omitempty,url"`
 	Gender      string     `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"`
-	DateOfBirth *time.Time `json:"date_of_birth" validate:"required,date_of_birth"`
+	DateOfBirth time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`
 }
 
 type updateUserRequest struct {
@@ -43,10 +44,6 @@ type changePasswordRequest struct {
 type loginRequest struct {
 	Username string `json:"username" validate:"required"`
 	Password string `json:"password" validate:"required"`
-}
-
-type refreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 type IAuthHandler interface {
@@ -98,7 +95,7 @@ func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		LastName:    strings.TrimSpace(req.LastName),
 		Avatar:      req.Avatar,
 		Gender:      req.Gender,
-		DateOfBirth: *req.DateOfBirth,
+		DateOfBirth: req.DateOfBirth,
 	}
 
 	if err := h.userService.RegisterNewUser(r.Context(), user); err != nil {
@@ -124,22 +121,18 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Get user agent and IP address
 	userAgent := r.UserAgent()
-	ipAddress := r.RemoteAddr
+	ipAddress, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ipAddress = r.RemoteAddr // fallback, but may include port
+	}
 	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
 		ipAddress = forwardedFor
 	}
 
 	// Authenticate user and generate tokens
-	user, refreshToken, err := h.authService.Login(r.Context(), req.Username, req.Password, userAgent, ipAddress)
+	user, refreshToken, accessToken, err := h.authService.Login(r.Context(), req.Username, req.Password, userAgent, ipAddress)
 	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "invalid credentials", err)
-		return
-	}
-
-	// Generate access token
-	accessToken, err := h.jwtService.GenerateAccessToken(user)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "failed to generate access token", err)
 		return
 	}
 
@@ -178,29 +171,17 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	var req refreshTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
-		return
-	}
-
-	// Validate the request
-	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
-		httpx.Error(w, http.StatusBadRequest, "validation failed", validationErrors)
+	// Extract refresh token from cookie (more secure than request body)
+	refreshToken := services.ExtractTokenFromCookie(r, "refresh_token")
+	if refreshToken == "" {
+		httpx.Error(w, http.StatusBadRequest, "refresh token required in cookie", nil)
 		return
 	}
 
 	// Refresh tokens
-	user, newRefreshToken, err := h.authService.RefreshToken(r.Context(), req.RefreshToken)
+	user, newRefreshToken, accessToken, err := h.authService.RefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "invalid refresh token", err)
-		return
-	}
-
-	// Generate new access token
-	accessToken, err := h.jwtService.GenerateAccessToken(user)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "failed to generate access token", err)
 		return
 	}
 

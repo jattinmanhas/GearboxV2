@@ -9,7 +9,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 )
 
-func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService) *chi.Mux {
+func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler *handlers.RoleHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// CORS middleware
@@ -38,6 +38,17 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 			r.Post("/user/{id}/change-password", authHandler.ChangePassword)
 			r.Get("/users", authHandler.GetAllUsers)
 			r.Post("/logout-all", authHandler.LogoutAll)
+
+			// Role management routes
+			r.Route("/roles", func(r chi.Router) {
+				r.Get("/", roleHandler.GetAllRoles)                     // Get all available roles
+				r.Get("/my-role", roleHandler.GetMyRole)                // Get current user's role
+				r.Get("/user", roleHandler.GetUserRole)                 // Get specific user's role
+				r.Post("/assign", roleHandler.AssignRoleToUser)         // Assign role to user
+				r.Put("/update", roleHandler.UpdateUserRole)            // Update user's role
+				r.Delete("/remove", roleHandler.RemoveUserRole)         // Remove user's role
+				r.Get("/check-permission", roleHandler.CheckPermission) // Check if user has permission
+			})
 		})
 	})
 

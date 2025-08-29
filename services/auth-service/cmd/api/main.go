@@ -28,17 +28,20 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(database)
+	roleRepo := repository.NewRoleRepository(database)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo)
 	jwtService := services.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
-	authService := services.NewAuthService(userRepo, refreshTokenRepo, jwtService)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, roleRepo, jwtService)
+	roleService := services.NewRoleService(roleRepo, userRepo)
 
-	// Initialize handler
+	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService, authService, jwtService)
+	roleHandler := handlers.NewRoleHandler(roleService)
 
 	// Initialize router
-	r := router.NewRouter(authHandler, authService)
+	r := router.NewRouter(authHandler, authService, roleHandler)
 
 	log.Println("🚀 Auth Service Running on port:", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
