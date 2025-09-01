@@ -49,13 +49,6 @@ func AuthMiddleware(authService services.IAuthService) func(http.Handler) http.H
 				return
 			}
 
-			// Validate refresh token
-			_, err = authService.ValidateRefreshToken(r.Context(), refreshToken)
-			if err != nil {
-				httpx.Error(w, http.StatusUnauthorized, "invalid refresh token", err)
-				return
-			}
-
 			// Refresh token is valid, generate new access token
 			// Use refresh token claims directly (no DB query needed)
 			refreshClaims, err := authService.ValidateRefreshToken(r.Context(), refreshToken)

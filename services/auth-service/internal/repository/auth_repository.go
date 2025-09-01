@@ -26,6 +26,9 @@ func NewUserRepository(db *sqlx.DB) IUserRepository {
 }
 
 func (r *userRepository) RegisterNewUser(ctx context.Context, u *domain.User) error {
+	// Don't set role_id here - it will be set by the migration or default constraint
+	// u.RoleID = domain.RoleIDUser // Remove this line
+
 	query := `
 		INSERT INTO users (
 			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth

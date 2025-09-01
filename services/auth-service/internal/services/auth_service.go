@@ -100,6 +100,17 @@ func (a *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 		return nil, nil, "", fmt.Errorf("user not found: %w", err)
 	}
 
+	// Get user's role information
+	role, err := a.roleRepo.GetUserRole(ctx, user.ID)
+	if err != nil {
+		// If no role found, assign default user role
+		user.Role = domain.GetDefaultRole()
+		user.RoleID = domain.RoleIDUser
+	} else {
+		user.Role = role.Name
+		user.RoleID = role.ID
+	}
+
 	// Revoke old refresh token
 	if err := a.refreshTokenRepo.RevokeRefreshToken(ctx, refreshTokenString); err != nil {
 		return nil, nil, "", fmt.Errorf("failed to revoke old token: %w", err)
