@@ -24,6 +24,77 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
+// MockAuthService is a mock implementation of IAuthService for testing
+type MockAuthService struct {
+	mock.Mock
+}
+
+func (m *MockAuthService) Login(ctx context.Context, username, password, userAgent, ipAddress string) (*domain.User, *domain.RefreshToken, string, error) {
+	args := m.Called(ctx, username, password, userAgent, ipAddress)
+	if args.Get(0) == nil {
+		return nil, nil, "", args.Error(3)
+	}
+	if args.Get(1) == nil {
+		return args.Get(0).(*domain.User), nil, "", args.Error(3)
+	}
+	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
+}
+
+func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error) {
+	args := m.Called(ctx, refreshToken)
+	if args.Get(0) == nil {
+		return nil, nil, "", args.Error(3)
+	}
+	if args.Get(1) == nil {
+		return args.Get(0).(*domain.User), nil, "", args.Error(3)
+	}
+	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
+}
+
+func (m *MockAuthService) Logout(ctx context.Context, refreshToken string) error {
+	args := m.Called(ctx, refreshToken)
+	return args.Error(0)
+}
+
+func (m *MockAuthService) LogoutAll(ctx context.Context, userID uint) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
+func (m *MockAuthService) ValidateAccessToken(ctx context.Context, tokenString string) (*Claims, error) {
+	args := m.Called(ctx, tokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*Claims), args.Error(1)
+}
+
+func (m *MockAuthService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*RefreshTokenClaims, error) {
+	args := m.Called(ctx, refreshTokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*RefreshTokenClaims), args.Error(1)
+}
+
+func (m *MockAuthService) GetUserFromToken(ctx context.Context, tokenString string) (*domain.User, error) {
+	args := m.Called(ctx, tokenString)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockAuthService) GenerateAccessTokenFromUser(ctx context.Context, user *domain.User) (string, error) {
+	args := m.Called(ctx, user)
+	return args.Get(0).(string), args.Error(1)
+}
+
+func (m *MockAuthService) CleanupExpiredTokens(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 // RegisterNewUser mocks the RegisterNewUser method
 func (m *MockUserRepository) RegisterNewUser(ctx context.Context, u *domain.User) error {
 	args := m.Called(ctx, u)
@@ -203,7 +274,7 @@ func TestUserService(t *testing.T) {
 		mockRepo := &MockUserRepository{}
 
 		// 🚀 Action: Create service
-		service := NewUserService(mockRepo)
+		service := NewUserService(mockRepo, nil)
 
 		// ✅ Assertions: Service should be created
 		assert.NotNil(t, service)
@@ -220,7 +291,8 @@ func TestUserService_RegisterNewUser(t *testing.T) {
 	t.Run("should register new user successfully", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create test user
 		user := &domain.User{
@@ -255,7 +327,8 @@ func TestUserService_RegisterNewUser(t *testing.T) {
 	t.Run("should handle repository error", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository that returns error
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		user := &domain.User{
 			Username: "john_doe",
@@ -281,7 +354,8 @@ func TestUserService_RegisterNewUser(t *testing.T) {
 	t.Run("should hash password with different costs", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		user1 := &domain.User{
 			Username: "user1",
@@ -323,7 +397,8 @@ func TestUserService_GetUserByID(t *testing.T) {
 	t.Run("should get user by ID successfully", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		expectedUser := &domain.User{
 			ID:        1,
@@ -350,7 +425,8 @@ func TestUserService_GetUserByID(t *testing.T) {
 	t.Run("should handle repository error when getting user", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository that returns error
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		expectedError := errors.New("user not found")
@@ -376,7 +452,8 @@ func TestUserService_GetAllUsers(t *testing.T) {
 	t.Run("should get all users with pagination", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		expectedUsers := []domain.User{
 			{ID: 1, Username: "john_doe", Email: "john@example.com"},
@@ -401,7 +478,8 @@ func TestUserService_GetAllUsers(t *testing.T) {
 	t.Run("should handle repository error when getting users", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository that returns error
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		expectedError := errors.New("database connection failed")
@@ -427,7 +505,8 @@ func TestUserService_Context(t *testing.T) {
 	t.Run("should pass context to repository", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create a context with a specific value
 		ctx := context.WithValue(context.Background(), "user_id", "123")
@@ -456,7 +535,8 @@ func TestUserService_PasswordHashing(t *testing.T) {
 	t.Run("should hash password securely", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		plainPassword := "MySecurePassword123"
 		user := &domain.User{
@@ -488,7 +568,8 @@ func TestUserService_PasswordHashing(t *testing.T) {
 	t.Run("should handle bcrypt hashing error", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create user with extremely long password that might cause bcrypt issues
 		// (This is a theoretical test - bcrypt is very robust)
@@ -521,7 +602,8 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("should update user successfully with partial data", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create existing user
 		existingUser := &domain.User{
@@ -566,7 +648,8 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("should handle repository error when getting user", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		mockRepo.On("GetUserByID", mock.Anything, 999).Return(nil, errors.New("user not found"))
@@ -586,7 +669,8 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("should handle repository error when updating user", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create existing user
 		existingUser := &domain.User{
@@ -621,7 +705,8 @@ func TestUserService_ChangePassword(t *testing.T) {
 	t.Run("should change password successfully", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create existing user with hashed password
 		hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte("old_password"), bcrypt.DefaultCost)
@@ -654,7 +739,8 @@ func TestUserService_ChangePassword(t *testing.T) {
 	t.Run("should handle repository error when getting user", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		mockRepo.On("GetUserByID", mock.Anything, 999).Return(nil, errors.New("user not found"))
@@ -673,7 +759,8 @@ func TestUserService_ChangePassword(t *testing.T) {
 	t.Run("should handle wrong current password", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create existing user with hashed password
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correct_password"), bcrypt.DefaultCost)
@@ -701,7 +788,8 @@ func TestUserService_ChangePassword(t *testing.T) {
 	t.Run("should handle update repository error", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
 		// Create existing user with hashed password
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("old_password"), bcrypt.DefaultCost)
@@ -737,9 +825,11 @@ func TestUserService_DeleteUser(t *testing.T) {
 	t.Run("should delete user successfully", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
-		// 🎭 Mock Expectations: Repository should be called to delete user
+		// 🎭 Mock Expectations: Repository should check if user exists and then delete
+		mockRepo.On("GetUserByID", mock.Anything, 1).Return(&domain.User{ID: 1}, nil)
 		mockRepo.On("DeleteUser", mock.Anything, 1).Return(nil)
 
 		// 🚀 Action: Delete user
@@ -755,9 +845,11 @@ func TestUserService_DeleteUser(t *testing.T) {
 	t.Run("should handle repository error when deleting user", func(t *testing.T) {
 		// 🔧 Setup: Create mock repository and service
 		mockRepo := &MockUserRepository{}
-		service := NewUserService(mockRepo)
+		mockAuthService := &MockAuthService{}
+		service := NewUserService(mockRepo, mockAuthService)
 
-		// 🎭 Mock Expectations: Repository should return error
+		// 🎭 Mock Expectations: Repository should check if user exists and then return error
+		mockRepo.On("GetUserByID", mock.Anything, 999).Return(&domain.User{ID: 999}, nil)
 		mockRepo.On("DeleteUser", mock.Anything, 999).Return(errors.New("database error"))
 
 		// 🚀 Action: Delete user

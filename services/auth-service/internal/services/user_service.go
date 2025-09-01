@@ -18,11 +18,12 @@ type IUserService interface {
 }
 
 type userService struct {
-	userRepo repository.IUserRepository
+	userRepo    repository.IUserRepository
+	authService IAuthService
 }
 
-func NewUserService(userRepo repository.IUserRepository) IUserService {
-	return &userService{userRepo: userRepo}
+func NewUserService(userRepo repository.IUserRepository, authService IAuthService) IUserService {
+	return &userService{userRepo: userRepo, authService: authService}
 }
 
 func (s *userService) RegisterNewUser(ctx context.Context, u *domain.User) error {
@@ -107,5 +108,12 @@ func (s *userService) ChangePassword(ctx context.Context, id int, currentPasswor
 }
 
 func (s *userService) DeleteUser(ctx context.Context, id int) error {
+	// Check if user exists
+	_, err := s.userRepo.GetUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Delete user from database
 	return s.userRepo.DeleteUser(ctx, id)
 }

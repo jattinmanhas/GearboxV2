@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -20,6 +21,7 @@ type IAuthService interface {
 	ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*RefreshTokenClaims, error)
 	GetUserFromToken(ctx context.Context, tokenString string) (*domain.User, error)
 	GenerateAccessTokenFromUser(ctx context.Context, user *domain.User) (string, error)
+	CleanupExpiredTokens(ctx context.Context) error
 }
 
 type authService struct {
@@ -43,11 +45,13 @@ func (a *authService) Login(ctx context.Context, username, password, userAgent, 
 	// Get user by username
 	user, err := a.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
+		log.Println("Invalid credentials", err)
 		return nil, nil, "", fmt.Errorf("invalid credentials")
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		log.Println("Invalid credentials", err)
 		return nil, nil, "", fmt.Errorf("invalid credentials")
 	}
 
@@ -100,17 +104,13 @@ func (a *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 		return nil, nil, "", fmt.Errorf("user not found: %w", err)
 	}
 
-	// Get user's role information
-	role, err := a.roleRepo.GetUserRole(ctx, user.ID)
-	if err != nil {
-		// If no role found, assign default user role
-		user.Role = domain.GetDefaultRole()
-		user.RoleID = domain.RoleIDUser
+	roleName, ok := domain.RoleNames[int(user.RoleID)]
+	if !ok {
+		user.RoleID, user.Role = domain.GetDefaultRole()
 	} else {
-		user.Role = role.Name
-		user.RoleID = role.ID
+		user.Role = roleName
 	}
-
+	
 	// Revoke old refresh token
 	if err := a.refreshTokenRepo.RevokeRefreshToken(ctx, refreshTokenString); err != nil {
 		return nil, nil, "", fmt.Errorf("failed to revoke old token: %w", err)
@@ -194,18 +194,19 @@ func (a *authService) GetUserFromToken(ctx context.Context, tokenString string) 
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	// Get user's role
-	role, err := a.roleRepo.GetUserRole(ctx, user.ID)
-	if err != nil {
-		// If no role found, assign default user role
-		user.Role = domain.GetDefaultRole()
-		user.RoleID = domain.RoleIDUser
+	roleName, ok := domain.RoleNames[int(user.RoleID)]
+	if !ok {
+		user.RoleID, user.Role = domain.GetDefaultRole()
 	} else {
-		user.Role = role.Name
-		user.RoleID = role.ID
+		user.Role = roleName
 	}
 
 	return user, nil
+}
+
+// CleanupExpiredTokens revokes all expired refresh tokens
+func (a *authService) CleanupExpiredTokens(ctx context.Context) error {
+	return a.refreshTokenRepo.CleanupExpiredTokens(ctx)
 }
 
 // ExtractTokenFromHeader extracts the token from Authorization header

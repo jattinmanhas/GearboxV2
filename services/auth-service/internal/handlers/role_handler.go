@@ -10,6 +10,15 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 )
 
+type IRoleHandler interface {
+	GetAllRoles(w http.ResponseWriter, r *http.Request)
+	GetUserRole(w http.ResponseWriter, r *http.Request)
+	AssignRoleToUser(w http.ResponseWriter, r *http.Request)
+	RemoveUserRole(w http.ResponseWriter, r *http.Request)
+	GetMyRole(w http.ResponseWriter, r *http.Request)
+	CheckPermission(w http.ResponseWriter, r *http.Request)
+}
+
 type RoleHandler struct {
 	roleService services.IRoleService
 }
@@ -90,43 +99,6 @@ func (h *RoleHandler) AssignRoleToUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "role assigned successfully", nil)
-}
-
-// UpdateUserRole updates a user's role
-func (h *RoleHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
-	// Parse request body
-	var req struct {
-		UserID uint `json:"user_id" validate:"required"`
-		RoleID uint `json:"role_id" validate:"required"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
-		return
-	}
-
-	// Get the current user from context (who is updating the role)
-	claims := middleware.GetClaimsFromContext(r.Context())
-	if claims == nil {
-		httpx.Error(w, http.StatusUnauthorized, "authentication required", nil)
-		return
-	}
-
-	// Type assert to get the actual claims
-	c, ok := claims.(*services.Claims)
-	if !ok {
-		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
-		return
-	}
-
-	// Update user role
-	err := h.roleService.UpdateUserRole(r.Context(), req.UserID, req.RoleID, c.UserID)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "failed to update user role", err)
-		return
-	}
-
-	httpx.OK(w, "user role updated successfully", nil)
 }
 
 // RemoveUserRole removes a user's role (sets to default user role)

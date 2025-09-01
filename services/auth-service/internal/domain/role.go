@@ -33,19 +33,30 @@ const (
 	RoleIDAdmin  = 3
 )
 
-// GetDefaultRole returns the default role for new users
-func GetDefaultRole() string {
-	return RoleUser
+// Role names - these will be set when we create the initial roles
+var RoleNames = map[int]string{
+	RoleIDUser:   RoleUser,
+	RoleIDEditor: RoleEditor,
+	RoleIDAdmin:  RoleAdmin,
+}
+
+
+var RoleIDs = map[string]int{
+	RoleUser:   RoleIDUser,
+	RoleEditor: RoleIDEditor,
+	RoleAdmin:  RoleIDAdmin,
+}
+
+
+// GetDefaultRole returns the default role (ID + Name)
+func GetDefaultRole() (uint, string) {
+	return RoleIDUser, RoleUser
 }
 
 // IsValidRole checks if a role name is valid
 func IsValidRole(roleName string) bool {
-	switch roleName {
-	case RoleUser, RoleEditor, RoleAdmin:
-		return true
-	default:
-		return false
-	}
+	_, exists := RoleIDs[roleName]
+	return exists
 }
 
 // GetRoleHierarchy returns the hierarchy level of a role (higher = more permissions)

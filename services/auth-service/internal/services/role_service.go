@@ -42,11 +42,6 @@ func NewRoleService(roleRepo repository.IRoleRepository, userRepo repository.IUs
 	}
 }
 
-// CreateRole is not needed since roles are predefined
-func (r *roleService) CreateRole(ctx context.Context, role *domain.Role, createdBy uint) error {
-	return fmt.Errorf("roles are predefined and cannot be created")
-}
-
 // GetRoleByID retrieves a role by ID
 func (r *roleService) GetRoleByID(ctx context.Context, id uint) (*domain.Role, error) {
 	return r.roleRepo.GetRoleByID(ctx, id)
@@ -60,16 +55,6 @@ func (r *roleService) GetRoleByName(ctx context.Context, name string) (*domain.R
 // GetAllRoles retrieves all active roles
 func (r *roleService) GetAllRoles(ctx context.Context) ([]*domain.Role, error) {
 	return r.roleRepo.GetAllRoles(ctx)
-}
-
-// UpdateRole is not needed since roles are predefined
-func (r *roleService) UpdateRole(ctx context.Context, role *domain.Role, updatedBy uint) error {
-	return fmt.Errorf("roles are predefined and cannot be modified")
-}
-
-// DeleteRole is not needed since roles are predefined
-func (r *roleService) DeleteRole(ctx context.Context, id uint, deletedBy uint) error {
-	return fmt.Errorf("roles are predefined and cannot be deleted")
 }
 
 // AssignRoleToUser assigns a role to a user

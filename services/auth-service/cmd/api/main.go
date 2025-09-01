@@ -31,9 +31,9 @@ func main() {
 	roleRepo := repository.NewRoleRepository(database)
 
 	// Initialize services
-	userService := services.NewUserService(userRepo)
 	jwtService := services.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, roleRepo, jwtService)
+	userService := services.NewUserService(userRepo, authService)
 	roleService := services.NewRoleService(roleRepo, userRepo)
 
 	// Initialize handlers

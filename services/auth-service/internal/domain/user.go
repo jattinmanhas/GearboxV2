@@ -16,6 +16,7 @@ type User struct {
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 	IsDeleted   bool      `json:"is_deleted" db:"is_deleted"`
+	IsActive    bool      `json:"is_active" db:"is_active"`
 
 	// Role information
 	RoleID uint   `json:"role_id" db:"role_id"`

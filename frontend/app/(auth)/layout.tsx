@@ -1,18 +1,18 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "GearboxV2 - Auth",
-  description: "GearboxV2 - Auth",
-};
+import { ThemeProvider } from "@/lib/theme-provider"
 
 export default function AuthLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <section>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
       {children}
-    </section>
-  );
+    </ThemeProvider>
+  )
 }

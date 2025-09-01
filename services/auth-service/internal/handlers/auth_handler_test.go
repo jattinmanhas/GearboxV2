@@ -126,6 +126,11 @@ func (m *MockAuthService) GenerateAccessTokenFromUser(ctx context.Context, user 
 	return args.Get(0).(string), args.Error(1)
 }
 
+func (m *MockAuthService) CleanupExpiredTokens(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 // TestAuthHandler_Login tests the login handler
 func TestAuthHandler_Login(t *testing.T) {
 	// 🎯 Test Strategy: Test login handler with mocked services
@@ -468,9 +473,8 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		accessToken, err := jwtService.GenerateAccessToken(user)
 		require.NoError(t, err)
 
-		// 🎭 Mock Expectations: Auth service should validate token and handle logout
+		// 🎭 Mock Expectations: Auth service should handle logout
 		claims := &services.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
-		mockAuthService.On("ValidateAccessToken", mock.Anything, accessToken).Return(claims, nil)
 		mockAuthService.On("LogoutAll", mock.Anything, uint(1)).Return(nil)
 
 		// Create request with access token cookie
@@ -479,6 +483,10 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 			Name:  "access_token",
 			Value: accessToken,
 		})
+
+		// Set claims in context (as middleware would do)
+		ctx := context.WithValue(req.Context(), "claims", claims)
+		req = req.WithContext(ctx)
 
 		// Create response recorder
 		w := httptest.NewRecorder()

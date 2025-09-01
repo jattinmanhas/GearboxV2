@@ -57,6 +57,7 @@ type IAuthHandler interface {
 	UpdateUser(w http.ResponseWriter, r *http.Request)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
+	CleanupExpiredTokens(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -71,6 +72,78 @@ func NewAuthHandler(userService services.IUserService, authService services.IAut
 		authService: authService,
 		jwtService:  jwtService,
 	}
+}
+
+// setAccessTokenCookie sets the access token in an HTTP-only cookie
+func (h *authHandler) setAccessTokenCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true, // Set to false in development
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(h.jwtService.GetAccessTokenExpiry().Seconds()),
+	})
+}
+
+// setRefreshTokenCookie sets the refresh token in an HTTP-only cookie
+func (h *authHandler) setRefreshTokenCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true, // Set to false in development
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(h.jwtService.GetRefreshTokenExpiry().Seconds()),
+	})
+}
+
+// clearAuthCookies clears both access and refresh token cookies
+func (h *authHandler) clearAuthCookies(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+}
+
+// extractClientIP extracts the client IP address from the request
+func (h *authHandler) extractClientIP(r *http.Request) string {
+	// Check for forwarded headers first (for proxy/load balancer scenarios)
+	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		if commaIdx := strings.Index(forwardedFor, ","); commaIdx != -1 {
+			return strings.TrimSpace(forwardedFor[:commaIdx])
+		}
+		return strings.TrimSpace(forwardedFor)
+	}
+
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+
+	// Fallback to RemoteAddr
+	ipAddress, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr // fallback, but may include port
+	}
+	return ipAddress
 }
 
 func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -121,13 +194,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Get user agent and IP address
 	userAgent := r.UserAgent()
-	ipAddress, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ipAddress = r.RemoteAddr // fallback, but may include port
-	}
-	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
-		ipAddress = forwardedFor
-	}
+	ipAddress := h.extractClientIP(r)
 
 	// Authenticate user and generate tokens
 	user, refreshToken, accessToken, err := h.authService.Login(r.Context(), req.Username, req.Password, userAgent, ipAddress)
@@ -137,25 +204,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set HTTP-only cookies
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    accessToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Set to false in development
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetAccessTokenExpiry().Seconds()),
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    refreshToken.RefreshToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Set to false in development
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetRefreshTokenExpiry().Seconds()),
-	})
+	h.setAccessTokenCookie(w, accessToken)
+	h.setRefreshTokenCookie(w, refreshToken.RefreshToken)
 
 	// Return success response
 	httpx.OK(w, "login successful", map[string]any{
@@ -165,6 +215,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"email":     user.Email,
 			"firstName": user.FirstName,
 			"lastName":  user.LastName,
+			"avatar":    user.Avatar,
+			"role":      user.Role,
 		},
 		"message": "Login successful. Tokens stored in HTTP-only cookies.",
 	})
@@ -186,25 +238,8 @@ func (h *authHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set new HTTP-only cookies
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    accessToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Set to false in development
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetAccessTokenExpiry().Seconds()),
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    newRefreshToken.RefreshToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Set to false in development
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetRefreshTokenExpiry().Seconds()),
-	})
+	h.setAccessTokenCookie(w, accessToken)
+	h.setRefreshTokenCookie(w, newRefreshToken.RefreshToken)
 
 	// Return success response
 	httpx.OK(w, "tokens refreshed successfully", map[string]any{
@@ -232,25 +267,7 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookies
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
+	h.clearAuthCookies(w)
 
 	httpx.OK(w, "logout successful", map[string]any{
 		"message": "Logout successful. All tokens cleared.",
@@ -258,17 +275,9 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from access token
-	accessToken := services.ExtractTokenFromCookie(r, "access_token")
-	if accessToken == "" {
-		httpx.Error(w, http.StatusUnauthorized, "access token not found", nil)
-		return
-	}
-
-	// Validate access token and get user
-	claims, err := h.authService.ValidateAccessToken(r.Context(), accessToken)
-	if err != nil {
-		httpx.Error(w, http.StatusUnauthorized, "invalid access token", err)
+	claims, ok := r.Context().Value("claims").(*services.Claims)
+	if !ok || claims == nil {
+		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
 		return
 	}
 
@@ -279,25 +288,7 @@ func (h *authHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookies
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
+	h.clearAuthCookies(w)
 
 	httpx.OK(w, "logout from all devices successful", map[string]any{
 		"message": "Logout from all devices successful. All tokens revoked.",
@@ -463,5 +454,17 @@ func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Revoke http-only cookies
+	h.clearAuthCookies(w)
+
 	httpx.OK(w, "user deleted successfully", nil)
+}
+
+func (h *authHandler) CleanupExpiredTokens(w http.ResponseWriter, r *http.Request) {
+	if err := h.authService.CleanupExpiredTokens(r.Context()); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to cleanup expired tokens", err)
+		return
+	}
+
+	httpx.OK(w, "expired tokens cleaned up successfully", nil)
 }

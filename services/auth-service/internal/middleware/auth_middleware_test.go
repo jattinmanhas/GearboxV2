@@ -80,6 +80,11 @@ func (m *MockAuthService) GenerateAccessTokenFromUser(ctx context.Context, user 
 	return args.Get(0).(string), args.Error(1)
 }
 
+func (m *MockAuthService) CleanupExpiredTokens(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 // TestAuthMiddleware tests the authentication middleware
 func TestAuthMiddleware(t *testing.T) {
 	// 🎯 Test Strategy: Test authentication middleware with mocked auth service

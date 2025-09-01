@@ -61,6 +61,13 @@ func (r *userRepository) GetUserByID(ctx context.Context, id int) (*domain.User,
 		return nil, err
 	}
 
+	roleName, ok := domain.RoleNames[int(user.RoleID)]
+	if !ok {
+		user.RoleID, user.Role = domain.GetDefaultRole()
+	} else {
+		user.Role = roleName
+	}
+
 	return &user, nil
 }
 
@@ -72,6 +79,13 @@ func (r *userRepository) GetUserByUsername(ctx context.Context, username string)
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, username); err != nil {
 		return nil, err
+	}
+
+	roleName, ok := domain.RoleNames[int(user.RoleID)]
+	if !ok {
+		user.RoleID, user.Role = domain.GetDefaultRole()
+	} else {
+		user.Role = roleName
 	}
 
 	return &user, nil
@@ -121,6 +135,15 @@ func (r *userRepository) GetAllUsers(ctx context.Context, limit int, offset int)
 	var users []domain.User
 	if err := r.db.SelectContext(ctx, &users, query, limit, offset); err != nil {
 		return nil, err
+	}
+
+	for i := range users {
+		roleName, ok := domain.RoleNames[int(users[i].RoleID)]
+		if !ok {
+			users[i].RoleID, users[i].Role = domain.GetDefaultRole()
+		} else {
+			users[i].Role = roleName
+		}
 	}
 
 	return users, nil

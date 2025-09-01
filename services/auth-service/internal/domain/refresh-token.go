@@ -12,4 +12,5 @@ type RefreshToken struct {
 	LastUsedAt   *time.Time `json:"last_used_at,omitempty" db:"last_used_at"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	IsRevoked    bool      `json:"is_revoked" db:"is_revoked"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
