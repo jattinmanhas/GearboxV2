@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/httpx"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/middleware"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
 )
 
 type IRoleHandler interface {

@@ -19,7 +19,7 @@ import (
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -39,15 +39,21 @@ func main() {
 
 	// Initialize repositories
 	categoryRepo := repository.NewCategoryRepository(database.DB)
+	productRepo := repository.NewProductRepository(database.DB)
+	cartRepo := repository.NewCartRepository(database.DB)
 
 	// Initialize services
 	categoryService := services.NewCategoryService(categoryRepo)
+	productService := services.NewProductService(productRepo)
+	cartService := services.NewCartService(cartRepo, productRepo)
 
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	productHandler := handlers.NewProductHandler(productService)
+	cartHandler := handlers.NewCartHandler(cartService)
 
 	// Initialize router
-	appRouter := router.NewRouter(categoryHandler)
+	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler)
 
 	// Create HTTP server
 	server := &http.Server{

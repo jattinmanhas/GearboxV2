@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -164,7 +165,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			Return(user, refreshToken, "test-access-token", nil)
 
 		// Create request
-		loginReq := loginRequest{
+		loginReq := dto.LoginRequest{
 			Username: "testuser",
 			Password: "password123",
 		}
@@ -241,7 +242,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create request with missing fields
-		loginReq := loginRequest{
+		loginReq := dto.LoginRequest{
 			Username: "", // Missing username
 			Password: "password123",
 		}
@@ -280,7 +281,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			Return(nil, nil, "", assert.AnError)
 
 		// Create request
-		loginReq := loginRequest{
+		loginReq := dto.LoginRequest{
 			Username: "testuser",
 			Password: "wrongpassword",
 		}

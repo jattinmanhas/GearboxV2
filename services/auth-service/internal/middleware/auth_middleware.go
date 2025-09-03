@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/httpx"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
 )
 
 type contextKey string

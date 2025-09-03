@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"log"
 	"path/filepath"
 	"sort"
@@ -68,7 +68,7 @@ func (db *DB) createMigrationsTable() error {
 
 // loadMigrations loads all migration files from the migrations directory
 func (db *DB) loadMigrations(migrationsPath string) ([]Migration, error) {
-	files, err := ioutil.ReadDir(migrationsPath)
+	files, err := os.ReadDir(migrationsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -94,14 +94,14 @@ func (db *DB) loadMigrations(migrationsPath string) ([]Migration, error) {
 
 		// Read up migration
 		upPath := filepath.Join(migrationsPath, file.Name())
-		upSQL, err := ioutil.ReadFile(upPath)
+		upSQL, err := os.ReadFile(upPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read up migration %s: %w", upPath, err)
 		}
 
 		// Read down migration
 		downPath := filepath.Join(migrationsPath, strings.Replace(file.Name(), ".up.sql", ".down.sql", 1))
-		downSQL, err := ioutil.ReadFile(downPath)
+		downSQL, err := os.ReadFile(downPath)
 		if err != nil {
 			// Down migration is optional
 			downSQL = []byte("-- No down migration available")

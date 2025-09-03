@@ -6,45 +6,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
+	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
 )
-
-type registerRequest struct {
-	Username    string    `json:"username" validate:"required,username"`
-	Password    string    `json:"password" validate:"required,password"`
-	Email       string    `json:"email" validate:"required,email"`
-	FirstName   string    `json:"first_name" validate:"required,min=1,max=50"`
-	MiddleName  string    `json:"middle_name" validate:"omitempty,max=50"`
-	LastName    string    `json:"last_name" validate:"omitempty,max=50"` // Made optional
-	Avatar      string    `json:"avatar" validate:"omitempty,url"`
-	Gender      string    `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"` // Made optional
-	DateOfBirth time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`                      // Made optional
-}
-
-type updateUserRequest struct {
-	FirstName   string     `json:"first_name" validate:"omitempty,min=1,max=50"`
-	MiddleName  string     `json:"middle_name" validate:"omitempty,max=50"`
-	LastName    string     `json:"last_name" validate:"omitempty,min=1,max=50"`
-	Avatar      string     `json:"avatar" validate:"omitempty,url"`
-	Gender      string     `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"`
-	DateOfBirth *time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`
-}
-
-type changePasswordRequest struct {
-	CurrentPassword string `json:"current_password" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required,password"`
-}
-
-type loginRequest struct {
-	Username string `json:"username" validate:"required"`
-	Password string `json:"password" validate:"required"`
-}
 
 type IAuthHandler interface {
 	RegisterUser(w http.ResponseWriter, r *http.Request)
@@ -147,7 +116,7 @@ func (h *authHandler) extractClientIP(r *http.Request) string {
 }
 
 func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
+	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
@@ -180,7 +149,7 @@ func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
+	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
@@ -362,7 +331,7 @@ func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req updateUserRequest
+	var req dto.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
@@ -417,7 +386,7 @@ func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req changePasswordRequest
+	var req dto.ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return

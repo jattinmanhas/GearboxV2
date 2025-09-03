@@ -31,4 +31,6 @@ type CategoryFilter struct {
 	ParentID *int64 `json:"parent_id"`
 	IsActive *bool  `json:"is_active"`
 	Search   string `json:"search"`
+	Page     int    `json:"page"`
+	Limit    int    `json:"limit"`
 }

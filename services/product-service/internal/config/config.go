@@ -5,7 +5,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
+
 
 // Config holds all configuration for the application
 type Config struct {
@@ -35,7 +38,9 @@ type DatabaseConfig struct {
 }
 
 // Load loads configuration from environment variables
-func Load() (*Config, error) {
+func LoadConfig() (*Config, error) {
+	_ = godotenv.Load()
+
 	config := &Config{
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "localhost"),

@@ -80,3 +80,14 @@ type CartShipping struct {
 	EstimatedDays    int       `json:"estimated_days" db:"estimated_days"`
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 }
+
+// CartAnalytics represents analytics data for carts
+type CartAnalytics struct {
+	TotalCarts          int64   `json:"total_carts"`
+	ActiveCarts         int64   `json:"active_carts"`
+	AbandonedCarts      int64   `json:"abandoned_carts"`
+	AverageCartValue    float64 `json:"average_cart_value"`
+	TotalCartValue      float64 `json:"total_cart_value"`
+	ConversionRate      float64 `json:"conversion_rate"`
+	AverageItemsPerCart float64 `json:"average_items_per_cart"`
+}

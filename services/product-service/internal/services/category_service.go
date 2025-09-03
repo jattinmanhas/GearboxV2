@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/repository"
 )
 
 type CategoryService interface {
-	CreateCategory(ctx context.Context, req *CreateCategoryRequest) (*domain.Category, error)
+	CreateCategory(ctx context.Context, cat *domain.Category) (*domain.Category, error)
 	GetCategory(ctx context.Context, id int64) (*domain.Category, error)
 	GetCategoryBySlug(ctx context.Context, slug string) (*domain.Category, error)
-	UpdateCategory(ctx context.Context, id int64, req *UpdateCategoryRequest) (*domain.Category, error)
+	UpdateCategory(ctx context.Context, id int64, req *dto.UpdateCategoryRequest) (*domain.Category, error)
 	DeleteCategory(ctx context.Context, id int64) error
 	ListCategories(ctx context.Context, req *ListCategoriesRequest) (*ListCategoriesResponse, error)
 	GetCategoryHierarchy(ctx context.Context) ([]*domain.CategoryHierarchy, error)
@@ -29,30 +30,6 @@ func NewCategoryService(categoryRepo repository.CategoryRepository) CategoryServ
 	return &categoryService{
 		categoryRepo: categoryRepo,
 	}
-}
-
-type CreateCategoryRequest struct {
-	Name            string `json:"name" validate:"required,min=1,max=255"`
-	Description     string `json:"description"`
-	Slug            string `json:"slug" validate:"required,min=1,max=255"`
-	ParentID        *int64 `json:"parent_id"`
-	IsActive        bool   `json:"is_active"`
-	SortOrder       int    `json:"sort_order"`
-	ImageURL        string `json:"image_url"`
-	MetaTitle       string `json:"meta_title"`
-	MetaDescription string `json:"meta_description"`
-}
-
-type UpdateCategoryRequest struct {
-	Name            *string `json:"name" validate:"omitempty,min=1,max=255"`
-	Description     *string `json:"description"`
-	Slug            *string `json:"slug" validate:"omitempty,min=1,max=255"`
-	ParentID        *int64  `json:"parent_id"`
-	IsActive        *bool   `json:"is_active"`
-	SortOrder       *int    `json:"sort_order"`
-	ImageURL        *string `json:"image_url"`
-	MetaTitle       *string `json:"meta_title"`
-	MetaDescription *string `json:"meta_description"`
 }
 
 type ListCategoriesRequest struct {
@@ -71,53 +48,37 @@ type ListCategoriesResponse struct {
 	TotalPages int                `json:"total_pages"`
 }
 
-func (s *categoryService) CreateCategory(ctx context.Context, req *CreateCategoryRequest) (*domain.Category, error) {
+func (s *categoryService) CreateCategory(ctx context.Context, cat *domain.Category) (*domain.Category, error) {
 	// Validate parent category exists if provided
-	if req.ParentID != nil {
-		exists, err := s.categoryRepo.Exists(ctx, *req.ParentID)
+	if cat.ParentID != nil {
+		exists, err := s.categoryRepo.Exists(ctx, *cat.ParentID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate parent category: %w", err)
 		}
 		if !exists {
-			return nil, fmt.Errorf("parent category with ID %d does not exist", *req.ParentID)
+			return nil, fmt.Errorf("parent category with ID %d does not exist", *cat.ParentID)
 		}
 	}
 
 	// Check if slug already exists
-	exists, err := s.categoryRepo.ExistsBySlug(ctx, req.Slug, nil)
+	exists, err := s.categoryRepo.ExistsBySlug(ctx, cat.Slug, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check slug uniqueness: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("category with slug '%s' already exists", req.Slug)
+		return nil, fmt.Errorf("category with slug '%s' already exists", cat.Slug)
 	}
 
 	// Generate slug if not provided
-	slug := req.Slug
-	if slug == "" {
-		slug = s.generateSlug(req.Name)
+	if cat.Slug == "" {
+		cat.Slug = s.generateSlug(cat.Name)
 	}
 
-	now := time.Now()
-	category := &domain.Category{
-		Name:        req.Name,
-		Description: req.Description,
-		Slug:        slug,
-		ParentID:    req.ParentID,
-		IsActive:    req.IsActive,
-		SortOrder:   req.SortOrder,
-		ImageURL:    req.ImageURL,
-		MetaTitle:   req.MetaTitle,
-		MetaDesc:    req.MetaDescription,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-
-	if err := s.categoryRepo.Create(ctx, category); err != nil {
+	if err := s.categoryRepo.Create(ctx, cat); err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
 
-	return category, nil
+	return cat, nil
 }
 
 func (s *categoryService) GetCategory(ctx context.Context, id int64) (*domain.Category, error) {
@@ -144,7 +105,7 @@ func (s *categoryService) GetCategoryBySlug(ctx context.Context, slug string) (*
 	return category, nil
 }
 
-func (s *categoryService) UpdateCategory(ctx context.Context, id int64, req *UpdateCategoryRequest) (*domain.Category, error) {
+func (s *categoryService) UpdateCategory(ctx context.Context, id int64, req *dto.UpdateCategoryRequest) (*domain.Category, error) {
 	// Get existing category
 	existing, err := s.categoryRepo.GetByID(ctx, id)
 	if err != nil {
@@ -161,6 +122,7 @@ func (s *categoryService) UpdateCategory(ctx context.Context, id int64, req *Upd
 			return nil, fmt.Errorf("category cannot be its own parent")
 		}
 
+		// check if the gived parent id exists...
 		exists, err := s.categoryRepo.Exists(ctx, *req.ParentID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate parent category: %w", err)
@@ -170,53 +132,55 @@ func (s *categoryService) UpdateCategory(ctx context.Context, id int64, req *Upd
 		}
 	}
 
-	// Check slug uniqueness if slug is being updated
-	if req.Slug != nil && *req.Slug != existing.Slug {
-		exists, err := s.categoryRepo.ExistsBySlug(ctx, *req.Slug, &id)
+	// Validate slug uniqueness if provided
+	if req.Slug != "" && req.Slug != existing.Slug {
+		exists, err := s.categoryRepo.ExistsBySlug(ctx, req.Slug, &id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check slug uniqueness: %w", err)
 		}
 		if exists {
-			return nil, fmt.Errorf("category with slug '%s' already exists", *req.Slug)
+			return nil, fmt.Errorf("category with slug '%s' already exists", req.Slug)
 		}
 	}
 
-	// Update fields
-	if req.Name != nil {
-		existing.Name = *req.Name
+	updatedCategory := *existing
+
+	// Apply updates only for provided fields
+	if req.Name != "" {
+		updatedCategory.Name = req.Name
 	}
-	if req.Description != nil {
-		existing.Description = *req.Description
+	if req.Description != "" {
+		updatedCategory.Description = req.Description
 	}
-	if req.Slug != nil {
-		existing.Slug = *req.Slug
+	if req.Slug != "" {
+		updatedCategory.Slug = req.Slug
 	}
 	if req.ParentID != nil {
-		existing.ParentID = req.ParentID
+		updatedCategory.ParentID = req.ParentID
 	}
 	if req.IsActive != nil {
-		existing.IsActive = *req.IsActive
+		updatedCategory.IsActive = *req.IsActive
 	}
 	if req.SortOrder != nil {
-		existing.SortOrder = *req.SortOrder
+		updatedCategory.SortOrder = *req.SortOrder
 	}
-	if req.ImageURL != nil {
-		existing.ImageURL = *req.ImageURL
+	if req.ImageURL != "" {
+		updatedCategory.ImageURL = req.ImageURL
 	}
-	if req.MetaTitle != nil {
-		existing.MetaTitle = *req.MetaTitle
+	if req.MetaTitle != "" {
+		updatedCategory.MetaTitle = req.MetaTitle
 	}
-	if req.MetaDescription != nil {
-		existing.MetaDesc = *req.MetaDescription
+	if req.MetaDescription != "" {
+		updatedCategory.MetaDesc = req.MetaDescription
 	}
 
-	existing.UpdatedAt = time.Now()
+	updatedCategory.UpdatedAt = time.Now()
 
-	if err := s.categoryRepo.Update(ctx, existing); err != nil {
+	if err := s.categoryRepo.Update(ctx, &updatedCategory); err != nil {
 		return nil, fmt.Errorf("failed to update category: %w", err)
 	}
 
-	return existing, nil
+	return &updatedCategory, nil
 }
 
 func (s *categoryService) DeleteCategory(ctx context.Context, id int64) error {
@@ -238,7 +202,7 @@ func (s *categoryService) DeleteCategory(ctx context.Context, id int64) error {
 		return fmt.Errorf("cannot delete category with ID %d: it has child categories", id)
 	}
 
-	// TODO: Check if category has products
+	// TODO: hCeck if category has products
 	// This would require a product repository to check for products in this category
 
 	if err := s.categoryRepo.Delete(ctx, id); err != nil {
@@ -254,7 +218,7 @@ func (s *categoryService) ListCategories(ctx context.Context, req *ListCategorie
 		req.Page = 1
 	}
 	if req.Limit <= 0 {
-		req.Limit = 20
+		req.Limit = 10
 	}
 	if req.Limit > 100 {
 		req.Limit = 100
@@ -264,6 +228,8 @@ func (s *categoryService) ListCategories(ctx context.Context, req *ListCategorie
 		ParentID: req.ParentID,
 		IsActive: req.IsActive,
 		Search:   req.Search,
+		Page:     req.Page,
+		Limit:    req.Limit,
 	}
 
 	// Get total count

@@ -172,14 +172,30 @@ func (r *categoryRepository) List(ctx context.Context, filter *domain.CategoryFi
 		}
 
 		if filter.Search != "" {
-			query += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex)
+			query += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex+1)
 			searchTerm := "%" + filter.Search + "%"
-			args = append(args, searchTerm)
-			argIndex++
+			args = append(args, searchTerm, searchTerm)
+			argIndex += 2
 		}
 	}
 
+	// Order results
 	query += " ORDER BY sort_order ASC, name ASC"
+
+	// Pagination
+	if filter != nil && filter.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argIndex)
+		args = append(args, filter.Limit)
+		argIndex++
+
+		// Page → OFFSET
+		if filter.Page > 0 {
+			offset := (filter.Page - 1) * filter.Limit
+			query += fmt.Sprintf(" OFFSET $%d", argIndex)
+			args = append(args, offset)
+			argIndex++
+		}
+	}
 
 	var categories []*domain.Category
 	err := r.db.SelectContext(ctx, &categories, query, args...)
@@ -189,7 +205,6 @@ func (r *categoryRepository) List(ctx context.Context, filter *domain.CategoryFi
 
 	return categories, nil
 }
-
 func (r *categoryRepository) GetHierarchy(ctx context.Context) ([]*domain.CategoryHierarchy, error) {
 	// First, get all categories
 	categories, err := r.List(ctx, &domain.CategoryFilter{})

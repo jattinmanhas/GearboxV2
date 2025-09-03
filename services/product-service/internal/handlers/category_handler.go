@@ -2,13 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/validation"
+	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
 )
 
 type ICategoryHandler interface {
@@ -34,27 +38,38 @@ func NewCategoryHandler(categoryService services.CategoryService) ICategoryHandl
 
 // CreateCategory handles POST /api/v1/categories
 func (h *categoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	var req services.CreateCategoryRequest
+	var req dto.CreateCategoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
 	}
 
-	// Validate request
-	if err := validateCreateCategoryRequest(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Validate Request
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
 		return
 	}
 
-	category, err := h.categoryService.CreateCategory(r.Context(), &req)
+	cat := &domain.Category{
+		Name:        req.Name,
+		Description: req.Description,
+		Slug:        req.Slug,
+		ParentID:    req.ParentID,
+		IsActive:    req.IsActive,
+		SortOrder:   req.SortOrder,
+		ImageURL:    req.ImageURL,
+		MetaTitle:   req.MetaTitle,
+		MetaDesc:    req.MetaDescription,
+		CreatedAt:   time.Now(),
+	}
+
+	category, err := h.categoryService.CreateCategory(r.Context(), cat)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "failed to create category", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(category)
+	httpx.Created(w, "category created", category)
 }
 
 // GetCategory handles GET /api/v1/categories/{id}
@@ -63,45 +78,43 @@ func (h *categoryHandler) GetCategory(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid category ID", err)
 		return
 	}
 
 	category, err := h.categoryService.GetCategory(r.Context(), id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(category)
+	httpx.OK(w, "category retrieved", category)
 }
 
 // GetCategoryBySlug handles GET /api/v1/categories/slug/{slug}
 func (h *categoryHandler) GetCategoryBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 
-	if slug == "" {
-		http.Error(w, "Slug is required", http.StatusBadRequest)
+	if err := validation.ValidateSlug(slug); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid slug", err)
 		return
 	}
 
 	category, err := h.categoryService.GetCategoryBySlug(r.Context(), slug)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, err.Error(), err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(category)
+	httpx.OK(w, "category retrieved", category)
 }
 
 // UpdateCategory handles PUT /api/v1/categories/{id}
@@ -110,34 +123,32 @@ func (h *categoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid category ID", err)
 		return
 	}
 
-	var req services.UpdateCategoryRequest
+	var req dto.UpdateCategoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
 	}
 
-	// Validate request
-	if err := validateUpdateCategoryRequest(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
 		return
 	}
 
 	category, err := h.categoryService.UpdateCategory(r.Context(), id, &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(category)
+	httpx.OK(w, "category updated", category)
 }
 
 // DeleteCategory handles DELETE /api/v1/categories/{id}
@@ -146,21 +157,21 @@ func (h *categoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid category ID", err)
 		return
 	}
 
 	err = h.categoryService.DeleteCategory(r.Context(), id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	httpx.OK(w, "category deleted", nil)
 }
 
 // ListCategories handles GET /api/v1/categories
@@ -196,24 +207,22 @@ func (h *categoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 
 	response, err := h.categoryService.ListCategories(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "failed to list categories", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	httpx.OK(w, "categories retrieved", response)
 }
 
 // GetCategoryHierarchy handles GET /api/v1/categories/hierarchy
 func (h *categoryHandler) GetCategoryHierarchy(w http.ResponseWriter, r *http.Request) {
 	hierarchy, err := h.categoryService.GetCategoryHierarchy(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "failed to get category hierarchy", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(hierarchy)
+	httpx.OK(w, "category hierarchy retrieved", hierarchy)
 }
 
 // GetCategoryChildren handles GET /api/v1/categories/{id}/children
@@ -222,53 +231,15 @@ func (h *categoryHandler) GetCategoryChildren(w http.ResponseWriter, r *http.Req
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid category ID", err)
 		return
 	}
 
 	children, err := h.categoryService.GetCategoryChildren(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.Error(w, http.StatusInternalServerError, "failed to get category children", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(children)
-}
-
-// Validation functions
-func validateCreateCategoryRequest(req *services.CreateCategoryRequest) error {
-	if strings.TrimSpace(req.Name) == "" {
-		return fmt.Errorf("name is required")
-	}
-	if len(req.Name) > 255 {
-		return fmt.Errorf("name must be less than 255 characters")
-	}
-	if strings.TrimSpace(req.Slug) == "" {
-		return fmt.Errorf("slug is required")
-	}
-	if len(req.Slug) > 255 {
-		return fmt.Errorf("slug must be less than 255 characters")
-	}
-	return nil
-}
-
-func validateUpdateCategoryRequest(req *services.UpdateCategoryRequest) error {
-	if req.Name != nil {
-		if strings.TrimSpace(*req.Name) == "" {
-			return fmt.Errorf("name cannot be empty")
-		}
-		if len(*req.Name) > 255 {
-			return fmt.Errorf("name must be less than 255 characters")
-		}
-	}
-	if req.Slug != nil {
-		if strings.TrimSpace(*req.Slug) == "" {
-			return fmt.Errorf("slug cannot be empty")
-		}
-		if len(*req.Slug) > 255 {
-			return fmt.Errorf("slug must be less than 255 characters")
-		}
-	}
-	return nil
+	httpx.OK(w, "category children retrieved", children)
 }
