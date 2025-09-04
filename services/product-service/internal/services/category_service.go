@@ -24,11 +24,13 @@ type CategoryService interface {
 
 type categoryService struct {
 	categoryRepo repository.CategoryRepository
+	productRepo  repository.ProductRepository
 }
 
-func NewCategoryService(categoryRepo repository.CategoryRepository) CategoryService {
+func NewCategoryService(categoryRepo repository.CategoryRepository, productRepo repository.ProductRepository) CategoryService {
 	return &categoryService{
 		categoryRepo: categoryRepo,
+		productRepo:  productRepo,
 	}
 }
 
@@ -202,8 +204,14 @@ func (s *categoryService) DeleteCategory(ctx context.Context, id int64) error {
 		return fmt.Errorf("cannot delete category with ID %d: it has child categories", id)
 	}
 
-	// TODO: hCeck if category has products
-	// This would require a product repository to check for products in this category
+	// Check if category has products
+	hasProducts, err := s.productRepo.CheckCategoryHasProducts(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to check category has products: %w", err)
+	}
+	if hasProducts {
+		return fmt.Errorf("cannot delete category with ID %d: it has products", id)
+	}
 
 	if err := s.categoryRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)

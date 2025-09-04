@@ -16,7 +16,8 @@ type CartRepository interface {
 	GetCartByID(ctx context.Context, id int64) (*domain.Cart, error)
 	GetCartByUserID(ctx context.Context, userID int64) (*domain.Cart, error)
 	GetCartBySessionID(ctx context.Context, sessionID string) (*domain.Cart, error)
-	UpdateCart(ctx context.Context, id int64, cart *domain.Cart) error
+	GetCartBySessionOrUser(ctx context.Context, sessionID string, userID *int64) (*domain.Cart, error)
+	UpdateCart(ctx context.Context, cart *domain.Cart) error
 	DeleteCart(ctx context.Context, id int64) error
 	GetOrCreateCart(ctx context.Context, userID *int64, sessionID string, currency string) (*domain.Cart, error)
 
@@ -84,28 +85,30 @@ func NewCartRepository(db *sqlx.DB) CartRepository {
 func (r *cartRepository) CreateCart(ctx context.Context, cart *domain.Cart) error {
 	query := `
 		INSERT INTO carts (user_id, session_id, currency, created_at, updated_at, expires_at)
-		VALUES (:user_id, :session_id, :currency, :created_at, :updated_at, :expires_at)`
+		VALUES (:user_id, :session_id, :currency, :created_at, :updated_at, :expires_at)
+		RETURNING id`
 
 	cart.CreatedAt = time.Now()
 	cart.UpdatedAt = time.Now()
 
-	result, err := r.db.NamedExecContext(ctx, query, cart)
+	result, err := r.db.NamedQueryContext(ctx, query, cart)
 	if err != nil {
 		return fmt.Errorf("failed to create cart: %w", err)
 	}
+	defer result.Close()
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get cart ID: %w", err)
+	if result.Next() {
+		if err := result.Scan(&cart.ID); err != nil {
+			return fmt.Errorf("failed to scan cart ID: %w", err)
+		}
 	}
 
-	cart.ID = id
 	return nil
 }
 
 // GetCartByID retrieves a cart by ID
 func (r *cartRepository) GetCartByID(ctx context.Context, id int64) (*domain.Cart, error) {
-	query := `SELECT * FROM carts WHERE id = ?`
+	query := `SELECT * FROM carts WHERE id = $1`
 
 	var cart domain.Cart
 	err := r.db.GetContext(ctx, &cart, query, id)
@@ -121,7 +124,7 @@ func (r *cartRepository) GetCartByID(ctx context.Context, id int64) (*domain.Car
 
 // GetCartByUserID retrieves a cart by user ID
 func (r *cartRepository) GetCartByUserID(ctx context.Context, userID int64) (*domain.Cart, error) {
-	query := `SELECT * FROM carts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`
+	query := `SELECT * FROM carts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`
 
 	var cart domain.Cart
 	err := r.db.GetContext(ctx, &cart, query, userID)
@@ -137,7 +140,7 @@ func (r *cartRepository) GetCartByUserID(ctx context.Context, userID int64) (*do
 
 // GetCartBySessionID retrieves a cart by session ID
 func (r *cartRepository) GetCartBySessionID(ctx context.Context, sessionID string) (*domain.Cart, error) {
-	query := `SELECT * FROM carts WHERE session_id = ? ORDER BY created_at DESC LIMIT 1`
+	query := `SELECT * FROM carts WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`
 
 	var cart domain.Cart
 	err := r.db.GetContext(ctx, &cart, query, sessionID)
@@ -152,7 +155,7 @@ func (r *cartRepository) GetCartBySessionID(ctx context.Context, sessionID strin
 }
 
 // UpdateCart updates an existing cart
-func (r *cartRepository) UpdateCart(ctx context.Context, id int64, cart *domain.Cart) error {
+func (r *cartRepository) UpdateCart(ctx context.Context, cart *domain.Cart) error {
 	query := `
 		UPDATE carts SET
 			user_id = :user_id, session_id = :session_id, currency = :currency,
@@ -160,7 +163,6 @@ func (r *cartRepository) UpdateCart(ctx context.Context, id int64, cart *domain.
 		WHERE id = :id`
 
 	cart.UpdatedAt = time.Now()
-	cart.ID = id
 
 	result, err := r.db.NamedExecContext(ctx, query, cart)
 	if err != nil {
@@ -173,10 +175,45 @@ func (r *cartRepository) UpdateCart(ctx context.Context, id int64, cart *domain.
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("cart with ID %d not found", id)
+		return fmt.Errorf("cart with ID %d not found", cart.ID)
 	}
 
 	return nil
+}
+
+// GetCartBySessionOrUser retrieves a cart by session ID or user ID
+func (r *cartRepository) GetCartBySessionOrUser(ctx context.Context, sessionID string, userID *int64) (*domain.Cart, error) {
+	var cart domain.Cart
+	var query string
+	var args []interface{}
+
+	if userID != nil {
+		// If user is logged in, prioritize user-based cart
+		query = `SELECT id, user_id, session_id, currency, created_at, updated_at, expires_at 
+				 FROM carts 
+				 WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
+				 ORDER BY created_at DESC 
+				 LIMIT 1`
+		args = []interface{}{*userID}
+	} else {
+		// If guest user, use session ID
+		query = `SELECT id, user_id, session_id, currency, created_at, updated_at, expires_at 
+				 FROM carts 
+				 WHERE session_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
+				 ORDER BY created_at DESC 
+				 LIMIT 1`
+		args = []interface{}{sessionID}
+	}
+
+	err := r.db.GetContext(ctx, &cart, query, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, sql.ErrNoRows
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
+	}
+
+	return &cart, nil
 }
 
 // DeleteCart deletes a cart
@@ -189,25 +226,25 @@ func (r *cartRepository) DeleteCart(ctx context.Context, id int64) error {
 	defer tx.Rollback()
 
 	// Delete cart items
-	_, err = tx.ExecContext(ctx, "DELETE FROM cart_items WHERE cart_id = ?", id)
+	_, err = tx.ExecContext(ctx, "DELETE FROM cart_items WHERE cart_id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete cart items: %w", err)
 	}
 
 	// Delete cart coupons
-	_, err = tx.ExecContext(ctx, "DELETE FROM cart_coupons WHERE cart_id = ?", id)
+	_, err = tx.ExecContext(ctx, "DELETE FROM cart_coupons WHERE cart_id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete cart coupons: %w", err)
 	}
 
 	// Delete cart shipping
-	_, err = tx.ExecContext(ctx, "DELETE FROM cart_shipping WHERE cart_id = ?", id)
+	_, err = tx.ExecContext(ctx, "DELETE FROM cart_shipping WHERE cart_id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete cart shipping: %w", err)
 	}
 
 	// Delete cart
-	result, err := tx.ExecContext(ctx, "DELETE FROM carts WHERE id = ?", id)
+	result, err := tx.ExecContext(ctx, "DELETE FROM carts WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete cart: %w", err)
 	}
@@ -292,7 +329,7 @@ func (r *cartRepository) AddItemToCart(ctx context.Context, item *domain.CartIte
 
 // GetCartItemByID retrieves a cart item by ID
 func (r *cartRepository) GetCartItemByID(ctx context.Context, id int64) (*domain.CartItem, error) {
-	query := `SELECT * FROM cart_items WHERE id = ?`
+	query := `SELECT * FROM cart_items WHERE id = $1`
 
 	var item domain.CartItem
 	err := r.db.GetContext(ctx, &item, query, id)
@@ -312,10 +349,10 @@ func (r *cartRepository) GetCartItemByProduct(ctx context.Context, cartID, produ
 	var args []interface{}
 
 	if variantID != nil {
-		query = `SELECT * FROM cart_items WHERE cart_id = ? AND product_id = ? AND product_variant_id = ?`
+		query = `SELECT * FROM cart_items WHERE cart_id = $1 AND product_id = $2 AND product_variant_id = $3`
 		args = []interface{}{cartID, productID, *variantID}
 	} else {
-		query = `SELECT * FROM cart_items WHERE cart_id = ? AND product_id = ? AND product_variant_id IS NULL`
+		query = `SELECT * FROM cart_items WHERE cart_id = $1 AND product_id = $2 AND product_variant_id IS NULL`
 		args = []interface{}{cartID, productID}
 	}
 
@@ -362,7 +399,7 @@ func (r *cartRepository) UpdateCartItem(ctx context.Context, id int64, item *dom
 
 // DeleteCartItem deletes a cart item
 func (r *cartRepository) DeleteCartItem(ctx context.Context, id int64) error {
-	query := `DELETE FROM cart_items WHERE id = ?`
+	query := `DELETE FROM cart_items WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -383,7 +420,7 @@ func (r *cartRepository) DeleteCartItem(ctx context.Context, id int64) error {
 
 // GetCartItems retrieves all items in a cart
 func (r *cartRepository) GetCartItems(ctx context.Context, cartID int64) ([]*domain.CartItem, error) {
-	query := `SELECT * FROM cart_items WHERE cart_id = ? ORDER BY created_at ASC`
+	query := `SELECT * FROM cart_items WHERE cart_id = $1 ORDER BY created_at ASC`
 
 	var items []*domain.CartItem
 	err := r.db.SelectContext(ctx, &items, query, cartID)
@@ -396,7 +433,7 @@ func (r *cartRepository) GetCartItems(ctx context.Context, cartID int64) ([]*dom
 
 // ClearCartItems removes all items from a cart
 func (r *cartRepository) ClearCartItems(ctx context.Context, cartID int64) error {
-	query := `DELETE FROM cart_items WHERE cart_id = ?`
+	query := `DELETE FROM cart_items WHERE cart_id = $1`
 
 	_, err := r.db.ExecContext(ctx, query, cartID)
 	if err != nil {
@@ -488,7 +525,7 @@ func (r *cartRepository) CalculateCartTotal(ctx context.Context, cartID int64) (
 
 // GetCartItemCount gets the total number of items in a cart
 func (r *cartRepository) GetCartItemCount(ctx context.Context, cartID int64) (int, error) {
-	query := `SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE cart_id = ?`
+	query := `SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE cart_id = $1`
 
 	var count int
 	err := r.db.GetContext(ctx, &count, query, cartID)
@@ -519,7 +556,7 @@ func (r *cartRepository) ApplyCouponToCart(ctx context.Context, cartCoupon *doma
 
 // RemoveCouponFromCart removes a coupon from a cart
 func (r *cartRepository) RemoveCouponFromCart(ctx context.Context, cartID int64, couponCode string) error {
-	query := `DELETE FROM cart_coupons WHERE cart_id = ? AND coupon_code = ?`
+	query := `DELETE FROM cart_coupons WHERE cart_id = $1 AND coupon_code = $2`
 
 	result, err := r.db.ExecContext(ctx, query, cartID, couponCode)
 	if err != nil {
@@ -540,7 +577,7 @@ func (r *cartRepository) RemoveCouponFromCart(ctx context.Context, cartID int64,
 
 // GetCartCoupons retrieves all coupons applied to a cart
 func (r *cartRepository) GetCartCoupons(ctx context.Context, cartID int64) ([]*domain.CartCoupon, error) {
-	query := `SELECT * FROM cart_coupons WHERE cart_id = ? ORDER BY created_at ASC`
+	query := `SELECT * FROM cart_coupons WHERE cart_id = $1 ORDER BY created_at ASC`
 
 	var coupons []*domain.CartCoupon
 	err := r.db.SelectContext(ctx, &coupons, query, cartID)
@@ -553,7 +590,7 @@ func (r *cartRepository) GetCartCoupons(ctx context.Context, cartID int64) ([]*d
 
 // GetCartCouponByCode retrieves a specific coupon from a cart
 func (r *cartRepository) GetCartCouponByCode(ctx context.Context, cartID int64, couponCode string) (*domain.CartCoupon, error) {
-	query := `SELECT * FROM cart_coupons WHERE cart_id = ? AND coupon_code = ?`
+	query := `SELECT * FROM cart_coupons WHERE cart_id = $1 AND coupon_code = $2`
 
 	var coupon domain.CartCoupon
 	err := r.db.GetContext(ctx, &coupon, query, cartID, couponCode)
@@ -614,7 +651,7 @@ func (r *cartRepository) UpdateCartShipping(ctx context.Context, cartID int64, s
 
 // GetCartShipping retrieves shipping information for a cart
 func (r *cartRepository) GetCartShipping(ctx context.Context, cartID int64) (*domain.CartShipping, error) {
-	query := `SELECT * FROM cart_shipping WHERE cart_id = ?`
+	query := `SELECT * FROM cart_shipping WHERE cart_id = $1`
 
 	var shipping domain.CartShipping
 	err := r.db.GetContext(ctx, &shipping, query, cartID)
@@ -630,7 +667,7 @@ func (r *cartRepository) GetCartShipping(ctx context.Context, cartID int64) (*do
 
 // DeleteCartShipping removes shipping information from a cart
 func (r *cartRepository) DeleteCartShipping(ctx context.Context, cartID int64) error {
-	query := `DELETE FROM cart_shipping WHERE cart_id = ?`
+	query := `DELETE FROM cart_shipping WHERE cart_id = $1`
 
 	_, err := r.db.ExecContext(ctx, query, cartID)
 	if err != nil {
@@ -644,7 +681,7 @@ func (r *cartRepository) DeleteCartShipping(ctx context.Context, cartID int64) e
 
 // GetExpiredCarts retrieves carts that have expired
 func (r *cartRepository) GetExpiredCarts(ctx context.Context, before time.Time) ([]*domain.Cart, error) {
-	query := `SELECT * FROM carts WHERE expires_at < ?`
+	query := `SELECT * FROM carts WHERE expires_at < $1`
 
 	var carts []*domain.Cart
 	err := r.db.SelectContext(ctx, &carts, query, before)
@@ -741,7 +778,7 @@ func (r *cartRepository) MergeCarts(ctx context.Context, sourceCartID, targetCar
 	}
 
 	// Delete source cart
-	_, err = tx.ExecContext(ctx, "DELETE FROM carts WHERE id = ?", sourceCartID)
+	_, err = tx.ExecContext(ctx, "DELETE FROM carts WHERE id = $1", sourceCartID)
 	if err != nil {
 		return fmt.Errorf("failed to delete source cart: %w", err)
 	}
@@ -781,7 +818,7 @@ func (r *cartRepository) CreateWishlist(ctx context.Context, wishlist *domain.Wi
 
 // GetWishlistByID retrieves a wishlist by ID
 func (r *cartRepository) GetWishlistByID(ctx context.Context, id int64) (*domain.Wishlist, error) {
-	query := `SELECT * FROM wishlists WHERE id = ?`
+	query := `SELECT * FROM wishlists WHERE id = $1`
 
 	var wishlist domain.Wishlist
 	err := r.db.GetContext(ctx, &wishlist, query, id)
@@ -798,7 +835,7 @@ func (r *cartRepository) GetWishlistByID(ctx context.Context, id int64) (*domain
 // GetWishlistsByUserID retrieves wishlists for a user
 func (r *cartRepository) GetWishlistsByUserID(ctx context.Context, userID int64, offset, limit int) ([]*domain.Wishlist, int64, error) {
 	// Count query
-	countQuery := `SELECT COUNT(*) FROM wishlists WHERE user_id = ?`
+	countQuery := `SELECT COUNT(*) FROM wishlists WHERE user_id = $1`
 	var total int64
 	err := r.db.GetContext(ctx, &total, countQuery, userID)
 	if err != nil {
@@ -806,7 +843,7 @@ func (r *cartRepository) GetWishlistsByUserID(ctx context.Context, userID int64,
 	}
 
 	// List query
-	query := `SELECT * FROM wishlists WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	query := `SELECT * FROM wishlists WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
 	var wishlists []*domain.Wishlist
 	err = r.db.SelectContext(ctx, &wishlists, query, userID, limit, offset)
@@ -854,13 +891,13 @@ func (r *cartRepository) DeleteWishlist(ctx context.Context, id int64) error {
 	defer tx.Rollback()
 
 	// Delete wishlist items
-	_, err = tx.ExecContext(ctx, "DELETE FROM wishlist_items WHERE wishlist_id = ?", id)
+	_, err = tx.ExecContext(ctx, "DELETE FROM wishlist_items WHERE wishlist_id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete wishlist items: %w", err)
 	}
 
 	// Delete wishlist
-	result, err := tx.ExecContext(ctx, "DELETE FROM wishlists WHERE id = ?", id)
+	result, err := tx.ExecContext(ctx, "DELETE FROM wishlists WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete wishlist: %w", err)
 	}
@@ -908,7 +945,7 @@ func (r *cartRepository) AddItemToWishlist(ctx context.Context, item *domain.Wis
 
 // GetWishlistItemByID retrieves a wishlist item by ID
 func (r *cartRepository) GetWishlistItemByID(ctx context.Context, id int64) (*domain.WishlistItem, error) {
-	query := `SELECT * FROM wishlist_items WHERE id = ?`
+	query := `SELECT * FROM wishlist_items WHERE id = $1`
 
 	var item domain.WishlistItem
 	err := r.db.GetContext(ctx, &item, query, id)
@@ -925,7 +962,7 @@ func (r *cartRepository) GetWishlistItemByID(ctx context.Context, id int64) (*do
 // GetWishlistItems retrieves items in a wishlist
 func (r *cartRepository) GetWishlistItems(ctx context.Context, wishlistID int64, offset, limit int) ([]*domain.WishlistItem, int64, error) {
 	// Count query
-	countQuery := `SELECT COUNT(*) FROM wishlist_items WHERE wishlist_id = ?`
+	countQuery := `SELECT COUNT(*) FROM wishlist_items WHERE wishlist_id = $1`
 	var total int64
 	err := r.db.GetContext(ctx, &total, countQuery, wishlistID)
 	if err != nil {
@@ -933,7 +970,7 @@ func (r *cartRepository) GetWishlistItems(ctx context.Context, wishlistID int64,
 	}
 
 	// List query
-	query := `SELECT * FROM wishlist_items WHERE wishlist_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	query := `SELECT * FROM wishlist_items WHERE wishlist_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
 	var items []*domain.WishlistItem
 	err = r.db.SelectContext(ctx, &items, query, wishlistID, limit, offset)
@@ -969,7 +1006,7 @@ func (r *cartRepository) UpdateWishlistItem(ctx context.Context, id int64, item 
 
 // DeleteWishlistItem deletes a wishlist item
 func (r *cartRepository) DeleteWishlistItem(ctx context.Context, id int64) error {
-	query := `DELETE FROM wishlist_items WHERE id = ?`
+	query := `DELETE FROM wishlist_items WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -1022,7 +1059,7 @@ func (r *cartRepository) MoveItemToCart(ctx context.Context, wishlistItemID, car
 	}
 
 	// Remove from wishlist
-	_, err = tx.ExecContext(ctx, "DELETE FROM wishlist_items WHERE id = ?", wishlistItemID)
+	_, err = tx.ExecContext(ctx, "DELETE FROM wishlist_items WHERE id = $1", wishlistItemID)
 	if err != nil {
 		return fmt.Errorf("failed to remove item from wishlist: %w", err)
 	}

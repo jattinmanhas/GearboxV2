@@ -9,7 +9,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/handlers"
 )
 
-func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler) *chi.Mux {
+func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global middleware
@@ -85,7 +85,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Cart routes
 		r.Route("/carts", func(r chi.Router) {
-			r.Post("/", cartHandler.CreateCart)
+			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)
 			r.Get("/{id}", cartHandler.GetCart)
@@ -136,6 +136,35 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Put("/items/{id}", cartHandler.UpdateWishlistItem)
 			r.Delete("/items/{id}", cartHandler.DeleteWishlistItem)
 			r.Post("/items/{id}/move-to-cart", cartHandler.MoveItemToCart)
+		})
+
+		// Inventory routes
+		r.Route("/inventory", func(r chi.Router) {
+			r.Post("/", inventoryHandler.CreateInventory)
+			r.Get("/summary", inventoryHandler.GetInventorySummary)
+			r.Get("/", inventoryHandler.ListInventory)
+			r.Get("/product", inventoryHandler.GetInventoryByProduct)
+			r.Get("/{id}", inventoryHandler.GetInventoryByID)
+			r.Put("/{id}", inventoryHandler.UpdateInventory)
+			r.Delete("/{id}", inventoryHandler.DeleteInventory)
+
+			// Stock movements
+			r.Post("/movements", inventoryHandler.RecordStockMovement)
+			r.Get("/movements", inventoryHandler.GetStockMovements)
+			r.Get("/movements/{id}", inventoryHandler.GetStockMovementByID)
+
+			// Stock reservations
+			r.Post("/reservations", inventoryHandler.ReserveStock)
+			r.Delete("/reservations", inventoryHandler.ReleaseStock)
+			r.Get("/reservations", inventoryHandler.GetStockReservations)
+
+			// Inventory alerts
+			r.Get("/alerts", inventoryHandler.GetInventoryAlerts)
+			r.Put("/alerts/{id}/resolve", inventoryHandler.ResolveInventoryAlert)
+			r.Post("/alerts/check", inventoryHandler.CheckLowStockAlerts)
+
+			// Bulk operations
+			r.Post("/bulk-update", inventoryHandler.BulkUpdateStock)
 		})
 	})
 

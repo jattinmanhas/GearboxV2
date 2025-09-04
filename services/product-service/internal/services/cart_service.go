@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -147,7 +149,7 @@ func (s *cartService) UpdateCart(ctx context.Context, id int64, req *dto.UpdateC
 	updateCart.UpdatedAt = time.Now()
 
 	// Update cart in repository
-	err = s.cartRepo.UpdateCart(ctx, id, &updateCart)
+	err = s.cartRepo.UpdateCart(ctx, &updateCart)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cart: %w", err)
 	}
@@ -174,9 +176,35 @@ func (s *cartService) DeleteCart(ctx context.Context, id int64) error {
 
 // GetOrCreateCart gets an existing cart or creates a new one
 func (s *cartService) GetOrCreateCart(ctx context.Context, userID *int64, sessionID string, currency string) (*domain.Cart, error) {
-	cart, err := s.cartRepo.GetOrCreateCart(ctx, userID, sessionID, currency)
+	// Check if cart already exists for this session/user combination
+	existingCart, err := s.cartRepo.GetCartBySessionOrUser(ctx, sessionID, userID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("failed to check existing cart: %w", err)
+	}
+
+	// If cart exists and is not expired, return existing cart
+	if existingCart != nil && (existingCart.ExpiresAt == nil || existingCart.ExpiresAt.After(time.Now())) {
+		// Update currency if different
+		if existingCart.Currency != currency {
+			existingCart.Currency = currency
+			existingCart.UpdatedAt = time.Now()
+			if err := s.cartRepo.UpdateCart(ctx, existingCart); err != nil {
+				return nil, fmt.Errorf("failed to update cart currency: %w", err)
+			}
+		}
+		return existingCart, nil
+	}
+
+	// Create new cart
+	req := &dto.CreateCartRequest{
+		UserID:    userID,
+		SessionID: sessionID,
+		Currency:  currency,
+	}
+
+	cart, err := s.CreateCart(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get or create cart: %w", err)
+		return nil, fmt.Errorf("failed to create cart: %w", err)
 	}
 
 	return cart, nil
@@ -192,18 +220,10 @@ func (s *cartService) AddItemToCart(ctx context.Context, cartID int64, req *dto.
 		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
-	// Check if product exists
-	_, err = s.productRepo.GetProductByID(ctx, req.ProductID)
+	// Get current product price
+	unitPrice, err := s.getCurrentProductPrice(ctx, req.ProductID, req.ProductVariantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get product: %w", err)
-	}
-
-	// Check if variant exists (if provided)
-	if req.ProductVariantID != nil {
-		_, err = s.productRepo.GetProductVariantByID(ctx, *req.ProductVariantID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get product variant: %w", err)
-		}
+		return nil, fmt.Errorf("failed to get product price: %w", err)
 	}
 
 	// Check if item already exists in cart
@@ -211,7 +231,7 @@ func (s *cartService) AddItemToCart(ctx context.Context, cartID int64, req *dto.
 	if err == nil {
 		// Item exists, update quantity
 		existingItem.Quantity += req.Quantity
-		existingItem.UnitPrice = req.UnitPrice
+		existingItem.UnitPrice = unitPrice // Use current product price
 		existingItem.TotalPrice = existingItem.UnitPrice * float64(existingItem.Quantity)
 		existingItem.UpdatedAt = time.Now()
 
@@ -229,8 +249,8 @@ func (s *cartService) AddItemToCart(ctx context.Context, cartID int64, req *dto.
 		ProductID:        req.ProductID,
 		ProductVariantID: req.ProductVariantID,
 		Quantity:         req.Quantity,
-		UnitPrice:        req.UnitPrice,
-		TotalPrice:       req.UnitPrice * float64(req.Quantity),
+		UnitPrice:        unitPrice, // Use current product price
+		TotalPrice:       unitPrice * float64(req.Quantity),
 	}
 
 	err = s.cartRepo.AddItemToCart(ctx, cartItem)
@@ -251,6 +271,23 @@ func (s *cartService) GetCartItemByID(ctx context.Context, id int64) (*domain.Ca
 	return item, nil
 }
 
+// getCurrentProductPrice gets the current price for a product and variant
+func (s *cartService) getCurrentProductPrice(ctx context.Context, productID int64, variantID *int64) (float64, error) {
+	if variantID != nil {
+		variant, err := s.productRepo.GetProductVariantByID(ctx, *variantID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get product variant: %w", err)
+		}
+		return variant.Price, nil
+	}
+
+	product, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get product: %w", err)
+	}
+	return product.Price, nil
+}
+
 // UpdateCartItem updates an existing cart item
 func (s *cartService) UpdateCartItem(ctx context.Context, id int64, req *dto.UpdateCartItemRequest) (*domain.CartItem, error) {
 	// Get existing item
@@ -259,16 +296,21 @@ func (s *cartService) UpdateCartItem(ctx context.Context, id int64, req *dto.Upd
 		return nil, fmt.Errorf("failed to get existing cart item: %w", err)
 	}
 
+	// Get current product price
+	unitPrice, err := s.getCurrentProductPrice(ctx, existingItem.ProductID, existingItem.ProductVariantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product price: %w", err)
+	}
+
 	// Update fields that are provided
 	updateItem := *existingItem
 
 	if req.Quantity != nil {
 		updateItem.Quantity = *req.Quantity
 	}
-	if req.UnitPrice != nil {
-		updateItem.UnitPrice = *req.UnitPrice
-	}
 
+	// Always use current product price
+	updateItem.UnitPrice = unitPrice
 	updateItem.TotalPrice = updateItem.UnitPrice * float64(updateItem.Quantity)
 	updateItem.UpdatedAt = time.Now()
 

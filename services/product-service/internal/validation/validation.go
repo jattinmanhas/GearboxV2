@@ -214,6 +214,16 @@ func getErrorMessage(field, tag string, value interface{}) string {
 		return fmt.Sprintf("%s must be at most 500 characters long", field)
 	case "sort_order":
 		return fmt.Sprintf("%s must be between 0 and 999999", field)
+	case "sku":
+		return fmt.Sprintf("%s must be alphanumeric with hyphens and underscores", field)
+	case "price":
+		return fmt.Sprintf("%s must be non-negative", field)
+	case "weight":
+		return fmt.Sprintf("%s must be non-negative", field)
+	case "dimensions":
+		return fmt.Sprintf("%s must be in the format 'length x width x height'", field)
+	case "tags":
+		return fmt.Sprintf("%s must be a comma-separated list of tags", field)
 	default:
 		return fmt.Sprintf("%s is invalid", field)
 	}
@@ -297,7 +307,7 @@ func validateTags(fl validator.FieldLevel) bool {
 	}
 
 	// Tags should be alphanumeric with spaces, commas, and hyphens
-	matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s,-\s]+$`, tags)
+	matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s,-]+$`, tags)
 	return matched
 }
 

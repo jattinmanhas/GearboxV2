@@ -61,3 +61,16 @@ type InventoryAlert struct {
 	ResolvedAt        *time.Time `json:"resolved_at" db:"resolved_at"`
 	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
 }
+
+// InventorySummary represents inventory summary statistics
+type InventorySummary struct {
+	TotalProducts     int64   `json:"total_products"`
+	TotalVariants     int64   `json:"total_variants"`
+	TotalQuantity     int64   `json:"total_quantity"`
+	TotalReserved     int64   `json:"total_reserved"`
+	TotalAvailable    int64   `json:"total_available"`
+	LowStockItems     int64   `json:"low_stock_items"`
+	OutOfStockItems   int64   `json:"out_of_stock_items"`
+	TotalValue        float64 `json:"total_value"`
+	AverageStockLevel float64 `json:"average_stock_level"`
+}

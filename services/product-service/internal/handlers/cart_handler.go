@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
@@ -14,8 +15,8 @@ import (
 
 type ICartHandler interface {
 	// Cart Management
-	CreateCart(w http.ResponseWriter, r *http.Request)
 	GetCart(w http.ResponseWriter, r *http.Request)
+	GetCartBySession(w http.ResponseWriter, r *http.Request)
 	UpdateCart(w http.ResponseWriter, r *http.Request)
 	DeleteCart(w http.ResponseWriter, r *http.Request)
 	GetOrCreateCart(w http.ResponseWriter, r *http.Request)
@@ -77,16 +78,26 @@ func NewCartHandler(cartService services.CartService) ICartHandler {
 
 // Cart Management
 
-func (h *cartHandler) CreateCart(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateCartRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "Invalid request body", err)
+// getSessionIDFromCookie extracts session ID from the cart_session cookie
+func (h *cartHandler) getSessionIDFromCookie(r *http.Request) string {
+	cookie, err := r.Cookie("cart_session")
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+func (h *cartHandler) GetCart(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "Invalid cart ID", err)
 		return
 	}
 
-	cart, err := h.cartService.CreateCart(r.Context(), &req)
+	cart, err := h.cartService.GetCartByID(r.Context(), id)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "Failed to create cart", err)
+		httpx.Error(w, http.StatusNotFound, "Cart not found", err)
 		return
 	}
 
@@ -103,18 +114,18 @@ func (h *cartHandler) CreateCart(w http.ResponseWriter, r *http.Request) {
 		response.ExpiresAt = &expiresAt
 	}
 
-	httpx.Created(w, "Cart created successfully", response)
+	httpx.OK(w, "Cart retrieved successfully", response)
 }
 
-func (h *cartHandler) GetCart(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "Invalid cart ID", err)
+// GetCartBySession retrieves a cart by session ID from cookie
+func (h *cartHandler) GetCartBySession(w http.ResponseWriter, r *http.Request) {
+	sessionID := h.getSessionIDFromCookie(r)
+	if sessionID == "" {
+		httpx.Error(w, http.StatusBadRequest, "No cart session found", nil)
 		return
 	}
 
-	cart, err := h.cartService.GetCartByID(r.Context(), id)
+	cart, err := h.cartService.GetCartBySessionID(r.Context(), sessionID)
 	if err != nil {
 		httpx.Error(w, http.StatusNotFound, "Cart not found", err)
 		return
@@ -191,12 +202,18 @@ func (h *cartHandler) DeleteCart(w http.ResponseWriter, r *http.Request) {
 
 func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
-	sessionID := r.URL.Query().Get("session_id")
 	currency := r.URL.Query().Get("currency")
 
-	if sessionID == "" || currency == "" {
-		httpx.Error(w, http.StatusBadRequest, "Missing required parameters", errors.New("session_id and currency are required"))
+	if currency == "" {
+		httpx.Error(w, http.StatusBadRequest, "Missing required parameter", errors.New("currency is required"))
 		return
+	}
+
+	// Get session ID from cookie
+	sessionID := h.getSessionIDFromCookie(r)
+	if sessionID == "" {
+		// Generate a new session ID if none exists
+		sessionID = uuid.New().String()
 	}
 
 	var userID *int64
@@ -226,6 +243,28 @@ func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
 	if cart.ExpiresAt != nil {
 		expiresAt := cart.ExpiresAt.Format("2006-01-02T15:04:05Z07:00")
 		response.ExpiresAt = &expiresAt
+	}
+
+	// Set secure cookie for cart session (only if it's a new cart or session)
+	existingCookie, _ := r.Cookie("cart_session")
+	if existingCookie == nil || existingCookie.Value != cart.SessionID {
+		cookie := &http.Cookie{
+			Name:     "cart_session",
+			Value:    cart.SessionID,
+			Path:     "/",
+			Secure:   true,                 // Only send over HTTPS
+			SameSite: http.SameSiteLaxMode, // Allow cross-site requests for better UX
+			HttpOnly: true,                 // Prevent XSS attacks
+		}
+
+		// Use cart's expiration time if available, otherwise use 30 days
+		if cart.ExpiresAt != nil {
+			cookie.Expires = *cart.ExpiresAt
+		} else {
+			cookie.MaxAge = 30 * 24 * 60 * 60 // 30 days fallback
+		}
+
+		http.SetCookie(w, cookie)
 	}
 
 	httpx.OK(w, "Cart retrieved or created successfully", response)
@@ -692,7 +731,7 @@ func (h *cartHandler) ClearCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !req.Confirm {
-		httpx.Error(w, http.StatusBadRequest, "Confirmation required", errors.New("Please confirm cart clearing"))
+		httpx.Error(w, http.StatusBadRequest, "Confirmation required", errors.New("please confirm cart clearing"))
 		return
 	}
 

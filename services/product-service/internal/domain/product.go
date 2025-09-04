@@ -45,8 +45,9 @@ type ProductVariant struct {
 	Quantity     int     `json:"quantity" db:"quantity"`
 	IsActive     bool    `json:"is_active" db:"is_active"`
 	Position     int     `json:"position" db:"position"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
 }
-
 // ProductAttribute represents product attributes (color, size, material, etc.)
 type ProductAttribute struct {
 	ID    int64  `json:"id" db:"id"`

@@ -27,6 +27,7 @@ type ProductService interface {
 	CreateProductVariant(ctx context.Context, req *dto.CreateProductVariantRequest) (*domain.ProductVariant, error)
 	GetProductVariantByID(ctx context.Context, id int64) (*domain.ProductVariant, error)
 	GetProductVariantsByProductID(ctx context.Context, productID int64) ([]*domain.ProductVariant, error)
+	GetProductVariantsByProductIDAndSKU(ctx context.Context, productID int64, sku string) ([]*domain.ProductVariant, error)
 	UpdateProductVariant(ctx context.Context, id int64, req *dto.UpdateProductVariantRequest) (*domain.ProductVariant, error)
 	DeleteProductVariant(ctx context.Context, id int64) error
 
@@ -92,7 +93,6 @@ func (s *productService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		err = s.productRepo.UpdateProductCategories(ctx, product.ID, req.CategoryIDs)
 		if err != nil {
 			// Log error but don't fail the product creation
-			// In a real application, you might want to handle this differently
 			fmt.Printf("Warning: failed to add product to categories: %v\n", err)
 		}
 	}
@@ -244,7 +244,7 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 		req.Page = 1
 	}
 	if req.Limit <= 0 {
-		req.Limit = 20
+		req.Limit = 10
 	}
 	if req.Limit > 100 {
 		req.Limit = 100 // Max limit
@@ -384,7 +384,7 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 		page = 1
 	}
 	if limit <= 0 {
-		limit = 20
+		limit = 10
 	}
 	if limit > 100 {
 		limit = 100
@@ -464,7 +464,7 @@ func (s *productService) GetProductsByTags(ctx context.Context, tags []string, p
 		page = 1
 	}
 	if limit <= 0 {
-		limit = 20
+		limit = 10
 	}
 	if limit > 100 {
 		limit = 100
@@ -531,8 +531,10 @@ func (s *productService) CreateProductVariant(ctx context.Context, req *dto.Crea
 	}
 
 	// Check if SKU already exists
-	existingVariant, err := s.productRepo.GetProductVariantByID(ctx, 0) // This will fail, but we need to check SKU uniqueness
-	// For now, we'll skip SKU uniqueness check for variants - in a real app, you'd implement this
+	existingVariant, err := s.productRepo.GetProductVariantsByProductIDAndSKU(ctx, req.ProductID, req.SKU)
+	if err == nil && existingVariant != nil {
+		return nil, fmt.Errorf("variant with SKU %s already exists", req.SKU)
+	}
 
 	// Create variant domain object
 	variant := &domain.ProductVariant{
@@ -712,4 +714,21 @@ func (s *productService) UpdateProductCategories(ctx context.Context, productID 
 	}
 
 	return nil
+}
+
+// GetProductVariantsByProductIDAndSKU retrieves all variants for a product and SKU
+func (s *productService) GetProductVariantsByProductIDAndSKU(ctx context.Context, productID int64, sku string) ([]*domain.ProductVariant, error) {
+	// Check if product exists
+	_, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	// Get variants
+	variants, err := s.productRepo.GetProductVariantsByProductIDAndSKU(ctx, productID, sku)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product variants: %w", err)
+	}
+
+	return variants, nil
 }

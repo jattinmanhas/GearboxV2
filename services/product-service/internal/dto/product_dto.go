@@ -5,12 +5,12 @@ type CreateProductRequest struct {
 	Name             string  `json:"name" validate:"required,min=1,max=255"`
 	Description      string  `json:"description" validate:"required,min=1,max=5000"`
 	ShortDesc        string  `json:"short_description" validate:"omitempty,max=500"`
-	SKU              string  `json:"sku" validate:"required,min=1,max=100"`
-	Price            float64 `json:"price" validate:"required,min=0"`
+	SKU              string  `json:"sku" validate:"required,sku"`
+	Price            float64 `json:"price" validate:"required,price"`
 	ComparePrice     float64 `json:"compare_price" validate:"omitempty,min=0"`
 	CostPrice        float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight           float64 `json:"weight" validate:"omitempty,min=0"`
-	Dimensions       string  `json:"dimensions" validate:"omitempty,max=100"`
+	Weight           float64 `json:"weight" validate:"omitempty,weight"`
+	Dimensions       string  `json:"dimensions" validate:"omitempty,dimensions"`
 	IsActive         bool    `json:"is_active"`
 	IsDigital        bool    `json:"is_digital"`
 	RequiresShipping bool    `json:"requires_shipping"`
@@ -19,9 +19,9 @@ type CreateProductRequest struct {
 	Quantity         int     `json:"quantity" validate:"omitempty,min=0"`
 	MinQuantity      int     `json:"min_quantity" validate:"omitempty,min=0"`
 	MaxQuantity      int     `json:"max_quantity" validate:"omitempty,min=0"`
-	MetaTitle        string  `json:"meta_title" validate:"omitempty,max=60"`
-	MetaDescription  string  `json:"meta_description" validate:"omitempty,max=160"`
-	Tags             string  `json:"tags" validate:"omitempty,max=500"`
+	MetaTitle        string  `json:"meta_title" validate:"omitempty,meta_title"`
+	MetaDescription  string  `json:"meta_description" validate:"omitempty,meta_description"`
+	Tags             string  `json:"tags" validate:"omitempty,tags"`
 	CategoryIDs      []int64 `json:"category_ids" validate:"omitempty"`
 }
 
@@ -30,12 +30,12 @@ type UpdateProductRequest struct {
 	Name             *string  `json:"name" validate:"omitempty,min=1,max=255"`
 	Description      *string  `json:"description" validate:"omitempty,min=1,max=5000"`
 	ShortDesc        *string  `json:"short_description" validate:"omitempty,max=500"`
-	SKU              *string  `json:"sku" validate:"omitempty,min=1,max=100"`
-	Price            *float64 `json:"price" validate:"omitempty,min=0"`
+	SKU              *string  `json:"sku" validate:"omitempty,sku"`
+	Price            *float64 `json:"price" validate:"omitempty,price"`
 	ComparePrice     *float64 `json:"compare_price" validate:"omitempty,min=0"`
 	CostPrice        *float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight           *float64 `json:"weight" validate:"omitempty,min=0"`
-	Dimensions       *string  `json:"dimensions" validate:"omitempty,max=100"`
+	Weight           *float64 `json:"weight" validate:"omitempty,weight"`
+	Dimensions       *string  `json:"dimensions" validate:"omitempty,dimensions"`
 	IsActive         *bool    `json:"is_active"`
 	IsDigital        *bool    `json:"is_digital"`
 	RequiresShipping *bool    `json:"requires_shipping"`
@@ -44,9 +44,9 @@ type UpdateProductRequest struct {
 	Quantity         *int     `json:"quantity" validate:"omitempty,min=0"`
 	MinQuantity      *int     `json:"min_quantity" validate:"omitempty,min=0"`
 	MaxQuantity      *int     `json:"max_quantity" validate:"omitempty,min=0"`
-	MetaTitle        *string  `json:"meta_title" validate:"omitempty,max=60"`
-	MetaDescription  *string  `json:"meta_description" validate:"omitempty,max=160"`
-	Tags             *string  `json:"tags" validate:"omitempty,max=500"`
+	MetaTitle        *string  `json:"meta_title" validate:"omitempty,meta_title"`
+	MetaDescription  *string  `json:"meta_description" validate:"omitempty,meta_description"`
+	Tags             *string  `json:"tags" validate:"omitempty,tags"`
 	CategoryIDs      []int64  `json:"category_ids" validate:"omitempty"`
 }
 
@@ -108,10 +108,10 @@ type CreateProductVariantRequest struct {
 	ProductID    int64   `json:"product_id" validate:"required"`
 	Name         string  `json:"name" validate:"required,min=1,max=255"`
 	SKU          string  `json:"sku" validate:"required,min=1,max=100"`
-	Price        float64 `json:"price" validate:"required,min=0"`
-	ComparePrice float64 `json:"compare_price" validate:"omitempty,min=0"`
-	CostPrice    float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight       float64 `json:"weight" validate:"omitempty,min=0"`
+	Price        float64 `json:"price" validate:"required,price"`
+	ComparePrice float64 `json:"compare_price" validate:"omitempty,price"`
+	CostPrice    float64 `json:"cost_price" validate:"omitempty,price"`
+	Weight       float64 `json:"weight" validate:"omitempty,weight"`
 	Quantity     int     `json:"quantity" validate:"omitempty,min=0"`
 	IsActive     bool    `json:"is_active"`
 	Position     int     `json:"position" validate:"omitempty,min=0"`
@@ -121,10 +121,10 @@ type CreateProductVariantRequest struct {
 type UpdateProductVariantRequest struct {
 	Name         *string  `json:"name" validate:"omitempty,min=1,max=255"`
 	SKU          *string  `json:"sku" validate:"omitempty,min=1,max=100"`
-	Price        *float64 `json:"price" validate:"omitempty,min=0"`
-	ComparePrice *float64 `json:"compare_price" validate:"omitempty,min=0"`
-	CostPrice    *float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight       *float64 `json:"weight" validate:"omitempty,min=0"`
+	Price        *float64 `json:"price" validate:"omitempty,price"`
+	ComparePrice *float64 `json:"compare_price" validate:"omitempty,price"`
+	CostPrice    *float64 `json:"cost_price" validate:"omitempty,price"`
+	Weight       *float64 `json:"weight" validate:"omitempty,weight"`
 	Quantity     *int     `json:"quantity" validate:"omitempty,min=0"`
 	IsActive     *bool    `json:"is_active"`
 	Position     *int     `json:"position" validate:"omitempty,min=0"`

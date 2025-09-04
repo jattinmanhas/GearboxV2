@@ -3,7 +3,7 @@ package dto
 // CreateCartRequest represents the request to create a new cart
 type CreateCartRequest struct {
 	UserID    *int64 `json:"user_id" validate:"omitempty"`
-	SessionID string `json:"session_id" validate:"required,min=1,max=255"`
+	SessionID string `json:"session_id" validate:"omitempty"`
 	Currency  string `json:"currency" validate:"required,len=3"`
 }
 
@@ -25,16 +25,14 @@ type CartResponse struct {
 
 // AddToCartRequest represents the request to add an item to cart
 type AddToCartRequest struct {
-	ProductID        int64   `json:"product_id" validate:"required"`
-	ProductVariantID *int64  `json:"product_variant_id" validate:"omitempty"`
-	Quantity         int     `json:"quantity" validate:"required,min=1"`
-	UnitPrice        float64 `json:"unit_price" validate:"required,min=0"`
+	ProductID        int64  `json:"product_id" validate:"required"`
+	ProductVariantID *int64 `json:"product_variant_id" validate:"omitempty"`
+	Quantity         int    `json:"quantity" validate:"required,min=1"`
 }
 
 // UpdateCartItemRequest represents the request to update a cart item
 type UpdateCartItemRequest struct {
-	Quantity  *int     `json:"quantity" validate:"omitempty,min=1"`
-	UnitPrice *float64 `json:"unit_price" validate:"omitempty,min=0"`
+	Quantity *int `json:"quantity" validate:"omitempty,min=1"`
 }
 
 // CartItemResponse represents the response for cart item data
