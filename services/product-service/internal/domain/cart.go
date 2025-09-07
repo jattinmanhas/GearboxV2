@@ -90,4 +90,31 @@ type CartAnalytics struct {
 	TotalCartValue      float64 `json:"total_cart_value"`
 	ConversionRate      float64 `json:"conversion_rate"`
 	AverageItemsPerCart float64 `json:"average_items_per_cart"`
+	AbandonmentRate     float64 `json:"abandonment_rate"`
+	NewCartsToday       int64   `json:"new_carts_today"`
+	NewCartsThisWeek    int64   `json:"new_carts_this_week"`
+	NewCartsThisMonth   int64   `json:"new_carts_this_month"`
+}
+
+// ProductCartStats represents product statistics in carts
+type ProductCartStats struct {
+	ProductID     int64   `json:"product_id" db:"product_id"`
+	ProductName   string  `json:"product_name" db:"product_name"`
+	SKU           string  `json:"sku" db:"sku"`
+	TotalQuantity int64   `json:"total_quantity" db:"total_quantity"`
+	TotalValue    float64 `json:"total_value" db:"total_value"`
+	CartCount     int64   `json:"cart_count" db:"cart_count"`
+	AveragePrice  float64 `json:"average_price" db:"average_price"`
+}
+
+// CartConversionFunnel represents the conversion funnel data
+type CartConversionFunnel struct {
+	Visitors            int64   `json:"visitors"`
+	CartCreated         int64   `json:"cart_created"`
+	ItemsAdded          int64   `json:"items_added"`
+	CheckoutStarted     int64   `json:"checkout_started"`
+	OrderCompleted      int64   `json:"order_completed"`
+	CartToCheckoutRate  float64 `json:"cart_to_checkout_rate"`
+	CheckoutToOrderRate float64 `json:"checkout_to_order_rate"`
+	OverallConversion   float64 `json:"overall_conversion"`
 }

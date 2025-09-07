@@ -22,7 +22,6 @@ type IProductHandler interface {
 	ListProducts(w http.ResponseWriter, r *http.Request)
 	GetProductsByCategory(w http.ResponseWriter, r *http.Request)
 	SearchProducts(w http.ResponseWriter, r *http.Request)
-	UpdateProductQuantity(w http.ResponseWriter, r *http.Request)
 	GetProductsByTags(w http.ResponseWriter, r *http.Request)
 
 	// Product Variants
@@ -322,46 +321,6 @@ func (h *productHandler) SearchProducts(w http.ResponseWriter, r *http.Request) 
 	}
 
 	httpx.OK(w, "search results retrieved", response)
-}
-
-// UpdateProductQuantity handles PATCH /api/v1/products/{id}/quantity
-func (h *productHandler) UpdateProductQuantity(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid product ID", err)
-		return
-	}
-
-	var req struct {
-		Quantity int `json:"quantity" validate:"required,min=0"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
-		return
-	}
-
-	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
-		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
-		return
-	}
-
-	err = h.productService.UpdateProductQuantity(r.Context(), id, req.Quantity)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
-			return
-		}
-		httpx.Error(w, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-
-	httpx.OK(w, "product quantity updated", map[string]interface{}{
-		"product_id": id,
-		"quantity":   req.Quantity,
-	})
 }
 
 // GetProductsByTags handles GET /api/v1/products/tags

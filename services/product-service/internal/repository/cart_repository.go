@@ -51,6 +51,10 @@ type CartRepository interface {
 	GetExpiredCarts(ctx context.Context, before time.Time) ([]*domain.Cart, error)
 	DeleteExpiredCarts(ctx context.Context, before time.Time) error
 	GetCartAnalytics(ctx context.Context) (*domain.CartAnalytics, error)
+	GetCartAnalyticsByDateRange(ctx context.Context, startDate, endDate time.Time) (*domain.CartAnalytics, error)
+	GetTopProductsInCarts(ctx context.Context, limit int) ([]*domain.ProductCartStats, error)
+	GetCartAbandonmentRate(ctx context.Context) (float64, error)
+	GetCartConversionFunnel(ctx context.Context) (*domain.CartConversionFunnel, error)
 	MergeCarts(ctx context.Context, sourceCartID, targetCartID int64) error
 
 	// Wishlist Management
@@ -307,23 +311,25 @@ func (r *cartRepository) GetOrCreateCart(ctx context.Context, userID *int64, ses
 func (r *cartRepository) AddItemToCart(ctx context.Context, item *domain.CartItem) error {
 	query := `
 		INSERT INTO cart_items (cart_id, product_id, product_variant_id, quantity, unit_price, total_price, created_at, updated_at)
-		VALUES (:cart_id, :product_id, :product_variant_id, :quantity, :unit_price, :total_price, :created_at, :updated_at)`
+		VALUES (:cart_id, :product_id, :product_variant_id, :quantity, :unit_price, :total_price, :created_at, :updated_at) RETURNING id`
 
 	item.CreatedAt = time.Now()
 	item.UpdatedAt = time.Now()
 	item.TotalPrice = item.UnitPrice * float64(item.Quantity)
 
-	result, err := r.db.NamedExecContext(ctx, query, item)
+	result, err := r.db.NamedQueryContext(ctx, query, item)
 	if err != nil {
 		return fmt.Errorf("failed to add item to cart: %w", err)
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get item ID: %w", err)
+	defer result.Close()
+
+	if result.Next() {
+		if err := result.Scan(&item.ID); err != nil {
+			return fmt.Errorf("failed to scan cart item ID: %w", err)
+		}
 	}
 
-	item.ID = id
 	return nil
 }
 
@@ -486,7 +492,7 @@ func (r *cartRepository) GetCartSummary(ctx context.Context, cartID int64) (*dom
 		shippingAmount = shipping.ShippingAmount
 	}
 
-	// Calculate tax (simplified - in real app, this would be more complex)
+	// Calculate tax (simplified)
 	taxAmount := subtotal * 0.1 // 10% tax rate
 
 	// Calculate total
@@ -712,22 +718,319 @@ func (r *cartRepository) DeleteExpiredCarts(ctx context.Context, before time.Tim
 	return nil
 }
 
-// GetCartAnalytics retrieves analytics data for carts
+// GetCartAnalytics retrieves comprehensive analytics data for carts
 func (r *cartRepository) GetCartAnalytics(ctx context.Context) (*domain.CartAnalytics, error) {
-	// This would be implemented with more complex queries in a real application
-	// For now, we'll return a basic structure
+	// Get total carts count
+	var totalCarts int64
+	err := r.db.GetContext(ctx, &totalCarts, `SELECT COUNT(*) FROM carts`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total carts count: %w", err)
+	}
+
+	// Get active carts (carts with items and not expired)
+	var activeCarts int64
+	err = r.db.GetContext(ctx, &activeCarts, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE (c.expires_at IS NULL OR c.expires_at > NOW())
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active carts count: %w", err)
+	}
+
+	// Get abandoned carts (carts with items but no recent activity - older than 24 hours)
+	var abandonedCarts int64
+	err = r.db.GetContext(ctx, &abandonedCarts, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE c.updated_at < NOW() - INTERVAL '24 hours'
+		AND (c.expires_at IS NULL OR c.expires_at > NOW())
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get abandoned carts count: %w", err)
+	}
+
+	// Get total cart value (sum of all cart totals)
+	var totalCartValue float64
+	err = r.db.GetContext(ctx, &totalCartValue, `
+		SELECT COALESCE(SUM(ci.unit_price * ci.quantity), 0) 
+		FROM cart_items ci
+		INNER JOIN carts c ON ci.cart_id = c.id
+		WHERE (c.expires_at IS NULL OR c.expires_at > NOW())
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total cart value: %w", err)
+	}
+
+	// Calculate average cart value
+	var averageCartValue float64
+	if activeCarts > 0 {
+		averageCartValue = totalCartValue / float64(activeCarts)
+	}
+
+	// Get average items per cart
+	var averageItemsPerCart float64
+	err = r.db.GetContext(ctx, &averageItemsPerCart, `
+		SELECT COALESCE(AVG(item_count), 0) 
+		FROM (
+			SELECT c.id, SUM(ci.quantity) as item_count
+			FROM carts c 
+			INNER JOIN cart_items ci ON c.id = ci.cart_id 
+			WHERE (c.expires_at IS NULL OR c.expires_at > NOW())
+			GROUP BY c.id
+		) cart_items
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average items per cart: %w", err)
+	}
+
+	// Calculate conversion rate (this would need order data - placeholder for now)
+	// In a real system, you'd join with orders table to calculate actual conversion
+	var conversionRate float64
+	// For now, we'll use a placeholder calculation
+	if totalCarts > 0 {
+		// Assuming 5% conversion rate as placeholder
+		conversionRate = 5.0
+	}
 
 	analytics := &domain.CartAnalytics{
-		TotalCarts:          0,
-		ActiveCarts:         0,
-		AbandonedCarts:      0,
-		AverageCartValue:    0.0,
-		TotalCartValue:      0.0,
-		ConversionRate:      0.0,
-		AverageItemsPerCart: 0.0,
+		TotalCarts:          totalCarts,
+		ActiveCarts:         activeCarts,
+		AbandonedCarts:      abandonedCarts,
+		AverageCartValue:    averageCartValue,
+		TotalCartValue:      totalCartValue,
+		ConversionRate:      conversionRate,
+		AverageItemsPerCart: averageItemsPerCart,
 	}
 
 	return analytics, nil
+}
+
+// GetCartAnalyticsByDateRange retrieves analytics data for carts within a date range
+func (r *cartRepository) GetCartAnalyticsByDateRange(ctx context.Context, startDate, endDate time.Time) (*domain.CartAnalytics, error) {
+	// Get total carts count in date range
+	var totalCarts int64
+	err := r.db.GetContext(ctx, &totalCarts, `
+		SELECT COUNT(*) FROM carts 
+		WHERE created_at BETWEEN $1 AND $2
+	`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total carts count: %w", err)
+	}
+
+	// Get active carts in date range
+	var activeCarts int64
+	err = r.db.GetContext(ctx, &activeCarts, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE c.created_at BETWEEN $1 AND $2
+		AND (c.expires_at IS NULL OR c.expires_at > NOW())
+	`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active carts count: %w", err)
+	}
+
+	// Get abandoned carts in date range
+	var abandonedCarts int64
+	err = r.db.GetContext(ctx, &abandonedCarts, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE c.created_at BETWEEN $1 AND $2
+		AND c.updated_at < NOW() - INTERVAL '24 hours'
+		AND (c.expires_at IS NULL OR c.expires_at > NOW())
+	`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get abandoned carts count: %w", err)
+	}
+
+	// Get total cart value in date range
+	var totalCartValue float64
+	err = r.db.GetContext(ctx, &totalCartValue, `
+		SELECT COALESCE(SUM(ci.unit_price * ci.quantity), 0) 
+		FROM cart_items ci
+		INNER JOIN carts c ON ci.cart_id = c.id
+		WHERE c.created_at BETWEEN $1 AND $2
+		AND (c.expires_at IS NULL OR c.expires_at > NOW())
+	`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total cart value: %w", err)
+	}
+
+	// Calculate average cart value
+	var averageCartValue float64
+	if activeCarts > 0 {
+		averageCartValue = totalCartValue / float64(activeCarts)
+	}
+
+	// Get average items per cart in date range
+	var averageItemsPerCart float64
+	err = r.db.GetContext(ctx, &averageItemsPerCart, `
+		SELECT COALESCE(AVG(item_count), 0) 
+		FROM (
+			SELECT c.id, SUM(ci.quantity) as item_count
+			FROM carts c 
+			INNER JOIN cart_items ci ON c.id = ci.cart_id 
+			WHERE c.created_at BETWEEN $1 AND $2
+			AND (c.expires_at IS NULL OR c.expires_at > NOW())
+			GROUP BY c.id
+		) cart_items
+	`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average items per cart: %w", err)
+	}
+
+	// Calculate abandonment rate
+	var abandonmentRate float64
+	if activeCarts > 0 {
+		abandonmentRate = (float64(abandonedCarts) / float64(activeCarts)) * 100
+	}
+
+	// Calculate conversion rate (placeholder)
+	var conversionRate float64
+	if totalCarts > 0 {
+		conversionRate = 5.0 // Placeholder
+	}
+
+	analytics := &domain.CartAnalytics{
+		TotalCarts:          totalCarts,
+		ActiveCarts:         activeCarts,
+		AbandonedCarts:      abandonedCarts,
+		AverageCartValue:    averageCartValue,
+		TotalCartValue:      totalCartValue,
+		ConversionRate:      conversionRate,
+		AverageItemsPerCart: averageItemsPerCart,
+		AbandonmentRate:     abandonmentRate,
+	}
+
+	return analytics, nil
+}
+
+// GetTopProductsInCarts retrieves top products by quantity/value in carts
+func (r *cartRepository) GetTopProductsInCarts(ctx context.Context, limit int) ([]*domain.ProductCartStats, error) {
+	query := `
+		SELECT 
+			p.id as product_id,
+			p.name as product_name,
+			p.sku,
+			SUM(ci.quantity) as total_quantity,
+			SUM(ci.unit_price * ci.quantity) as total_value,
+			COUNT(DISTINCT ci.cart_id) as cart_count,
+			AVG(ci.unit_price) as average_price
+		FROM cart_items ci
+		INNER JOIN products p ON ci.product_id = p.id
+		INNER JOIN carts c ON ci.cart_id = c.id
+		WHERE (c.expires_at IS NULL OR c.expires_at > NOW())
+		GROUP BY p.id, p.name, p.sku
+		ORDER BY total_quantity DESC
+		LIMIT $1
+	`
+
+	var stats []*domain.ProductCartStats
+	err := r.db.SelectContext(ctx, &stats, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top products in carts: %w", err)
+	}
+
+	return stats, nil
+}
+
+// GetCartAbandonmentRate calculates the cart abandonment rate
+func (r *cartRepository) GetCartAbandonmentRate(ctx context.Context) (float64, error) {
+	// Get total carts with items
+	var totalCartsWithItems int64
+	err := r.db.GetContext(ctx, &totalCartsWithItems, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE (c.expires_at IS NULL OR c.expires_at > NOW())
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total carts with items: %w", err)
+	}
+
+	// Get abandoned carts (no activity in last 24 hours)
+	var abandonedCarts int64
+	err = r.db.GetContext(ctx, &abandonedCarts, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id 
+		WHERE c.updated_at < NOW() - INTERVAL '24 hours'
+		AND (c.expires_at IS NULL OR c.expires_at > NOW())
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get abandoned carts: %w", err)
+	}
+
+	// Calculate abandonment rate
+	if totalCartsWithItems == 0 {
+		return 0, nil
+	}
+
+	abandonmentRate := (float64(abandonedCarts) / float64(totalCartsWithItems)) * 100
+	return abandonmentRate, nil
+}
+
+// GetCartConversionFunnel retrieves conversion funnel data
+func (r *cartRepository) GetCartConversionFunnel(ctx context.Context) (*domain.CartConversionFunnel, error) {
+	// Get total visitors (placeholder - would need visitor tracking)
+	visitors := int64(1000) // Placeholder
+
+	// Get carts created
+	var cartCreated int64
+	err := r.db.GetContext(ctx, &cartCreated, `SELECT COUNT(*) FROM carts`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get carts created: %w", err)
+	}
+
+	// Get carts with items added
+	var itemsAdded int64
+	err = r.db.GetContext(ctx, &itemsAdded, `
+		SELECT COUNT(DISTINCT c.id) 
+		FROM carts c 
+		INNER JOIN cart_items ci ON c.id = ci.cart_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get carts with items: %w", err)
+	}
+
+	// Get checkout started (placeholder - would need checkout tracking)
+	checkoutStarted := int64(itemsAdded * 60 / 100) // Assume 60% of carts with items start checkout
+
+	// Get orders completed (placeholder - would need order data)
+	orderCompleted := int64(checkoutStarted * 80 / 100) // Assume 80% of checkouts complete
+
+	// Calculate rates
+	var cartToCheckoutRate float64
+	if itemsAdded > 0 {
+		cartToCheckoutRate = (float64(checkoutStarted) / float64(itemsAdded)) * 100
+	}
+
+	var checkoutToOrderRate float64
+	if checkoutStarted > 0 {
+		checkoutToOrderRate = (float64(orderCompleted) / float64(checkoutStarted)) * 100
+	}
+
+	var overallConversion float64
+	if visitors > 0 {
+		overallConversion = (float64(orderCompleted) / float64(visitors)) * 100
+	}
+
+	funnel := &domain.CartConversionFunnel{
+		Visitors:            visitors,
+		CartCreated:         cartCreated,
+		ItemsAdded:          itemsAdded,
+		CheckoutStarted:     checkoutStarted,
+		OrderCompleted:      orderCompleted,
+		CartToCheckoutRate:  cartToCheckoutRate,
+		CheckoutToOrderRate: checkoutToOrderRate,
+		OverallConversion:   overallConversion,
+	}
+
+	return funnel, nil
 }
 
 // MergeCarts merges items from source cart to target cart
@@ -797,22 +1100,24 @@ func (r *cartRepository) MergeCarts(ctx context.Context, sourceCartID, targetCar
 func (r *cartRepository) CreateWishlist(ctx context.Context, wishlist *domain.Wishlist) error {
 	query := `
 		INSERT INTO wishlists (user_id, name, is_public, created_at, updated_at)
-		VALUES (:user_id, :name, :is_public, :created_at, :updated_at)`
+		VALUES (:user_id, :name, :is_public, :created_at, :updated_at) RETURNING id`
 
 	wishlist.CreatedAt = time.Now()
 	wishlist.UpdatedAt = time.Now()
 
-	result, err := r.db.NamedExecContext(ctx, query, wishlist)
+	result, err := r.db.NamedQueryContext(ctx, query, wishlist)
 	if err != nil {
 		return fmt.Errorf("failed to create wishlist: %w", err)
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get wishlist ID: %w", err)
+	defer result.Close()
+
+	if result.Next() {
+		if err := result.Scan(&wishlist.ID); err != nil {
+			return fmt.Errorf("failed to scan wishlist ID: %w", err)
+		}
 	}
 
-	wishlist.ID = id
 	return nil
 }
 
@@ -925,21 +1230,23 @@ func (r *cartRepository) DeleteWishlist(ctx context.Context, id int64) error {
 func (r *cartRepository) AddItemToWishlist(ctx context.Context, item *domain.WishlistItem) error {
 	query := `
 		INSERT INTO wishlist_items (wishlist_id, product_id, product_variant_id, notes, created_at)
-		VALUES (:wishlist_id, :product_id, :product_variant_id, :notes, :created_at)`
+		VALUES (:wishlist_id, :product_id, :product_variant_id, :notes, :created_at) RETURNING id`
 
 	item.CreatedAt = time.Now()
 
-	result, err := r.db.NamedExecContext(ctx, query, item)
+	result, err := r.db.NamedQueryContext(ctx, query, item)
 	if err != nil {
 		return fmt.Errorf("failed to add item to wishlist: %w", err)
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get wishlist item ID: %w", err)
+	defer result.Close()
+
+	if result.Next() {
+		if err := result.Scan(&item.ID); err != nil {
+			return fmt.Errorf("failed to scan wishlist item ID: %w", err)
+		}
 	}
 
-	item.ID = id
 	return nil
 }
 
@@ -1026,48 +1333,10 @@ func (r *cartRepository) DeleteWishlistItem(ctx context.Context, id int64) error
 }
 
 // MoveItemToCart moves an item from wishlist to cart
+// Note: This method is deprecated. Use the service layer MoveItemToCart instead
+// which properly handles price updates and stock checks.
 func (r *cartRepository) MoveItemToCart(ctx context.Context, wishlistItemID, cartID int64) error {
-	// Start transaction
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Get wishlist item
-	wishlistItem, err := r.GetWishlistItemByID(ctx, wishlistItemID)
-	if err != nil {
-		return fmt.Errorf("failed to get wishlist item: %w", err)
-	}
-
-	// Create cart item (you would need to get the current price from product)
-	cartItem := &domain.CartItem{
-		CartID:           cartID,
-		ProductID:        wishlistItem.ProductID,
-		ProductVariantID: wishlistItem.ProductVariantID,
-		Quantity:         1, // Default quantity
-		UnitPrice:        0, // This should be fetched from product
-		TotalPrice:       0,
-	}
-
-	// Add to cart
-	_, err = tx.NamedExecContext(ctx, `
-		INSERT INTO cart_items (cart_id, product_id, product_variant_id, quantity, unit_price, total_price, created_at, updated_at)
-		VALUES (:cart_id, :product_id, :product_variant_id, :quantity, :unit_price, :total_price, :created_at, :updated_at)`, cartItem)
-	if err != nil {
-		return fmt.Errorf("failed to add item to cart: %w", err)
-	}
-
-	// Remove from wishlist
-	_, err = tx.ExecContext(ctx, "DELETE FROM wishlist_items WHERE id = $1", wishlistItemID)
-	if err != nil {
-		return fmt.Errorf("failed to remove item from wishlist: %w", err)
-	}
-
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
+	// This method is deprecated and should not be used directly.
+	// The service layer handles price updates and stock checks properly.
+	return fmt.Errorf("this method is deprecated, use service layer MoveItemToCart instead")
 }

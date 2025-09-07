@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
+	
 	"github.com/jmoiron/sqlx"
 )
 
@@ -17,12 +18,12 @@ type InventoryRepository interface {
 	GetInventoryByProduct(ctx context.Context, productID int64, variantID *int64) (*domain.Inventory, error)
 	UpdateInventory(ctx context.Context, inventory *domain.Inventory) error
 	DeleteInventory(ctx context.Context, id int64) error
-	ListInventory(ctx context.Context, req *ListInventoryRequest) ([]*domain.Inventory, int64, error)
+	ListInventory(ctx context.Context, req *domain.ListInventoryRequest) ([]*domain.Inventory, int64, error)
 	GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error)
 
 	// Stock Movements
 	RecordStockMovement(ctx context.Context, movement *domain.InventoryMovement) error
-	GetStockMovements(ctx context.Context, req *ListStockMovementsRequest) ([]*domain.InventoryMovement, int64, error)
+	GetStockMovements(ctx context.Context, req *domain.ListStockMovementsRequest) ([]*domain.InventoryMovement, int64, error)
 	GetStockMovementByID(ctx context.Context, id int64) (*domain.InventoryMovement, error)
 
 	// Stock Reservations
@@ -40,7 +41,7 @@ type InventoryRepository interface {
 	CheckLowStockAlerts(ctx context.Context) error
 
 	// Bulk Operations
-	BulkUpdateStock(ctx context.Context, updates []StockUpdateItem) (*BulkStockUpdateResponse, error)
+	BulkUpdateStock(ctx context.Context, updates []domain.StockUpdateItem) (*domain.BulkStockUpdateResponse, error)
 }
 
 type inventoryRepository struct {
@@ -177,7 +178,7 @@ func (r *inventoryRepository) DeleteInventory(ctx context.Context, id int64) err
 }
 
 // ListInventory lists inventory with filters
-func (r *inventoryRepository) ListInventory(ctx context.Context, req *ListInventoryRequest) ([]*domain.Inventory, int64, error) {
+func (r *inventoryRepository) ListInventory(ctx context.Context, req *domain.ListInventoryRequest) ([]*domain.Inventory, int64, error) {
 	// Build WHERE clause
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
@@ -287,7 +288,7 @@ func (r *inventoryRepository) RecordStockMovement(ctx context.Context, movement 
 }
 
 // GetStockMovements retrieves stock movements with filters
-func (r *inventoryRepository) GetStockMovements(ctx context.Context, req *ListStockMovementsRequest) ([]*domain.InventoryMovement, int64, error) {
+func (r *inventoryRepository) GetStockMovements(ctx context.Context, req *domain.ListStockMovementsRequest) ([]*domain.InventoryMovement, int64, error) {
 	// Build WHERE clause
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
@@ -584,12 +585,12 @@ func (r *inventoryRepository) CheckLowStockAlerts(ctx context.Context) error {
 // Bulk Operations
 
 // BulkUpdateStock performs bulk stock updates
-func (r *inventoryRepository) BulkUpdateStock(ctx context.Context, updates []StockUpdateItem) (*BulkStockUpdateResponse, error) {
+func (r *inventoryRepository) BulkUpdateStock(ctx context.Context, updates []domain.StockUpdateItem) (*domain.BulkStockUpdateResponse, error) {
 	// This would typically use a transaction for atomicity
 	// For now, we'll implement a simple version
-	response := &BulkStockUpdateResponse{
+	response := &domain.BulkStockUpdateResponse{
 		UpdatedItems: 0,
-		FailedItems:  []FailedStockUpdateItem{},
+		FailedItems:  []domain.FailedStockUpdateItem{},
 		Success:      true,
 	}
 
@@ -597,45 +598,4 @@ func (r *inventoryRepository) BulkUpdateStock(ctx context.Context, updates []Sto
 	// This is a placeholder implementation
 
 	return response, nil
-}
-
-// Additional types for repository
-type ListInventoryRequest struct {
-	ProductID        *int64
-	ProductVariantID *int64
-	LowStock         *bool
-	OutOfStock       *bool
-	Page             int
-	Limit            int
-}
-
-type ListStockMovementsRequest struct {
-	ProductID        *int64
-	ProductVariantID *int64
-	MovementType     *string
-	StartDate        *string
-	EndDate          *string
-	Page             int
-	Limit            int
-}
-
-type StockUpdateItem struct {
-	ProductID        int64
-	ProductVariantID *int64
-	Quantity         int
-	MovementType     string
-	Reason           string
-	Notes            string
-}
-
-type BulkStockUpdateResponse struct {
-	UpdatedItems int64
-	FailedItems  []FailedStockUpdateItem
-	Success      bool
-}
-
-type FailedStockUpdateItem struct {
-	ProductID        int64
-	ProductVariantID *int64
-	Error            string
 }

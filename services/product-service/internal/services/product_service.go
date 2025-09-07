@@ -20,7 +20,6 @@ type ProductService interface {
 	ListProducts(ctx context.Context, req *dto.ListProductsRequest) (*dto.ListProductsResponse, error)
 	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (*dto.ListProductsResponse, error)
 	SearchProducts(ctx context.Context, query string, page, limit int) (*dto.ListProductsResponse, error)
-	UpdateProductQuantity(ctx context.Context, id int64, quantity int) error
 	GetProductsByTags(ctx context.Context, tags []string, page, limit int) (*dto.ListProductsResponse, error)
 
 	// Product Variants
@@ -72,7 +71,6 @@ func (s *productService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		RequiresShipping: req.RequiresShipping,
 		Taxable:          req.Taxable,
 		TrackQuantity:    req.TrackQuantity,
-		Quantity:         req.Quantity,
 		MinQuantity:      req.MinQuantity,
 		MaxQuantity:      req.MaxQuantity,
 		MetaTitle:        req.MetaTitle,
@@ -181,9 +179,6 @@ func (s *productService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 	if req.TrackQuantity != nil {
 		updateProduct.TrackQuantity = *req.TrackQuantity
 	}
-	if req.Quantity != nil {
-		updateProduct.Quantity = *req.Quantity
-	}
 	if req.MinQuantity != nil {
 		updateProduct.MinQuantity = *req.MinQuantity
 	}
@@ -291,7 +286,6 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 			RequiresShipping: product.RequiresShipping,
 			Taxable:          product.Taxable,
 			TrackQuantity:    product.TrackQuantity,
-			Quantity:         product.Quantity,
 			MinQuantity:      product.MinQuantity,
 			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
@@ -354,7 +348,6 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 			RequiresShipping: product.RequiresShipping,
 			Taxable:          product.Taxable,
 			TrackQuantity:    product.TrackQuantity,
-			Quantity:         product.Quantity,
 			MinQuantity:      product.MinQuantity,
 			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
@@ -417,7 +410,6 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 			RequiresShipping: product.RequiresShipping,
 			Taxable:          product.Taxable,
 			TrackQuantity:    product.TrackQuantity,
-			Quantity:         product.Quantity,
 			MinQuantity:      product.MinQuantity,
 			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
@@ -438,23 +430,6 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 		Limit:      limit,
 		TotalPages: totalPages,
 	}, nil
-}
-
-// UpdateProductQuantity updates product quantity
-func (s *productService) UpdateProductQuantity(ctx context.Context, id int64, quantity int) error {
-	// Check if product exists
-	_, err := s.productRepo.GetProductByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to get product: %w", err)
-	}
-
-	// Update quantity
-	err = s.productRepo.UpdateProductQuantity(ctx, id, quantity)
-	if err != nil {
-		return fmt.Errorf("failed to update product quantity: %w", err)
-	}
-
-	return nil
 }
 
 // GetProductsByTags retrieves products by tags
@@ -497,7 +472,6 @@ func (s *productService) GetProductsByTags(ctx context.Context, tags []string, p
 			RequiresShipping: product.RequiresShipping,
 			Taxable:          product.Taxable,
 			TrackQuantity:    product.TrackQuantity,
-			Quantity:         product.Quantity,
 			MinQuantity:      product.MinQuantity,
 			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
@@ -545,7 +519,6 @@ func (s *productService) CreateProductVariant(ctx context.Context, req *dto.Crea
 		ComparePrice: req.ComparePrice,
 		CostPrice:    req.CostPrice,
 		Weight:       req.Weight,
-		Quantity:     req.Quantity,
 		IsActive:     req.IsActive,
 		Position:     req.Position,
 	}
@@ -609,9 +582,6 @@ func (s *productService) UpdateProductVariant(ctx context.Context, id int64, req
 	}
 	if req.Weight != nil {
 		updateVariant.Weight = *req.Weight
-	}
-	if req.Quantity != nil {
-		updateVariant.Quantity = *req.Quantity
 	}
 	if req.IsActive != nil {
 		updateVariant.IsActive = *req.IsActive

@@ -114,3 +114,31 @@ type OrderFilter struct {
 	MaxAmount         *float64   `json:"max_amount"`
 	Search            string     `json:"search"`
 }
+
+// OrderAnalytics represents analytics data for orders
+type OrderAnalytics struct {
+	TotalOrders        int64   `json:"total_orders"`
+	PendingOrders      int64   `json:"pending_orders"`
+	ConfirmedOrders    int64   `json:"confirmed_orders"`
+	ProcessingOrders   int64   `json:"processing_orders"`
+	ShippedOrders      int64   `json:"shipped_orders"`
+	DeliveredOrders    int64   `json:"delivered_orders"`
+	CancelledOrders    int64   `json:"cancelled_orders"`
+	TotalRevenue       float64 `json:"total_revenue"`
+	AverageOrderValue  float64 `json:"average_order_value"`
+	ConversionRate     float64 `json:"conversion_rate"`
+	NewOrdersToday     int64   `json:"new_orders_today"`
+	NewOrdersThisWeek  int64   `json:"new_orders_this_week"`
+	NewOrdersThisMonth int64   `json:"new_orders_this_month"`
+}
+
+// ProductOrderStats represents product statistics in orders
+type ProductOrderStats struct {
+	ProductID     int64   `json:"product_id" db:"product_id"`
+	ProductName   string  `json:"product_name" db:"product_name"`
+	SKU           string  `json:"sku" db:"sku"`
+	TotalQuantity int64   `json:"total_quantity" db:"total_quantity"`
+	TotalRevenue  float64 `json:"total_revenue" db:"total_revenue"`
+	OrderCount    int64   `json:"order_count" db:"order_count"`
+	AveragePrice  float64 `json:"average_price" db:"average_price"`
+}

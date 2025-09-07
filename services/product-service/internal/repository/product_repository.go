@@ -20,7 +20,6 @@ type ProductRepository interface {
 	ListProducts(ctx context.Context, filter *domain.ProductFilter, offset, limit int) ([]*domain.Product, int64, error)
 	GetProductsByCategory(ctx context.Context, categoryID int64, offset, limit int) ([]*domain.Product, int64, error)
 	SearchProducts(ctx context.Context, query string, offset, limit int) ([]*domain.Product, int64, error)
-	UpdateProductQuantity(ctx context.Context, id int64, quantity int) error
 	GetProductsByTags(ctx context.Context, tags []string, offset, limit int) ([]*domain.Product, int64, error)
 
 	// Product Variants
@@ -276,27 +275,6 @@ func (r *productRepository) SearchProducts(ctx context.Context, query string, of
 	return products, total, nil
 }
 
-// UpdateProductQuantity updates product quantity
-func (r *productRepository) UpdateProductQuantity(ctx context.Context, id int64, quantity int) error {
-	query := `UPDATE products SET quantity = $1, updated_at = $2 WHERE id = $3`
-
-	result, err := r.db.ExecContext(ctx, query, quantity, time.Now(), id)
-	if err != nil {
-		return fmt.Errorf("failed to update product quantity: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("product with ID %d not found", id)
-	}
-
-	return nil
-}
-
 // GetProductsByTags retrieves products by tags
 func (r *productRepository) GetProductsByTags(ctx context.Context, tags []string, offset, limit int) ([]*domain.Product, int64, error) {
 	if len(tags) == 0 {
@@ -468,7 +446,7 @@ func (r *productRepository) AddProductToCategory(ctx context.Context, productID,
 // RemoveProductFromCategory removes a product from a category
 func (r *productRepository) RemoveProductFromCategory(ctx context.Context, productID, categoryID int64) error {
 	query := `DELETE FROM product_categories WHERE product_id = $1 AND category_id = $2`
-	
+
 	result, err := r.db.ExecContext(ctx, query, productID, categoryID)
 	if err != nil {
 		return fmt.Errorf("failed to remove product from category: %w", err)
@@ -494,7 +472,7 @@ func (r *productRepository) GetProductCategories(ctx context.Context, productID 
 		INNER JOIN product_categories pc ON c.id = pc.category_id 
 		WHERE pc.product_id = $1 
 		ORDER BY pc.is_primary DESC, c.name`
-	
+
 	var categories []*domain.Category
 	err := r.db.SelectContext(ctx, &categories, query, productID)
 	if err != nil {

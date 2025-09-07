@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -37,6 +38,12 @@ type InventoryService interface {
 
 	// Bulk Operations
 	BulkUpdateStock(ctx context.Context, req *dto.BulkStockUpdateRequest) (*dto.BulkStockUpdateResponse, error)
+
+	// Quantity Helper Methods
+	GetProductQuantity(ctx context.Context, productID int64, variantID *int64) (int, error)
+	GetProductAvailableQuantity(ctx context.Context, productID int64, variantID *int64) (int, error)
+	IsProductInStock(ctx context.Context, productID int64, variantID *int64) (bool, error)
+	CheckStockAvailability(ctx context.Context, productID int64, variantID *int64, requestedQuantity int) (bool, error)
 }
 
 type inventoryService struct {
@@ -192,7 +199,7 @@ func (s *inventoryService) DeleteInventory(ctx context.Context, id int64) error 
 // ListInventory lists inventory with filters
 func (s *inventoryService) ListInventory(ctx context.Context, req *dto.ListInventoryRequest) (*dto.ListInventoryResponse, error) {
 	// Convert DTO request to repository request
-	repoReq := &repository.ListInventoryRequest{
+	repoReq := &domain.ListInventoryRequest{
 		ProductID:        req.ProductID,
 		ProductVariantID: req.ProductVariantID,
 		LowStock:         req.LowStock,
@@ -326,7 +333,7 @@ func (s *inventoryService) RecordStockMovement(ctx context.Context, req *dto.Sto
 // GetStockMovements retrieves stock movements with filters
 func (s *inventoryService) GetStockMovements(ctx context.Context, req *dto.ListStockMovementsRequest) (*dto.ListStockMovementsResponse, error) {
 	// Convert DTO request to repository request
-	repoReq := &repository.ListStockMovementsRequest{
+	repoReq := &domain.ListStockMovementsRequest{
 		ProductID:        req.ProductID,
 		ProductVariantID: req.ProductVariantID,
 		MovementType:     req.MovementType,
@@ -500,9 +507,9 @@ func (s *inventoryService) CheckLowStockAlerts(ctx context.Context) error {
 // BulkUpdateStock performs bulk stock updates
 func (s *inventoryService) BulkUpdateStock(ctx context.Context, req *dto.BulkStockUpdateRequest) (*dto.BulkStockUpdateResponse, error) {
 	// Convert DTO items to repository items
-	var repoUpdates []repository.StockUpdateItem
+	var repoUpdates []domain.StockUpdateItem
 	for _, item := range req.Updates {
-		repoUpdates = append(repoUpdates, repository.StockUpdateItem{
+		repoUpdates = append(repoUpdates, domain.StockUpdateItem{
 			ProductID:        item.ProductID,
 			ProductVariantID: item.ProductVariantID,
 			Quantity:         item.Quantity,
@@ -569,4 +576,50 @@ func getInt64Pointer(i int64) *int64 {
 		return nil
 	}
 	return &i
+}
+
+// Quantity Helper Methods
+
+// GetProductQuantity gets the total quantity for a product/variant
+func (s *inventoryService) GetProductQuantity(ctx context.Context, productID int64, variantID *int64) (int, error) {
+	inventory, err := s.inventoryRepo.GetInventoryByProduct(ctx, productID, variantID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No inventory record means 0 quantity
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to get inventory: %w", err)
+	}
+	return inventory.Quantity, nil
+}
+
+// GetProductAvailableQuantity gets the available quantity for a product/variant
+func (s *inventoryService) GetProductAvailableQuantity(ctx context.Context, productID int64, variantID *int64) (int, error) {
+	inventory, err := s.inventoryRepo.GetInventoryByProduct(ctx, productID, variantID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No inventory record means 0 available quantity
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to get inventory: %w", err)
+	}
+	return inventory.AvailableQuantity, nil
+}
+
+// IsProductInStock checks if a product/variant is in stock
+func (s *inventoryService) IsProductInStock(ctx context.Context, productID int64, variantID *int64) (bool, error) {
+	availableQuantity, err := s.GetProductAvailableQuantity(ctx, productID, variantID)
+	if err != nil {
+		return false, err
+	}
+	return availableQuantity > 0, nil
+}
+
+// CheckStockAvailability checks if there's enough stock for the requested quantity
+func (s *inventoryService) CheckStockAvailability(ctx context.Context, productID int64, variantID *int64, requestedQuantity int) (bool, error) {
+	availableQuantity, err := s.GetProductAvailableQuantity(ctx, productID, variantID)
+	if err != nil {
+		return false, err
+	}
+	return availableQuantity >= requestedQuantity, nil
 }

@@ -76,29 +76,45 @@ type PaymentWebhook struct {
 
 // Coupon represents discount coupons
 type Coupon struct {
-	ID                int64      `json:"id" db:"id"`
-	Code              string     `json:"code" db:"code"`
-	Name              string     `json:"name" db:"name"`
-	Description       string     `json:"description" db:"description"`
-	Type              string     `json:"type" db:"type"` // percentage, fixed_amount, free_shipping
-	Value             float64    `json:"value" db:"value"`
-	MinOrderAmount    float64    `json:"min_order_amount" db:"min_order_amount"`
-	MaxDiscountAmount float64    `json:"max_discount_amount" db:"max_discount_amount"`
-	UsageLimit        int        `json:"usage_limit" db:"usage_limit"`
-	UsedCount         int        `json:"used_count" db:"used_count"`
-	IsActive          bool       `json:"is_active" db:"is_active"`
-	StartsAt          time.Time  `json:"starts_at" db:"starts_at"`
-	ExpiresAt         *time.Time `json:"expires_at" db:"expires_at"`
-	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at" db:"updated_at"`
+	ID              int64      `json:"id" db:"id"`
+	Code            string     `json:"code" db:"code"`
+	Name            string     `json:"name" db:"name"`
+	Description     string     `json:"description" db:"description"`
+	Type            string     `json:"type" db:"type"` // percentage, fixed_amount, free_shipping
+	Value           float64    `json:"value" db:"value"`
+	MinimumAmount   float64    `json:"minimum_amount" db:"minimum_amount"`
+	MaximumDiscount *float64   `json:"maximum_discount" db:"maximum_discount"`
+	UsageLimit      *int       `json:"usage_limit" db:"usage_limit"`
+	UsedCount       int        `json:"used_count" db:"used_count"`
+	IsActive        bool       `json:"is_active" db:"is_active"`
+	StartsAt        time.Time  `json:"starts_at" db:"starts_at"`
+	ExpiresAt       *time.Time `json:"expires_at" db:"expires_at"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // CouponUsage represents coupon usage tracking
 type CouponUsage struct {
-	ID        int64     `json:"id" db:"id"`
-	CouponID  int64     `json:"coupon_id" db:"coupon_id"`
-	OrderID   int64     `json:"order_id" db:"order_id"`
-	UserID    int64     `json:"user_id" db:"user_id"`
-	Amount    float64   `json:"amount" db:"amount"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID             int64     `json:"id" db:"id"`
+	CouponID       int64     `json:"coupon_id" db:"coupon_id"`
+	OrderID        *int64    `json:"order_id" db:"order_id"`
+	UserID         *int64    `json:"user_id" db:"user_id"`
+	CartID         *int64    `json:"cart_id" db:"cart_id"`
+	DiscountAmount float64   `json:"discount_amount" db:"discount_amount"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+}
+
+// CouponFilter represents filters for coupon queries
+type CouponFilter struct {
+	Code     *string `json:"code"`
+	Type     *string `json:"type"`
+	IsActive *bool   `json:"is_active"`
+	Search   string  `json:"search"`
+}
+
+// CouponUsageFilter represents filters for coupon usage queries
+type CouponUsageFilter struct {
+	CouponID *int64 `json:"coupon_id"`
+	UserID   *int64 `json:"user_id"`
+	OrderID  *int64 `json:"order_id"`
 }

@@ -50,6 +50,10 @@ type CartService interface {
 	MergeCarts(ctx context.Context, sourceCartID, targetCartID int64) error
 	ClearCart(ctx context.Context, cartID int64) error
 	GetCartAnalytics(ctx context.Context) (*dto.CartAnalyticsResponse, error)
+	GetCartAnalyticsByDateRange(ctx context.Context, startDate, endDate time.Time) (*dto.CartAnalyticsResponse, error)
+	GetTopProductsInCarts(ctx context.Context, limit int) ([]*dto.ProductCartStatsResponse, error)
+	GetCartAbandonmentRate(ctx context.Context) (float64, error)
+	GetCartConversionFunnel(ctx context.Context) (*dto.CartConversionFunnelResponse, error)
 
 	// Wishlist Management
 	CreateWishlist(ctx context.Context, userID int64, req *dto.CreateWishlistRequest) (*domain.Wishlist, error)
@@ -65,17 +69,22 @@ type CartService interface {
 	UpdateWishlistItem(ctx context.Context, id int64, req *dto.UpdateWishlistItemRequest) (*domain.WishlistItem, error)
 	DeleteWishlistItem(ctx context.Context, id int64) error
 	MoveItemToCart(ctx context.Context, wishlistItemID, cartID int64) error
+	MoveItemToCartWithQuantity(ctx context.Context, wishlistItemID, cartID int64, quantity int) error
 }
 
 type cartService struct {
-	cartRepo    repository.CartRepository
-	productRepo repository.ProductRepository
+	cartRepo         repository.CartRepository
+	productRepo      repository.ProductRepository
+	inventoryService InventoryService
+	couponService    CouponService
 }
 
-func NewCartService(cartRepo repository.CartRepository, productRepo repository.ProductRepository) CartService {
+func NewCartService(cartRepo repository.CartRepository, productRepo repository.ProductRepository, inventoryService InventoryService, couponService CouponService) CartService {
 	return &cartService{
-		cartRepo:    cartRepo,
-		productRepo: productRepo,
+		cartRepo:         cartRepo,
+		productRepo:      productRepo,
+		inventoryService: inventoryService,
+		couponService:    couponService,
 	}
 }
 
@@ -220,6 +229,15 @@ func (s *cartService) AddItemToCart(ctx context.Context, cartID int64, req *dto.
 		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
+	// Check stock availability
+	available, err := s.inventoryService.CheckStockAvailability(ctx, req.ProductID, req.ProductVariantID, req.Quantity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check stock availability: %w", err)
+	}
+	if !available {
+		return nil, fmt.Errorf("insufficient stock for requested quantity")
+	}
+
 	// Get current product price
 	unitPrice, err := s.getCurrentProductPrice(ctx, req.ProductID, req.ProductVariantID)
 	if err != nil {
@@ -294,6 +312,17 @@ func (s *cartService) UpdateCartItem(ctx context.Context, id int64, req *dto.Upd
 	existingItem, err := s.cartRepo.GetCartItemByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get existing cart item: %w", err)
+	}
+
+	// Check stock availability if quantity is being updated
+	if req.Quantity != nil {
+		available, err := s.inventoryService.CheckStockAvailability(ctx, existingItem.ProductID, existingItem.ProductVariantID, *req.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check stock availability: %w", err)
+		}
+		if !available {
+			return nil, fmt.Errorf("insufficient stock for requested quantity")
+		}
 	}
 
 	// Get current product price
@@ -441,31 +470,21 @@ func (s *cartService) GetCartItemCount(ctx context.Context, cartID int64) (int, 
 
 // ApplyCouponToCart applies a coupon to a cart
 func (s *cartService) ApplyCouponToCart(ctx context.Context, cartID int64, req *dto.ApplyCouponRequest) (*domain.CartCoupon, error) {
-	// Check if cart exists
-	_, err := s.cartRepo.GetCartByID(ctx, cartID)
+	// Get user ID from context (you might want to extract this from JWT token)
+	var userID *int64
+	// userID = extractUserIDFromContext(ctx)
+
+	// Use coupon service to apply coupon
+	coupon, discountAmount, err := s.couponService.ApplyCouponToCart(ctx, cartID, req.CouponCode, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cart: %w", err)
+		return nil, fmt.Errorf("failed to apply coupon: %w", err)
 	}
 
-	// Check if coupon is already applied
-	_, err = s.cartRepo.GetCartCouponByCode(ctx, cartID, req.CouponCode)
-	if err == nil {
-		return nil, fmt.Errorf("coupon %s is already applied to this cart", req.CouponCode)
-	}
-
-	// In a real application, you would validate the coupon here
-	// For now, we'll create a simple discount
-	discountAmount := 10.0 // $10 discount
-
+	// Return cart coupon representation
 	cartCoupon := &domain.CartCoupon{
 		CartID:         cartID,
-		CouponCode:     req.CouponCode,
+		CouponCode:     coupon.Code,
 		DiscountAmount: discountAmount,
-	}
-
-	err = s.cartRepo.ApplyCouponToCart(ctx, cartCoupon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply coupon to cart: %w", err)
 	}
 
 	return cartCoupon, nil
@@ -473,13 +492,8 @@ func (s *cartService) ApplyCouponToCart(ctx context.Context, cartID int64, req *
 
 // RemoveCouponFromCart removes a coupon from a cart
 func (s *cartService) RemoveCouponFromCart(ctx context.Context, cartID int64, req *dto.RemoveCouponRequest) error {
-	// Check if cart exists
-	_, err := s.cartRepo.GetCartByID(ctx, cartID)
-	if err != nil {
-		return fmt.Errorf("failed to get cart: %w", err)
-	}
-
-	err = s.cartRepo.RemoveCouponFromCart(ctx, cartID, req.CouponCode)
+	// Use coupon service to remove coupon
+	err := s.couponService.RemoveCouponFromCart(ctx, cartID, req.CouponCode)
 	if err != nil {
 		return fmt.Errorf("failed to remove coupon from cart: %w", err)
 	}
@@ -489,18 +503,25 @@ func (s *cartService) RemoveCouponFromCart(ctx context.Context, cartID int64, re
 
 // GetCartCoupons retrieves all coupons applied to a cart
 func (s *cartService) GetCartCoupons(ctx context.Context, cartID int64) ([]*domain.CartCoupon, error) {
-	// Check if cart exists
-	_, err := s.cartRepo.GetCartByID(ctx, cartID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cart: %w", err)
-	}
-
-	coupons, err := s.cartRepo.GetCartCoupons(ctx, cartID)
+	// Use coupon service to get cart coupons
+	coupons, err := s.couponService.GetCartCoupons(ctx, cartID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cart coupons: %w", err)
 	}
 
-	return coupons, nil
+	// Convert domain coupons to cart coupons
+	cartCoupons := make([]*domain.CartCoupon, len(coupons))
+	for i, coupon := range coupons {
+		// Get discount amount from cart coupon record
+		cartCoupon, err := s.cartRepo.GetCartCouponByCode(ctx, cartID, coupon.Code)
+		if err != nil {
+			// Skip if cart coupon not found
+			continue
+		}
+		cartCoupons[i] = cartCoupon
+	}
+
+	return cartCoupons, nil
 }
 
 // Cart Shipping
@@ -649,6 +670,36 @@ func (s *cartService) GetCartAnalytics(ctx context.Context) (*dto.CartAnalyticsR
 		return nil, fmt.Errorf("failed to get cart analytics: %w", err)
 	}
 
+	// Get additional metrics
+	abandonmentRate, err := s.cartRepo.GetCartAbandonmentRate(ctx)
+	if err != nil {
+		abandonmentRate = 0 // Don't fail the whole request for this
+	}
+
+	// Get time-based metrics
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	weekStart := today.AddDate(0, 0, -int(today.Weekday()))
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	// Get new carts today
+	todayAnalytics, err := s.cartRepo.GetCartAnalyticsByDateRange(ctx, today, now)
+	if err != nil {
+		todayAnalytics = &domain.CartAnalytics{}
+	}
+
+	// Get new carts this week
+	weekAnalytics, err := s.cartRepo.GetCartAnalyticsByDateRange(ctx, weekStart, now)
+	if err != nil {
+		weekAnalytics = &domain.CartAnalytics{}
+	}
+
+	// Get new carts this month
+	monthAnalytics, err := s.cartRepo.GetCartAnalyticsByDateRange(ctx, monthStart, now)
+	if err != nil {
+		monthAnalytics = &domain.CartAnalytics{}
+	}
+
 	return &dto.CartAnalyticsResponse{
 		TotalCarts:          analytics.TotalCarts,
 		ActiveCarts:         analytics.ActiveCarts,
@@ -657,6 +708,91 @@ func (s *cartService) GetCartAnalytics(ctx context.Context) (*dto.CartAnalyticsR
 		TotalCartValue:      analytics.TotalCartValue,
 		ConversionRate:      analytics.ConversionRate,
 		AverageItemsPerCart: analytics.AverageItemsPerCart,
+		AbandonmentRate:     abandonmentRate,
+		NewCartsToday:       todayAnalytics.TotalCarts,
+		NewCartsThisWeek:    weekAnalytics.TotalCarts,
+		NewCartsThisMonth:   monthAnalytics.TotalCarts,
+	}, nil
+}
+
+// GetCartAnalyticsByDateRange retrieves analytics data for carts within a date range
+func (s *cartService) GetCartAnalyticsByDateRange(ctx context.Context, startDate, endDate time.Time) (*dto.CartAnalyticsResponse, error) {
+	analytics, err := s.cartRepo.GetCartAnalyticsByDateRange(ctx, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cart analytics by date range: %w", err)
+	}
+
+	return &dto.CartAnalyticsResponse{
+		TotalCarts:          analytics.TotalCarts,
+		ActiveCarts:         analytics.ActiveCarts,
+		AbandonedCarts:      analytics.AbandonedCarts,
+		AverageCartValue:    analytics.AverageCartValue,
+		TotalCartValue:      analytics.TotalCartValue,
+		ConversionRate:      analytics.ConversionRate,
+		AverageItemsPerCart: analytics.AverageItemsPerCart,
+		AbandonmentRate:     analytics.AbandonmentRate,
+		NewCartsToday:       0, // Not applicable for date range
+		NewCartsThisWeek:    0, // Not applicable for date range
+		NewCartsThisMonth:   0, // Not applicable for date range
+	}, nil
+}
+
+// GetTopProductsInCarts retrieves top products by quantity/value in carts
+func (s *cartService) GetTopProductsInCarts(ctx context.Context, limit int) ([]*dto.ProductCartStatsResponse, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	stats, err := s.cartRepo.GetTopProductsInCarts(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top products in carts: %w", err)
+	}
+
+	responses := make([]*dto.ProductCartStatsResponse, len(stats))
+	for i, stat := range stats {
+		responses[i] = &dto.ProductCartStatsResponse{
+			ProductID:     stat.ProductID,
+			ProductName:   stat.ProductName,
+			SKU:           stat.SKU,
+			TotalQuantity: stat.TotalQuantity,
+			TotalValue:    stat.TotalValue,
+			CartCount:     stat.CartCount,
+			AveragePrice:  stat.AveragePrice,
+		}
+	}
+
+	return responses, nil
+}
+
+// GetCartAbandonmentRate calculates the cart abandonment rate
+func (s *cartService) GetCartAbandonmentRate(ctx context.Context) (float64, error) {
+	rate, err := s.cartRepo.GetCartAbandonmentRate(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get cart abandonment rate: %w", err)
+	}
+
+	return rate, nil
+}
+
+// GetCartConversionFunnel retrieves conversion funnel data
+func (s *cartService) GetCartConversionFunnel(ctx context.Context) (*dto.CartConversionFunnelResponse, error) {
+	funnel, err := s.cartRepo.GetCartConversionFunnel(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cart conversion funnel: %w", err)
+	}
+
+	return &dto.CartConversionFunnelResponse{
+		Visitors:            funnel.Visitors,
+		CartCreated:         funnel.CartCreated,
+		ItemsAdded:          funnel.ItemsAdded,
+		CheckoutStarted:     funnel.CheckoutStarted,
+		OrderCompleted:      funnel.OrderCompleted,
+		CartToCheckoutRate:  funnel.CartToCheckoutRate,
+		CheckoutToOrderRate: funnel.CheckoutToOrderRate,
+		OverallConversion:   funnel.OverallConversion,
 	}, nil
 }
 
@@ -914,8 +1050,8 @@ func (s *cartService) DeleteWishlistItem(ctx context.Context, id int64) error {
 
 // MoveItemToCart moves an item from wishlist to cart
 func (s *cartService) MoveItemToCart(ctx context.Context, wishlistItemID, cartID int64) error {
-	// Check if wishlist item exists
-	_, err := s.cartRepo.GetWishlistItemByID(ctx, wishlistItemID)
+	// Get wishlist item
+	wishlistItem, err := s.cartRepo.GetWishlistItemByID(ctx, wishlistItemID)
 	if err != nil {
 		return fmt.Errorf("failed to get wishlist item: %w", err)
 	}
@@ -926,9 +1062,128 @@ func (s *cartService) MoveItemToCart(ctx context.Context, wishlistItemID, cartID
 		return fmt.Errorf("failed to get cart: %w", err)
 	}
 
-	err = s.cartRepo.MoveItemToCart(ctx, wishlistItemID, cartID)
+	// Check stock availability (default quantity of 1 for wishlist items)
+	available, err := s.inventoryService.CheckStockAvailability(ctx, wishlistItem.ProductID, wishlistItem.ProductVariantID, 1)
 	if err != nil {
-		return fmt.Errorf("failed to move item to cart: %w", err)
+		return fmt.Errorf("failed to check stock availability: %w", err)
+	}
+	if !available {
+		return fmt.Errorf("insufficient stock for this item")
+	}
+
+	// Get current product price
+	unitPrice, err := s.getCurrentProductPrice(ctx, wishlistItem.ProductID, wishlistItem.ProductVariantID)
+	if err != nil {
+		return fmt.Errorf("failed to get current product price: %w", err)
+	}
+
+	// Check if item already exists in cart
+	existingItem, err := s.cartRepo.GetCartItemByProduct(ctx, cartID, wishlistItem.ProductID, wishlistItem.ProductVariantID)
+	if err == nil {
+		// Item exists, update quantity and price
+		existingItem.Quantity += 1
+		existingItem.UnitPrice = unitPrice // Use current price
+		existingItem.TotalPrice = existingItem.UnitPrice * float64(existingItem.Quantity)
+		existingItem.UpdatedAt = time.Now()
+
+		err = s.cartRepo.UpdateCartItem(ctx, existingItem.ID, existingItem)
+		if err != nil {
+			return fmt.Errorf("failed to update existing cart item: %w", err)
+		}
+	} else {
+		// Create new cart item with current price
+		cartItem := &domain.CartItem{
+			CartID:           cartID,
+			ProductID:        wishlistItem.ProductID,
+			ProductVariantID: wishlistItem.ProductVariantID,
+			Quantity:         1,
+			UnitPrice:        unitPrice, // Use current product price
+			TotalPrice:       unitPrice, // 1 * unitPrice
+		}
+
+		err = s.cartRepo.AddItemToCart(ctx, cartItem)
+		if err != nil {
+			return fmt.Errorf("failed to add item to cart: %w", err)
+		}
+	}
+
+	// Remove from wishlist
+	err = s.cartRepo.DeleteWishlistItem(ctx, wishlistItemID)
+	if err != nil {
+		return fmt.Errorf("failed to remove item from wishlist: %w", err)
+	}
+
+	return nil
+}
+
+// MoveItemToCartWithQuantity moves an item from wishlist to cart with specified quantity
+func (s *cartService) MoveItemToCartWithQuantity(ctx context.Context, wishlistItemID, cartID int64, quantity int) error {
+	// Validate quantity
+	if quantity <= 0 {
+		return fmt.Errorf("quantity must be greater than 0")
+	}
+
+	// Get wishlist item
+	wishlistItem, err := s.cartRepo.GetWishlistItemByID(ctx, wishlistItemID)
+	if err != nil {
+		return fmt.Errorf("failed to get wishlist item: %w", err)
+	}
+
+	// Check if cart exists
+	_, err = s.cartRepo.GetCartByID(ctx, cartID)
+	if err != nil {
+		return fmt.Errorf("failed to get cart: %w", err)
+	}
+
+	// Check stock availability
+	available, err := s.inventoryService.CheckStockAvailability(ctx, wishlistItem.ProductID, wishlistItem.ProductVariantID, quantity)
+	if err != nil {
+		return fmt.Errorf("failed to check stock availability: %w", err)
+	}
+	if !available {
+		return fmt.Errorf("insufficient stock for requested quantity")
+	}
+
+	// Get current product price
+	unitPrice, err := s.getCurrentProductPrice(ctx, wishlistItem.ProductID, wishlistItem.ProductVariantID)
+	if err != nil {
+		return fmt.Errorf("failed to get current product price: %w", err)
+	}
+
+	// Check if item already exists in cart
+	existingItem, err := s.cartRepo.GetCartItemByProduct(ctx, cartID, wishlistItem.ProductID, wishlistItem.ProductVariantID)
+	if err == nil {
+		// Item exists, update quantity and price
+		existingItem.Quantity += quantity
+		existingItem.UnitPrice = unitPrice // Use current price
+		existingItem.TotalPrice = existingItem.UnitPrice * float64(existingItem.Quantity)
+		existingItem.UpdatedAt = time.Now()
+
+		err = s.cartRepo.UpdateCartItem(ctx, existingItem.ID, existingItem)
+		if err != nil {
+			return fmt.Errorf("failed to update existing cart item: %w", err)
+		}
+	} else {
+		// Create new cart item with current price
+		cartItem := &domain.CartItem{
+			CartID:           cartID,
+			ProductID:        wishlistItem.ProductID,
+			ProductVariantID: wishlistItem.ProductVariantID,
+			Quantity:         quantity,
+			UnitPrice:        unitPrice, // Use current product price
+			TotalPrice:       unitPrice * float64(quantity),
+		}
+
+		err = s.cartRepo.AddItemToCart(ctx, cartItem)
+		if err != nil {
+			return fmt.Errorf("failed to add item to cart: %w", err)
+		}
+	}
+
+	// Remove from wishlist
+	err = s.cartRepo.DeleteWishlistItem(ctx, wishlistItemID)
+	if err != nil {
+		return fmt.Errorf("failed to remove item from wishlist: %w", err)
 	}
 
 	return nil

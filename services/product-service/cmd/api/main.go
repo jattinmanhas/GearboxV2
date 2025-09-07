@@ -42,21 +42,27 @@ func main() {
 	productRepo := repository.NewProductRepository(database.DB)
 	cartRepo := repository.NewCartRepository(database.DB)
 	inventoryRepo := repository.NewInventoryRepository(database.DB)
+	couponRepo := repository.NewCouponRepository(database.DB)
+	orderRepo := repository.NewOrderRepository(database.DB)
 
 	// Initialize services
 	categoryService := services.NewCategoryService(categoryRepo, productRepo)
 	productService := services.NewProductService(productRepo)
-	cartService := services.NewCartService(cartRepo, productRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo, productRepo)
+	couponService := services.NewCouponService(couponRepo, cartRepo)
+	cartService := services.NewCartService(cartRepo, productRepo, inventoryService, couponService)
+	orderService := services.NewOrderService(orderRepo, productRepo, inventoryService, cartService, couponService)
 
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	productHandler := handlers.NewProductHandler(productService)
 	cartHandler := handlers.NewCartHandler(cartService)
 	inventoryHandler := handlers.NewInventoryHandler(inventoryService)
+	couponHandler := handlers.NewCouponHandler(couponService)
+	orderHandler := handlers.NewOrderHandler(orderService)
 
 	// Initialize router
-	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler)
+	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler, couponHandler, orderHandler)
 
 	// Create HTTP server
 	server := &http.Server{

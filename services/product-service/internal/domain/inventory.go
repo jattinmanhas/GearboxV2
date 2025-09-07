@@ -64,13 +64,55 @@ type InventoryAlert struct {
 
 // InventorySummary represents inventory summary statistics
 type InventorySummary struct {
-	TotalProducts     int64   `json:"total_products"`
-	TotalVariants     int64   `json:"total_variants"`
-	TotalQuantity     int64   `json:"total_quantity"`
-	TotalReserved     int64   `json:"total_reserved"`
-	TotalAvailable    int64   `json:"total_available"`
-	LowStockItems     int64   `json:"low_stock_items"`
-	OutOfStockItems   int64   `json:"out_of_stock_items"`
-	TotalValue        float64 `json:"total_value"`
-	AverageStockLevel float64 `json:"average_stock_level"`
+	TotalProducts     int64   `db:"total_products" json:"total_products"`
+	TotalVariants     int64   `db:"total_variants" json:"total_variants"`
+	TotalQuantity     int64   `db:"total_quantity" json:"total_quantity"`
+	TotalReserved     int64   `db:"total_reserved" json:"total_reserved"`
+	TotalAvailable    int64   `db:"total_available" json:"total_available"`
+	LowStockItems     int64   `db:"low_stock_items" json:"low_stock_items"`
+	OutOfStockItems   int64   `db:"out_of_stock_items" json:"out_of_stock_items"`
+	TotalValue        float64 `db:"total_value" json:"total_value"`
+	AverageStockLevel float64 `db:"average_stock_level" json:"average_stock_level"`
+}
+
+
+// Additional types for repository
+type ListInventoryRequest struct {
+	ProductID        *int64
+	ProductVariantID *int64
+	LowStock         *bool
+	OutOfStock       *bool
+	Page             int
+	Limit            int
+}
+
+type ListStockMovementsRequest struct {
+	ProductID        *int64
+	ProductVariantID *int64
+	MovementType     *string
+	StartDate        *string
+	EndDate          *string
+	Page             int
+	Limit            int
+}
+
+type StockUpdateItem struct {
+	ProductID        int64
+	ProductVariantID *int64
+	Quantity         int
+	MovementType     string
+	Reason           string
+	Notes            string
+}
+
+type BulkStockUpdateResponse struct {
+	UpdatedItems int64
+	FailedItems  []FailedStockUpdateItem
+	Success      bool
+}
+
+type FailedStockUpdateItem struct {
+	ProductID        int64
+	ProductVariantID *int64
+	Error            string
 }

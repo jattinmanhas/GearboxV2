@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -49,6 +50,10 @@ type ICartHandler interface {
 	MergeCarts(w http.ResponseWriter, r *http.Request)
 	ClearCart(w http.ResponseWriter, r *http.Request)
 	GetCartAnalytics(w http.ResponseWriter, r *http.Request)
+	GetCartAnalyticsByDateRange(w http.ResponseWriter, r *http.Request)
+	GetTopProductsInCarts(w http.ResponseWriter, r *http.Request)
+	GetCartAbandonmentRate(w http.ResponseWriter, r *http.Request)
+	GetCartConversionFunnel(w http.ResponseWriter, r *http.Request)
 
 	// Wishlist Management
 	CreateWishlist(w http.ResponseWriter, r *http.Request)
@@ -752,6 +757,87 @@ func (h *cartHandler) GetCartAnalytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "Cart analytics retrieved successfully", analytics)
+}
+
+func (h *cartHandler) GetCartAnalyticsByDateRange(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
+
+	if startDateStr == "" || endDateStr == "" {
+		httpx.Error(w, http.StatusBadRequest, "start_date and end_date are required", nil)
+		return
+	}
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "Invalid start_date format. Use YYYY-MM-DD", err)
+		return
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "Invalid end_date format. Use YYYY-MM-DD", err)
+		return
+	}
+
+	// Add time to end date to include the full day
+	endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+
+	analytics, err := h.cartService.GetCartAnalyticsByDateRange(r.Context(), startDate, endDate)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "Failed to get cart analytics by date range", err)
+		return
+	}
+
+	httpx.OK(w, "Cart analytics by date range retrieved successfully", analytics)
+}
+
+func (h *cartHandler) GetTopProductsInCarts(w http.ResponseWriter, r *http.Request) {
+	// Parse limit parameter
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10 // default
+
+	if limitStr != "" {
+		var err error
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > 100 {
+			httpx.Error(w, http.StatusBadRequest, "Invalid limit. Must be between 1 and 100", err)
+			return
+		}
+	}
+
+	products, err := h.cartService.GetTopProductsInCarts(r.Context(), limit)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "Failed to get top products in carts", err)
+		return
+	}
+
+	httpx.OK(w, "Top products in carts retrieved successfully", products)
+}
+
+func (h *cartHandler) GetCartAbandonmentRate(w http.ResponseWriter, r *http.Request) {
+	rate, err := h.cartService.GetCartAbandonmentRate(r.Context())
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "Failed to get cart abandonment rate", err)
+		return
+	}
+
+	response := map[string]float64{
+		"abandonment_rate": rate,
+	}
+
+	httpx.OK(w, "Cart abandonment rate retrieved successfully", response)
+}
+
+func (h *cartHandler) GetCartConversionFunnel(w http.ResponseWriter, r *http.Request) {
+	funnel, err := h.cartService.GetCartConversionFunnel(r.Context())
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "Failed to get cart conversion funnel", err)
+		return
+	}
+
+	httpx.OK(w, "Cart conversion funnel retrieved successfully", funnel)
 }
 
 // Wishlist Management

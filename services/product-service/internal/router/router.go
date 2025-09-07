@@ -9,7 +9,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/handlers"
 )
 
-func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler) *chi.Mux {
+func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler, couponHandler handlers.CouponHandler, orderHandler handlers.OrderHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global middleware
@@ -54,7 +54,6 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Get("/{id}", productHandler.GetProduct)
 			r.Put("/{id}", productHandler.UpdateProduct)
 			r.Delete("/{id}", productHandler.DeleteProduct)
-			r.Patch("/{id}/quantity", productHandler.UpdateProductQuantity)
 
 			// Product variants
 			r.Post("/{id}/variants", productHandler.CreateProductVariant)
@@ -88,6 +87,10 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)
+			r.Get("/analytics/date-range", cartHandler.GetCartAnalyticsByDateRange)
+			r.Get("/analytics/top-products", cartHandler.GetTopProductsInCarts)
+			r.Get("/analytics/abandonment-rate", cartHandler.GetCartAbandonmentRate)
+			r.Get("/analytics/conversion-funnel", cartHandler.GetCartConversionFunnel)
 			r.Get("/{id}", cartHandler.GetCart)
 			r.Put("/{id}", cartHandler.UpdateCart)
 			r.Delete("/{id}", cartHandler.DeleteCart)
@@ -165,6 +168,61 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 			// Bulk operations
 			r.Post("/bulk-update", inventoryHandler.BulkUpdateStock)
+		})
+
+		// Coupon routes
+		r.Route("/coupons", func(r chi.Router) {
+			r.Post("/", couponHandler.CreateCoupon)
+			r.Get("/", couponHandler.ListCoupons)
+			r.Get("/{id}", couponHandler.GetCoupon)
+			r.Put("/{id}", couponHandler.UpdateCoupon)
+			r.Delete("/{id}", couponHandler.DeleteCoupon)
+
+			// Coupon validation
+			r.Post("/validate", couponHandler.ValidateCoupon)
+
+			// Coupon usage
+			r.Get("/usage", couponHandler.GetCouponUsage)
+		})
+
+		// Order routes
+		r.Route("/orders", func(r chi.Router) {
+			r.Post("/", orderHandler.CreateOrder)
+			r.Get("/", orderHandler.ListOrders)
+			r.Get("/number/{orderNumber}", orderHandler.GetOrderByNumber)
+			r.Get("/{id}", orderHandler.GetOrder)
+			r.Put("/{id}", orderHandler.UpdateOrder)
+			r.Delete("/{id}", orderHandler.DeleteOrder)
+
+			// Order items
+			r.Get("/{id}/items", orderHandler.GetOrderItems)
+			r.Put("/items/{id}", orderHandler.UpdateOrderItem)
+			r.Delete("/items/{id}", orderHandler.DeleteOrderItem)
+
+			// Order addresses
+			r.Get("/{id}/addresses", orderHandler.GetOrderAddresses)
+			r.Put("/addresses/{id}", orderHandler.UpdateOrderAddress)
+
+			// Order status management
+			r.Put("/{id}/status", orderHandler.UpdateOrderStatus)
+			r.Get("/{id}/status-history", orderHandler.GetOrderStatusHistory)
+
+			// Order fulfillment
+			r.Post("/{id}/fulfillment", orderHandler.CreateOrderFulfillment)
+			r.Get("/{id}/fulfillment", orderHandler.GetOrderFulfillment)
+			r.Put("/fulfillment/{id}", orderHandler.UpdateOrderFulfillment)
+
+			// Order refunds
+			r.Post("/{id}/refunds", orderHandler.CreateOrderRefund)
+			r.Get("/{id}/refunds", orderHandler.GetOrderRefunds)
+
+			// Order analytics
+			r.Get("/analytics", orderHandler.GetOrderAnalytics)
+			r.Get("/analytics/date-range", orderHandler.GetOrderAnalyticsByDateRange)
+			r.Get("/analytics/top-products", orderHandler.GetTopSellingProducts)
+
+			// Cart integration
+			r.Post("/from-cart", orderHandler.CreateOrderFromCart)
 		})
 	})
 

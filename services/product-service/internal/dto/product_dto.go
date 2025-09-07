@@ -16,7 +16,6 @@ type CreateProductRequest struct {
 	RequiresShipping bool    `json:"requires_shipping"`
 	Taxable          bool    `json:"taxable"`
 	TrackQuantity    bool    `json:"track_quantity"`
-	Quantity         int     `json:"quantity" validate:"omitempty,min=0"`
 	MinQuantity      int     `json:"min_quantity" validate:"omitempty,min=0"`
 	MaxQuantity      int     `json:"max_quantity" validate:"omitempty,min=0"`
 	MetaTitle        string  `json:"meta_title" validate:"omitempty,meta_title"`
@@ -41,7 +40,6 @@ type UpdateProductRequest struct {
 	RequiresShipping *bool    `json:"requires_shipping"`
 	Taxable          *bool    `json:"taxable"`
 	TrackQuantity    *bool    `json:"track_quantity"`
-	Quantity         *int     `json:"quantity" validate:"omitempty,min=0"`
 	MinQuantity      *int     `json:"min_quantity" validate:"omitempty,min=0"`
 	MaxQuantity      *int     `json:"max_quantity" validate:"omitempty,min=0"`
 	MetaTitle        *string  `json:"meta_title" validate:"omitempty,meta_title"`
@@ -67,7 +65,6 @@ type ProductResponse struct {
 	RequiresShipping bool    `json:"requires_shipping"`
 	Taxable          bool    `json:"taxable"`
 	TrackQuantity    bool    `json:"track_quantity"`
-	Quantity         int     `json:"quantity"`
 	MinQuantity      int     `json:"min_quantity"`
 	MaxQuantity      int     `json:"max_quantity"`
 	MetaTitle        string  `json:"meta_title"`
@@ -112,7 +109,6 @@ type CreateProductVariantRequest struct {
 	ComparePrice float64 `json:"compare_price" validate:"omitempty,price"`
 	CostPrice    float64 `json:"cost_price" validate:"omitempty,price"`
 	Weight       float64 `json:"weight" validate:"omitempty,weight"`
-	Quantity     int     `json:"quantity" validate:"omitempty,min=0"`
 	IsActive     bool    `json:"is_active"`
 	Position     int     `json:"position" validate:"omitempty,min=0"`
 }
@@ -125,7 +121,6 @@ type UpdateProductVariantRequest struct {
 	ComparePrice *float64 `json:"compare_price" validate:"omitempty,price"`
 	CostPrice    *float64 `json:"cost_price" validate:"omitempty,price"`
 	Weight       *float64 `json:"weight" validate:"omitempty,weight"`
-	Quantity     *int     `json:"quantity" validate:"omitempty,min=0"`
 	IsActive     *bool    `json:"is_active"`
 	Position     *int     `json:"position" validate:"omitempty,min=0"`
 }
@@ -140,7 +135,6 @@ type ProductVariantResponse struct {
 	ComparePrice float64 `json:"compare_price"`
 	CostPrice    float64 `json:"cost_price"`
 	Weight       float64 `json:"weight"`
-	Quantity     int     `json:"quantity"`
 	IsActive     bool    `json:"is_active"`
 	Position     int     `json:"position"`
 }

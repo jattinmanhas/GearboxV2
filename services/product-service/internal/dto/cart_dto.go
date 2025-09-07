@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 // CreateCartRequest represents the request to create a new cart
 type CreateCartRequest struct {
 	UserID    *int64 `json:"user_id" validate:"omitempty"`
@@ -192,4 +194,43 @@ type CartAnalyticsResponse struct {
 	TotalCartValue      float64 `json:"total_cart_value"`
 	ConversionRate      float64 `json:"conversion_rate"`
 	AverageItemsPerCart float64 `json:"average_items_per_cart"`
+	AbandonmentRate     float64 `json:"abandonment_rate"`
+	NewCartsToday       int64   `json:"new_carts_today"`
+	NewCartsThisWeek    int64   `json:"new_carts_this_week"`
+	NewCartsThisMonth   int64   `json:"new_carts_this_month"`
+}
+
+// ProductCartStatsResponse represents product statistics in carts
+type ProductCartStatsResponse struct {
+	ProductID     int64   `json:"product_id"`
+	ProductName   string  `json:"product_name"`
+	SKU           string  `json:"sku"`
+	TotalQuantity int64   `json:"total_quantity"`
+	TotalValue    float64 `json:"total_value"`
+	CartCount     int64   `json:"cart_count"`
+	AveragePrice  float64 `json:"average_price"`
+}
+
+// CartConversionFunnelResponse represents the conversion funnel data
+type CartConversionFunnelResponse struct {
+	Visitors            int64   `json:"visitors"`
+	CartCreated         int64   `json:"cart_created"`
+	ItemsAdded          int64   `json:"items_added"`
+	CheckoutStarted     int64   `json:"checkout_started"`
+	OrderCompleted      int64   `json:"order_completed"`
+	CartToCheckoutRate  float64 `json:"cart_to_checkout_rate"`
+	CheckoutToOrderRate float64 `json:"checkout_to_order_rate"`
+	OverallConversion   float64 `json:"overall_conversion"`
+}
+
+// CartAnalyticsRequest represents request parameters for analytics
+type CartAnalyticsRequest struct {
+	StartDate *time.Time `json:"start_date" form:"start_date"`
+	EndDate   *time.Time `json:"end_date" form:"end_date"`
+	Period    string     `json:"period" form:"period"` // daily, weekly, monthly, custom
+}
+
+// TopProductsRequest represents request parameters for top products
+type TopProductsRequest struct {
+	Limit int `json:"limit" form:"limit" validate:"min=1,max=100"`
 }

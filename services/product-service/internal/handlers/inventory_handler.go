@@ -337,7 +337,7 @@ func (h *inventoryHandler) RecordStockMovement(w http.ResponseWriter, r *http.Re
 func (h *inventoryHandler) GetStockMovements(w http.ResponseWriter, r *http.Request) {
 	req := &dto.ListStockMovementsRequest{
 		Page:  1,
-		Limit: 20,
+		Limit: 10,
 	}
 
 	// Parse query parameters
