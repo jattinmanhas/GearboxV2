@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/validation"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type OrderHandler interface {
@@ -68,18 +70,37 @@ func NewOrderHandler(orderService services.OrderService) OrderHandler {
 
 // CreateOrder handles POST /api/v1/orders
 func (h *orderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	// Extract user ID from context (set by auth middleware)
+	userID, ok := middleware.ExtractUserIDFromContext(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
+		return
+	}
+
+	// Extract auth token from context (set by middleware)
+	authHeader, ok := middleware.ExtractAuthTokenFromContext(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "auth token not found in context", nil)
+		return
+	}
+
 	var req dto.CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
+	// Set user ID from context (override any user_id in request body)
+	req.UserID = int64(userID)
+
 	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
 		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
 		return
 	}
 
-	order, err := h.orderService.CreateOrder(r.Context(), &req)
+	// Add auth token to context for auth client calls
+	ctx := context.WithValue(r.Context(), "auth_token", authHeader)
+	order, err := h.orderService.CreateOrder(ctx, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "Failed to create order", err)
 		return
@@ -903,24 +924,30 @@ func (h *orderHandler) GetTopSellingProducts(w http.ResponseWriter, r *http.Requ
 
 // CreateOrderFromCart handles POST /api/v1/orders/from-cart
 func (h *orderHandler) CreateOrderFromCart(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
-	userIDStr := r.URL.Query().Get("user_id")
-	cartIDStr := r.URL.Query().Get("cart_id")
-
-	if userIDStr == "" || cartIDStr == "" {
-		httpx.Error(w, http.StatusBadRequest, "user_id and cart_id are required", nil)
+	// Extract user ID from context (set by auth middleware)
+	userID, ok := middleware.ExtractUserIDFromContext(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
 		return
 	}
 
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "Invalid user_id", err)
+	// Parse cart ID from query parameters
+	cartIDStr := r.URL.Query().Get("cart_id")
+	if cartIDStr == "" {
+		httpx.Error(w, http.StatusBadRequest, "cart_id is required", nil)
 		return
 	}
 
 	cartID, err := strconv.ParseInt(cartIDStr, 10, 64)
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, "Invalid cart_id", err)
+		return
+	}
+
+	// Extract auth token from context (set by middleware)
+	authHeader, ok := middleware.ExtractAuthTokenFromContext(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "auth token not found in context", nil)
 		return
 	}
 
@@ -935,7 +962,9 @@ func (h *orderHandler) CreateOrderFromCart(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	order, err := h.orderService.CreateOrderFromCart(r.Context(), userID, cartID, &req)
+	// Add auth token to context for auth client calls
+	ctx := context.WithValue(r.Context(), "auth_token", authHeader)
+	order, err := h.orderService.CreateOrderFromCart(ctx, int64(userID), cartID, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "Failed to create order from cart", err)
 		return

@@ -8,6 +8,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/repository"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type OrderService interface {
@@ -56,15 +57,17 @@ type orderService struct {
 	inventoryService InventoryService
 	cartService      CartService
 	couponService    CouponService
+	authClient       *AuthServiceClient
 }
 
-func NewOrderService(orderRepo repository.OrderRepository, productRepo repository.ProductRepository, inventoryService InventoryService, cartService CartService, couponService CouponService) OrderService {
+func NewOrderService(orderRepo repository.OrderRepository, productRepo repository.ProductRepository, inventoryService InventoryService, cartService CartService, couponService CouponService, authClient *AuthServiceClient) OrderService {
 	return &orderService{
 		orderRepo:        orderRepo,
 		productRepo:      productRepo,
 		inventoryService: inventoryService,
 		cartService:      cartService,
 		couponService:    couponService,
+		authClient:       authClient,
 	}
 }
 
@@ -72,13 +75,16 @@ func NewOrderService(orderRepo repository.OrderRepository, productRepo repositor
 
 // CreateOrder creates a new order
 func (s *orderService) CreateOrder(ctx context.Context, req *dto.CreateOrderRequest) (*domain.Order, error) {
-	// Validate and check inventory for all items
+	// Validate and check inventory for all items, and collect products
+	products := make(map[int64]*domain.Product, len(req.Items))
+
 	for _, item := range req.Items {
-		// Check if product exists
-		_, err := s.productRepo.GetProductByID(ctx, item.ProductID)
+		// Check if product exists and store it
+		product, err := s.productRepo.GetProductByID(ctx, item.ProductID)
 		if err != nil {
 			return nil, fmt.Errorf("product with ID %d not found: %w", item.ProductID, err)
 		}
+		products[item.ProductID] = product
 
 		// Check inventory availability
 		available, err := s.inventoryService.CheckStockAvailability(ctx, item.ProductID, item.ProductVariantID, item.Quantity)
@@ -95,7 +101,7 @@ func (s *orderService) CreateOrder(ctx context.Context, req *dto.CreateOrderRequ
 	items := make([]*domain.OrderItem, len(req.Items))
 
 	for i, item := range req.Items {
-		product, _ := s.productRepo.GetProductByID(ctx, item.ProductID)
+		product := products[item.ProductID]
 
 		totalPrice := item.UnitPrice * float64(item.Quantity)
 		subtotal += totalPrice
@@ -187,59 +193,12 @@ func (s *orderService) CreateOrder(ctx context.Context, req *dto.CreateOrderRequ
 		return nil, fmt.Errorf("failed to create order items: %w", err)
 	}
 
-	// Create addresses
-	addresses := []*domain.OrderAddress{
-		{
-			OrderID:    order.ID,
-			Type:       "shipping",
-			FirstName:  req.ShippingAddress.FirstName,
-			LastName:   req.ShippingAddress.LastName,
-			Company:    req.ShippingAddress.Company,
-			Address1:   req.ShippingAddress.Address1,
-			Address2:   req.ShippingAddress.Address2,
-			City:       req.ShippingAddress.City,
-			State:      req.ShippingAddress.State,
-			Country:    req.ShippingAddress.Country,
-			PostalCode: req.ShippingAddress.PostalCode,
-			Phone:      req.ShippingAddress.Phone,
-			Email:      req.ShippingAddress.Email,
-		},
-	}
-
-	// Add billing address if different from shipping
-	if req.BillingAddress != nil {
-		addresses = append(addresses, &domain.OrderAddress{
-			OrderID:    order.ID,
-			Type:       "billing",
-			FirstName:  req.BillingAddress.FirstName,
-			LastName:   req.BillingAddress.LastName,
-			Company:    req.BillingAddress.Company,
-			Address1:   req.BillingAddress.Address1,
-			Address2:   req.BillingAddress.Address2,
-			City:       req.BillingAddress.City,
-			State:      req.BillingAddress.State,
-			Country:    req.BillingAddress.Country,
-			PostalCode: req.BillingAddress.PostalCode,
-			Phone:      req.BillingAddress.Phone,
-			Email:      req.BillingAddress.Email,
-		})
-	} else {
-		// Use shipping address as billing address
-		addresses = append(addresses, &domain.OrderAddress{
-			OrderID:    order.ID,
-			Type:       "billing",
-			FirstName:  req.ShippingAddress.FirstName,
-			LastName:   req.ShippingAddress.LastName,
-			Company:    req.ShippingAddress.Company,
-			Address1:   req.ShippingAddress.Address1,
-			Address2:   req.ShippingAddress.Address2,
-			City:       req.ShippingAddress.City,
-			State:      req.ShippingAddress.State,
-			Country:    req.ShippingAddress.Country,
-			PostalCode: req.ShippingAddress.PostalCode,
-			Phone:      req.ShippingAddress.Phone,
-			Email:      req.ShippingAddress.Email,
-		})
+	// Create addresses - handle both user addresses and direct addresses
+	addresses, err := s.createOrderAddresses(ctx, order.ID, req)
+	if err != nil {
+		// Rollback order creation
+		s.orderRepo.DeleteOrder(ctx, order.ID)
+		return nil, fmt.Errorf("failed to create order addresses: %w", err)
 	}
 
 	err = s.orderRepo.CreateOrderAddresses(ctx, addresses)
@@ -842,4 +801,126 @@ func (s *orderService) isValidStatusTransition(currentStatus, newStatus string) 
 	}
 
 	return false
+}
+
+// createOrderAddresses creates order addresses from either user addresses or direct addresses
+func (s *orderService) createOrderAddresses(ctx context.Context, orderID int64, req *dto.CreateOrderRequest) ([]*domain.OrderAddress, error) {
+	addresses := []*domain.OrderAddress{}
+
+	// Handle shipping address
+	shippingAddr, err := s.getShippingAddress(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shipping address: %w", err)
+	}
+	shippingAddr.OrderID = orderID
+	shippingAddr.Type = "shipping"
+	addresses = append(addresses, shippingAddr)
+
+	// Handle billing address
+	billingAddr, err := s.getBillingAddress(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get billing address: %w", err)
+	}
+	billingAddr.OrderID = orderID
+	billingAddr.Type = "billing"
+	addresses = append(addresses, billingAddr)
+
+	return addresses, nil
+}
+
+// getShippingAddress gets the shipping address from either user address or direct address
+func (s *orderService) getShippingAddress(ctx context.Context, req *dto.CreateOrderRequest) (*domain.OrderAddress, error) {
+	// If user shipping address ID is provided, fetch from auth service
+	if req.UserShippingAddressID != nil {
+		// Get auth token from context (set by middleware)
+		authToken, ok := middleware.ExtractAuthTokenFromContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("auth token not found in context")
+		}
+
+		userAddr, err := s.authClient.GetUserAddress(ctx, uint(req.UserID), *req.UserShippingAddressID, authToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user shipping address: %w", err)
+		}
+
+		return &domain.OrderAddress{
+			FirstName:  userAddr.FirstName,
+			LastName:   userAddr.LastName,
+			Company:    userAddr.Company,
+			Address1:   userAddr.AddressLine1,
+			Address2:   userAddr.AddressLine2,
+			City:       userAddr.City,
+			State:      userAddr.State,
+			Country:    userAddr.Country,
+			PostalCode: userAddr.PostalCode,
+			Phone:      userAddr.Phone,
+			Email:      userAddr.Email,
+		}, nil
+	}
+
+	// Use direct shipping address
+	return &domain.OrderAddress{
+		FirstName:  req.ShippingAddress.FirstName,
+		LastName:   req.ShippingAddress.LastName,
+		Company:    req.ShippingAddress.Company,
+		Address1:   req.ShippingAddress.Address1,
+		Address2:   req.ShippingAddress.Address2,
+		City:       req.ShippingAddress.City,
+		State:      req.ShippingAddress.State,
+		Country:    req.ShippingAddress.Country,
+		PostalCode: req.ShippingAddress.PostalCode,
+		Phone:      req.ShippingAddress.Phone,
+		Email:      req.ShippingAddress.Email,
+	}, nil
+}
+
+// getBillingAddress gets the billing address from either user address or direct address
+func (s *orderService) getBillingAddress(ctx context.Context, req *dto.CreateOrderRequest) (*domain.OrderAddress, error) {
+	// If user billing address ID is provided, fetch from auth service
+	if req.UserBillingAddressID != nil {
+		// Get auth token from context (set by middleware)
+		authToken, ok := middleware.ExtractAuthTokenFromContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("auth token not found in context")
+		}
+
+		userAddr, err := s.authClient.GetUserAddress(ctx, uint(req.UserID), *req.UserBillingAddressID, authToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user billing address: %w", err)
+		}
+
+		return &domain.OrderAddress{
+			FirstName:  userAddr.FirstName,
+			LastName:   userAddr.LastName,
+			Company:    userAddr.Company,
+			Address1:   userAddr.AddressLine1,
+			Address2:   userAddr.AddressLine2,
+			City:       userAddr.City,
+			State:      userAddr.State,
+			Country:    userAddr.Country,
+			PostalCode: userAddr.PostalCode,
+			Phone:      userAddr.Phone,
+			Email:      userAddr.Email,
+		}, nil
+	}
+
+	// If direct billing address is provided, use it
+	if req.BillingAddress != nil {
+		return &domain.OrderAddress{
+			FirstName:  req.BillingAddress.FirstName,
+			LastName:   req.BillingAddress.LastName,
+			Company:    req.BillingAddress.Company,
+			Address1:   req.BillingAddress.Address1,
+			Address2:   req.BillingAddress.Address2,
+			City:       req.BillingAddress.City,
+			State:      req.BillingAddress.State,
+			Country:    req.BillingAddress.Country,
+			PostalCode: req.BillingAddress.PostalCode,
+			Phone:      req.BillingAddress.Phone,
+			Email:      req.BillingAddress.Email,
+		}, nil
+	}
+
+	// Default to shipping address
+	return s.getShippingAddress(ctx, req)
 }

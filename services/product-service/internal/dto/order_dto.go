@@ -4,16 +4,18 @@ import "time"
 
 // CreateOrderRequest represents the request to create a new order
 type CreateOrderRequest struct {
-	UserID          int64                    `json:"user_id" validate:"required"`
-	CartID          *int64                   `json:"cart_id"` // Optional: create from cart
-	Items           []CreateOrderItemRequest `json:"items" validate:"required,min=1"`
-	ShippingAddress OrderAddressRequest      `json:"shipping_address" validate:"required"`
-	BillingAddress  *OrderAddressRequest     `json:"billing_address"` // Optional: defaults to shipping
-	PaymentMethodID int64                    `json:"payment_method_id" validate:"required"`
-	Currency        string                   `json:"currency" validate:"required,len=3"`
-	Notes           string                   `json:"notes"`
-	InternalNotes   string                   `j son:"internal_notes"`
-	ApplyCoupons    []string                 `json:"apply_coupons"` // Coupon codes to apply
+	UserID                int64                    `json:"user_id" validate:"required"`
+	CartID                *int64                   `json:"cart_id"` // Optional: create from cart
+	Items                 []CreateOrderItemRequest `json:"items" validate:"required,min=1"`
+	ShippingAddress       OrderAddressRequest      `json:"shipping_address"`         // Optional if using user address
+	BillingAddress        *OrderAddressRequest     `json:"billing_address"`          // Optional: defaults to shipping
+	UserShippingAddressID *uint                    `json:"user_shipping_address_id"` // Optional: use saved user address
+	UserBillingAddressID  *uint                    `json:"user_billing_address_id"`  // Optional: use saved user address
+	PaymentMethodID       int64                    `json:"payment_method_id" validate:"required"`
+	Currency              string                   `json:"currency" validate:"required,len=3"`
+	Notes                 string                   `json:"notes"`
+	InternalNotes         string                   `json:"internal_notes"`
+	ApplyCoupons          []string                 `json:"apply_coupons"` // Coupon codes to apply
 }
 
 // CreateOrderItemRequest represents an item in order creation
@@ -238,12 +240,14 @@ type OrderSummaryResponse struct {
 
 // CreateOrderFromCartRequest represents the request to create an order from a cart
 type CreateOrderFromCartRequest struct {
-	ShippingAddress OrderAddressRequest  `json:"shipping_address" validate:"required"`
-	BillingAddress  *OrderAddressRequest `json:"billing_address"`
-	PaymentMethodID int64                `json:"payment_method_id" validate:"required"`
-	Currency        string               `json:"currency" validate:"required,len=3"`
-	Notes           string               `json:"notes"`
-	ApplyCoupons    []string             `json:"apply_coupons"`
+	ShippingAddress       OrderAddressRequest  `json:"shipping_address"` // Optional if using user address
+	BillingAddress        *OrderAddressRequest `json:"billing_address"`
+	UserShippingAddressID *uint                `json:"user_shipping_address_id"` // Optional: use saved user address
+	UserBillingAddressID  *uint                `json:"user_billing_address_id"`  // Optional: use saved user address
+	PaymentMethodID       int64                `json:"payment_method_id" validate:"required"`
+	Currency              string               `json:"currency" validate:"required,len=3"`
+	Notes                 string               `json:"notes"`
+	ApplyCoupons          []string             `json:"apply_coupons"`
 }
 
 // ProductOrderStatsResponse represents the response for product order statistics

@@ -7,9 +7,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/handlers"
+	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
-func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler, couponHandler handlers.CouponHandler, orderHandler handlers.OrderHandler) *chi.Mux {
+func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler, couponHandler handlers.CouponHandler, orderHandler handlers.OrderHandler, jwtSecret string) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global middleware
@@ -82,8 +83,9 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Get("/{id}/products", productHandler.GetProductsByCategory)
 		})
 
-		// Cart routes
+		// Cart routes (protected - requires authentication)
 		r.Route("/carts", func(r chi.Router) {
+			r.Use(sharedMiddleware.AuthMiddleware(jwtSecret))
 			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)
@@ -185,8 +187,9 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Get("/usage", couponHandler.GetCouponUsage)
 		})
 
-		// Order routes
+		// Order routes (protected - requires authentication)
 		r.Route("/orders", func(r chi.Router) {
+			r.Use(sharedMiddleware.AuthMiddleware(jwtSecret))
 			r.Post("/", orderHandler.CreateOrder)
 			r.Get("/", orderHandler.ListOrders)
 			r.Get("/number/{orderNumber}", orderHandler.GetOrderByNumber)

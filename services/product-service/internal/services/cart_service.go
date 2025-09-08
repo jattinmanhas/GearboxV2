@@ -10,6 +10,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/repository"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type CartService interface {
@@ -470,12 +471,15 @@ func (s *cartService) GetCartItemCount(ctx context.Context, cartID int64) (int, 
 
 // ApplyCouponToCart applies a coupon to a cart
 func (s *cartService) ApplyCouponToCart(ctx context.Context, cartID int64, req *dto.ApplyCouponRequest) (*domain.CartCoupon, error) {
-	// Get user ID from context (you might want to extract this from JWT token)
-	var userID *int64
-	// userID = extractUserIDFromContext(ctx)
+	// Get user ID from context (extracted from JWT token by middleware)
+	userIDValue, ok := middleware.ExtractUserIDFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("user ID not found in context")
+	}
+	userID := int64(userIDValue)
 
 	// Use coupon service to apply coupon
-	coupon, discountAmount, err := s.couponService.ApplyCouponToCart(ctx, cartID, req.CouponCode, userID)
+	coupon, discountAmount, err := s.couponService.ApplyCouponToCart(ctx, cartID, req.CouponCode, &userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply coupon: %w", err)
 	}

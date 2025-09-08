@@ -267,7 +267,7 @@ func (h *productHandler) GetProductsByCategory(w http.ResponseWriter, r *http.Re
 
 	// Parse pagination parameters
 	page := 1
-	limit := 20
+	limit := 10
 
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
@@ -300,7 +300,7 @@ func (h *productHandler) SearchProducts(w http.ResponseWriter, r *http.Request) 
 
 	// Parse pagination parameters
 	page := 1
-	limit := 20
+	limit := 10
 
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
@@ -338,7 +338,7 @@ func (h *productHandler) GetProductsByTags(w http.ResponseWriter, r *http.Reques
 
 	// Parse pagination parameters
 	page := 1
-	limit := 20
+	limit := 10
 
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {

@@ -51,7 +51,10 @@ func main() {
 	inventoryService := services.NewInventoryService(inventoryRepo, productRepo)
 	couponService := services.NewCouponService(couponRepo, cartRepo)
 	cartService := services.NewCartService(cartRepo, productRepo, inventoryService, couponService)
-	orderService := services.NewOrderService(orderRepo, productRepo, inventoryService, cartService, couponService)
+
+	// Initialize auth client for user address management
+	authClient := services.NewAuthServiceClient(cfg.AuthServiceURL)
+	orderService := services.NewOrderService(orderRepo, productRepo, inventoryService, cartService, couponService, authClient)
 
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
@@ -62,7 +65,7 @@ func main() {
 	orderHandler := handlers.NewOrderHandler(orderService)
 
 	// Initialize router
-	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler, couponHandler, orderHandler)
+	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler, couponHandler, orderHandler, cfg.JWTSecret)
 
 	// Create HTTP server
 	server := &http.Server{

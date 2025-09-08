@@ -53,12 +53,12 @@ func (r *productRepository) CreateProduct(ctx context.Context, product *domain.P
 		INSERT INTO products (
 			name, description, short_description, sku, price, compare_price, cost_price,
 			weight, dimensions, is_active, is_digital, requires_shipping, taxable,
-			track_quantity, quantity, min_quantity, max_quantity, meta_title,
+			track_quantity, min_quantity, max_quantity, meta_title,
 			meta_description, tags, created_at, updated_at
 		) VALUES (
 			:name, :description, :short_description, :sku, :price, :compare_price, :cost_price,
 			:weight, :dimensions, :is_active, :is_digital, :requires_shipping, :taxable,
-			:track_quantity, :quantity, :min_quantity, :max_quantity, :meta_title,
+			:track_quantity, :min_quantity, :max_quantity, :meta_title,
 			:meta_description, :tags, :created_at, :updated_at
 		)
 		RETURNING id
@@ -122,7 +122,7 @@ func (r *productRepository) UpdateProduct(ctx context.Context, id int64, product
 			sku = :sku, price = :price, compare_price = :compare_price, cost_price = :cost_price,
 			weight = :weight, dimensions = :dimensions, is_active = :is_active,
 			is_digital = :is_digital, requires_shipping = :requires_shipping, taxable = :taxable,
-			track_quantity = :track_quantity, quantity = :quantity, min_quantity = :min_quantity,
+			track_quantity = :track_quantity, min_quantity = :min_quantity,
 			max_quantity = :max_quantity, meta_title = :meta_title, meta_description = :meta_description,
 			tags = :tags, updated_at = :updated_at
 		WHERE id = :id`
@@ -326,10 +326,10 @@ func (r *productRepository) CreateProductVariant(ctx context.Context, variant *d
 	query := `
 		INSERT INTO product_variants (
 			product_id, name, sku, price, compare_price, cost_price,
-			weight, quantity, is_active, position
+			weight, is_active, position
 		) VALUES (
 			:product_id, :name, :sku, :price, :compare_price, :cost_price,
-			:weight, :quantity, :is_active, :position
+			:weight, :is_active, :position
 		)
 		RETURNING id`
 
@@ -383,7 +383,7 @@ func (r *productRepository) UpdateProductVariant(ctx context.Context, id int64, 
 	query := `
 		UPDATE product_variants SET
 			name = :name, sku = :sku, price = :price, compare_price = :compare_price,
-			cost_price = :cost_price, weight = :weight, quantity = :quantity,
+			cost_price = :cost_price, weight = :weight,
 			is_active = :is_active, position = :position
 		WHERE id = :id`
 
@@ -552,10 +552,6 @@ func (r *productRepository) buildWhereClause(filter *domain.ProductFilter) (stri
 		conditions = append(conditions, fmt.Sprintf("price <= $%d", argIndex))
 		args = append(args, *filter.MaxPrice)
 		argIndex++
-	}
-
-	if filter.InStock != nil && *filter.InStock {
-		conditions = append(conditions, "quantity > 0")
 	}
 
 	if filter.Search != "" {

@@ -41,19 +41,22 @@ func main() {
 	userRepo := repository.NewUserRepository(database)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(database)
 	roleRepo := repository.NewRoleRepository(database)
+	addressRepo := repository.NewAddressRepository(database)
 
 	// Initialize services
 	jwtService := services.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, roleRepo, jwtService)
 	userService := services.NewUserService(userRepo, authService)
 	roleService := services.NewRoleService(roleRepo, userRepo)
+	addressService := services.NewAddressService(addressRepo)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService, authService, jwtService)
 	roleHandler := handlers.NewRoleHandler(roleService)
+	addressHandler := handlers.NewAddressHandler(addressService)
 
 	// Initialize router
-	appRouter := router.NewRouter(authHandler, authService, roleHandler)
+	appRouter := router.NewRouter(authHandler, authService, roleHandler, addressHandler)
 
 	// Create HTTP server
 	server := &http.Server{

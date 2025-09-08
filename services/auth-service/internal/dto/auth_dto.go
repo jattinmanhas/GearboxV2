@@ -2,7 +2,6 @@ package dto
 
 import "time"
 
-
 type RegisterRequest struct {
 	Username    string    `json:"username" validate:"required,username"`
 	Password    string    `json:"password" validate:"required,password"`
@@ -32,4 +31,60 @@ type ChangePasswordRequest struct {
 type LoginRequest struct {
 	Username string `json:"username" validate:"required"`
 	Password string `json:"password" validate:"required"`
+}
+
+// Address DTOs
+
+type CreateAddressRequest struct {
+	AddressType  string `json:"address_type" validate:"required,oneof=home work billing shipping other"`
+	FirstName    string `json:"first_name" validate:"required,min=1,max=100"`
+	LastName     string `json:"last_name" validate:"required,min=1,max=100"`
+	Company      string `json:"company" validate:"omitempty,max=100"`
+	AddressLine1 string `json:"address_line_1" validate:"required,min=1,max=255"`
+	AddressLine2 string `json:"address_line_2" validate:"omitempty,max=255"`
+	City         string `json:"city" validate:"required,min=1,max=100"`
+	State        string `json:"state" validate:"required,min=1,max=100"`
+	Country      string `json:"country" validate:"required,min=1,max=100"`
+	PostalCode   string `json:"postal_code" validate:"required,min=1,max=20"`
+	Phone        string `json:"phone" validate:"omitempty,phone"`
+	Email        string `json:"email" validate:"omitempty,email"`
+	IsDefault    bool   `json:"is_default"`
+}
+
+type UpdateAddressRequest struct {
+	AddressType  string `json:"address_type" validate:"omitempty,oneof=home work billing shipping other"`
+	FirstName    string `json:"first_name" validate:"omitempty,min=1,max=100"`
+	LastName     string `json:"last_name" validate:"omitempty,min=1,max=100"`
+	Company      string `json:"company" validate:"omitempty,max=100"`
+	AddressLine1 string `json:"address_line_1" validate:"omitempty,min=1,max=255"`
+	AddressLine2 string `json:"address_line_2" validate:"omitempty,max=255"`
+	City         string `json:"city" validate:"omitempty,min=1,max=100"`
+	State        string `json:"state" validate:"omitempty,min=1,max=100"`
+	Country      string `json:"country" validate:"omitempty,min=1,max=100"`
+	PostalCode   string `json:"postal_code" validate:"omitempty,min=1,max=20"`
+	Phone        string `json:"phone" validate:"omitempty,phone"`
+	Email        string `json:"email" validate:"omitempty,email"`
+	IsDefault    *bool  `json:"is_default"`
+}
+
+type CreatePhoneNumberRequest struct {
+	PhoneType   string `json:"phone_type" validate:"required,oneof=mobile home work fax other"`
+	PhoneNumber string `json:"phone_number" validate:"required,phone"`
+	CountryCode string `json:"country_code" validate:"required,min=1,max=5"`
+	IsPrimary   bool   `json:"is_primary"`
+}
+
+type UpdatePhoneNumberRequest struct {
+	PhoneType   string `json:"phone_type" validate:"omitempty,oneof=mobile home work fax other"`
+	PhoneNumber string `json:"phone_number" validate:"omitempty,phone"`
+	CountryCode string `json:"country_code" validate:"omitempty,min=1,max=5"`
+	IsPrimary   *bool  `json:"is_primary"`
+}
+
+type SetDefaultAddressRequest struct {
+	AddressID uint `json:"address_id" validate:"required"`
+}
+
+type SetPrimaryPhoneRequest struct {
+	PhoneID uint `json:"phone_id" validate:"required"`
 }

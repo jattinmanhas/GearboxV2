@@ -9,7 +9,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 )
 
-func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler) *chi.Mux {
+func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler, addressHandler handlers.IAddressHandler) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global CORS middleware
@@ -72,6 +72,29 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 				// Permission check route (just checks against required role passed in request)
 				r.Get("/check-permission", roleHandler.CheckPermission)
+			})
+
+			// Address management routes
+			r.Route("/addresses", func(r chi.Router) {
+				// Address operations
+				r.Post("/", addressHandler.CreateAddress)
+				r.Get("/", addressHandler.GetAddresses)
+				r.Get("/default", addressHandler.GetDefaultAddress)
+				r.Get("/{id}", addressHandler.GetAddressByID)
+				r.Put("/{id}", addressHandler.UpdateAddress)
+				r.Delete("/{id}", addressHandler.DeleteAddress)
+				r.Post("/set-default", addressHandler.SetDefaultAddress)
+
+				// Phone number operations
+				r.Route("/phones", func(r chi.Router) {
+					r.Post("/", addressHandler.CreatePhoneNumber)
+					r.Get("/", addressHandler.GetPhoneNumbers)
+					r.Get("/primary", addressHandler.GetPrimaryPhone)
+					r.Get("/{id}", addressHandler.GetPhoneNumberByID)
+					r.Put("/{id}", addressHandler.UpdatePhoneNumber)
+					r.Delete("/{id}", addressHandler.DeletePhoneNumber)
+					r.Post("/set-primary", addressHandler.SetPrimaryPhone)
+				})
 			})
 		})
 	})

@@ -233,7 +233,7 @@ func (h *inventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 func (h *inventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request) {
 	req := &dto.ListInventoryRequest{
 		Page:  1,
-		Limit: 20,
+		Limit: 10,
 	}
 
 	// Parse query parameters

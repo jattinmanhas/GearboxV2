@@ -912,7 +912,7 @@ func (h *cartHandler) GetWishlists(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 
 	page := 1
-	limit := 20
+	limit := 10
 
 	if pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
@@ -1056,7 +1056,7 @@ func (h *cartHandler) GetWishlistItems(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 
 	page := 1
-	limit := 20
+	limit := 10
 
 	if pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {

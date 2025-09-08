@@ -9,11 +9,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
-
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
+	Server         ServerConfig
+	Database       DatabaseConfig
+	AuthServiceURL string
+	JWTSecret      string
 }
 
 // ServerConfig holds server-related configuration
@@ -59,6 +60,8 @@ func LoadConfig() (*Config, error) {
 			MaxConns: getIntEnv("DB_MAX_CONNS", 25),
 			MinConns: getIntEnv("DB_MIN_CONNS", 5),
 		},
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
+		JWTSecret:      getEnv("JWT_SECRET", "your-jwt-secret-key"),
 	}
 
 	return config, nil
