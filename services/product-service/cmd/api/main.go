@@ -54,7 +54,11 @@ func main() {
 
 	// Initialize auth client for user address management
 	authClient := services.NewAuthServiceClient(cfg.AuthServiceURL)
-	orderService := services.NewOrderService(orderRepo, productRepo, inventoryService, cartService, couponService, authClient)
+
+	// Initialize payment client for payment processing
+	paymentClient := services.NewPaymentServiceClient(cfg.PaymentServiceURL)
+
+	orderService := services.NewOrderService(orderRepo, productRepo, inventoryService, cartService, couponService, authClient, paymentClient)
 
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(categoryService)

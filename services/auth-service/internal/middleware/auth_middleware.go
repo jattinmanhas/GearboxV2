@@ -7,6 +7,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 )
 
 type contextKey string
@@ -28,7 +29,7 @@ func AuthMiddleware(authService services.IAuthService) func(http.Handler) http.H
 				accessToken = services.ExtractTokenFromCookie(r, "access_token")
 			}
 
-			var claims *services.Claims
+			var claims *jwt.Claims
 			var err error
 
 			// Try to validate access token first
@@ -63,6 +64,7 @@ func AuthMiddleware(authService services.IAuthService) func(http.Handler) http.H
 				ID:       refreshClaims.UserID,
 				Username: refreshClaims.Username,
 				Email:    refreshClaims.Email,
+				Role:     refreshClaims.Role,
 			}
 
 			newAccessToken, err := authService.GenerateAccessTokenFromUser(r.Context(), minimalUser)
@@ -83,7 +85,7 @@ func AuthMiddleware(authService services.IAuthService) func(http.Handler) http.H
 			})
 
 			// Use the claims from the minimal user object
-			claims = &services.Claims{
+			claims = &jwt.Claims{
 				UserID:   minimalUser.ID,
 				Username: minimalUser.Username,
 				Email:    minimalUser.Email,
@@ -143,7 +145,7 @@ func GetUserIDFromContext(ctx context.Context) uint {
 	}
 
 	// Type assert to get the actual claims
-	if c, ok := claims.(*services.Claims); ok {
+	if c, ok := claims.(*jwt.Claims); ok {
 		return c.UserID
 	}
 
@@ -161,7 +163,7 @@ func RequireRole(requiredRole string) func(http.Handler) http.Handler {
 			}
 
 			// Type assert to get the actual claims
-			c, ok := claims.(*services.Claims)
+			c, ok := claims.(*jwt.Claims)
 			if !ok {
 				httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 				return

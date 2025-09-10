@@ -13,6 +13,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 )
 
 type IAuthHandler interface {
@@ -32,10 +33,10 @@ type IAuthHandler interface {
 type authHandler struct {
 	userService services.IUserService
 	authService services.IAuthService
-	jwtService  *services.JWTService
+	jwtService  *jwt.JWTService
 }
 
-func NewAuthHandler(userService services.IUserService, authService services.IAuthService, jwtService *services.JWTService) IAuthHandler {
+func NewAuthHandler(userService services.IUserService, authService services.IAuthService, jwtService *jwt.JWTService) IAuthHandler {
 	return &authHandler{
 		userService: userService,
 		authService: authService,
@@ -244,7 +245,7 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
-	claims, ok := r.Context().Value("claims").(*services.Claims)
+	claims, ok := r.Context().Value("claims").(*jwt.Claims)
 	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
 		return

@@ -1,11 +1,10 @@
-package services
+package jwt
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 )
 
 type JWTService struct {
@@ -27,7 +26,16 @@ type RefreshTokenClaims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
+}
+
+// User represents a minimal user structure for token generation
+type User struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
 }
 
 func NewJWTService(accessSecret, refreshSecret string) *JWTService {
@@ -40,7 +48,7 @@ func NewJWTService(accessSecret, refreshSecret string) *JWTService {
 }
 
 // GenerateAccessToken creates a new access token for a user
-func (j *JWTService) GenerateAccessToken(user *domain.User) (string, error) {
+func (j *JWTService) GenerateAccessToken(user *User) (string, error) {
 	claims := &Claims{
 		UserID:   user.ID,
 		Username: user.Username,
@@ -50,7 +58,7 @@ func (j *JWTService) GenerateAccessToken(user *domain.User) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.accessTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "auth-service",
+			Issuer:    "gearbox-auth",
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
 	}
@@ -60,37 +68,24 @@ func (j *JWTService) GenerateAccessToken(user *domain.User) (string, error) {
 }
 
 // GenerateRefreshToken creates a new refresh token and returns both token and claims
-func (j *JWTService) GenerateRefreshToken(user *domain.User) (*domain.RefreshToken, error) {
+func (j *JWTService) GenerateRefreshToken(user *User) (string, error) {
 	claims := &RefreshTokenClaims{
 		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
+		Role:     user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.refreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "auth-service",
+			Issuer:    "gearbox-auth",
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
 	}
 
 	// Sign the refresh token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	refreshTokenJWT, err := token.SignedString([]byte(j.refreshTokenSecret))
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
-	}
-
-	// Create refresh token domain object
-	refreshToken := &domain.RefreshToken{
-		UserID:       user.ID,
-		RefreshToken: refreshTokenJWT,
-		ExpiresAt:    time.Now().Add(j.refreshTokenExpiry),
-		CreatedAt:    time.Now(),
-		IsRevoked:    false,
-	}
-
-	return refreshToken, nil
+	return token.SignedString([]byte(j.refreshTokenSecret))
 }
 
 // ValidateAccessToken validates and parses an access token

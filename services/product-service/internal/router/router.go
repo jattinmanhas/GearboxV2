@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/handlers"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
@@ -83,9 +84,8 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Get("/{id}/products", productHandler.GetProductsByCategory)
 		})
 
-		// Cart routes (protected - requires authentication)
+		// Cart routes (supports both guest and authenticated users)
 		r.Route("/carts", func(r chi.Router) {
-			r.Use(sharedMiddleware.AuthMiddleware(jwtSecret))
 			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)
@@ -126,8 +126,11 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Delete("/{id}/clear", cartHandler.ClearCart)
 		})
 
-		// Wishlist routes
+		// Wishlist routes (requires authentication - user-specific)
 		r.Route("/wishlists", func(r chi.Router) {
+			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			authService := sharedMiddleware.NewSharedAuthService(jwtService)
+			r.Use(sharedMiddleware.AuthMiddleware(authService))
 			r.Post("/", cartHandler.CreateWishlist)
 			r.Get("/", cartHandler.GetWishlists)
 			r.Get("/{id}", cartHandler.GetWishlist)
@@ -143,8 +146,12 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Post("/items/{id}/move-to-cart", cartHandler.MoveItemToCart)
 		})
 
-		// Inventory routes
+		// Inventory routes (requires editor/admin roles)
 		r.Route("/inventory", func(r chi.Router) {
+			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			authService := sharedMiddleware.NewSharedAuthService(jwtService)
+			r.Use(sharedMiddleware.AuthMiddleware(authService))
+			r.Use(sharedMiddleware.RequireEditor())
 			r.Post("/", inventoryHandler.CreateInventory)
 			r.Get("/summary", inventoryHandler.GetInventorySummary)
 			r.Get("/", inventoryHandler.ListInventory)
@@ -174,22 +181,32 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Coupon routes
 		r.Route("/coupons", func(r chi.Router) {
-			r.Post("/", couponHandler.CreateCoupon)
-			r.Get("/", couponHandler.ListCoupons)
-			r.Get("/{id}", couponHandler.GetCoupon)
-			r.Put("/{id}", couponHandler.UpdateCoupon)
-			r.Delete("/{id}", couponHandler.DeleteCoupon)
-
-			// Coupon validation
+			// Public routes (no authentication required)
 			r.Post("/validate", couponHandler.ValidateCoupon)
 
-			// Coupon usage
-			r.Get("/usage", couponHandler.GetCouponUsage)
+			// Protected routes (requires editor/admin roles)
+			r.Group(func(r chi.Router) {
+				jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+				authService := sharedMiddleware.NewSharedAuthService(jwtService)
+				r.Use(sharedMiddleware.AuthMiddleware(authService))
+				r.Use(sharedMiddleware.RequireEditor())
+
+				r.Post("/", couponHandler.CreateCoupon)
+				r.Get("/", couponHandler.ListCoupons)
+				r.Get("/{id}", couponHandler.GetCoupon)
+				r.Put("/{id}", couponHandler.UpdateCoupon)
+				r.Delete("/{id}", couponHandler.DeleteCoupon)
+
+				// Coupon usage (admin/editor only)
+				r.Get("/usage", couponHandler.GetCouponUsage)
+			})
 		})
 
 		// Order routes (protected - requires authentication)
 		r.Route("/orders", func(r chi.Router) {
-			r.Use(sharedMiddleware.AuthMiddleware(jwtSecret))
+			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret) // Using same secret for both access and refresh
+			authService := sharedMiddleware.NewSharedAuthService(jwtService)
+			r.Use(sharedMiddleware.AuthMiddleware(authService))
 			r.Post("/", orderHandler.CreateOrder)
 			r.Get("/", orderHandler.ListOrders)
 			r.Get("/number/{orderNumber}", orderHandler.GetOrderByNumber)
@@ -226,6 +243,11 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 			// Cart integration
 			r.Post("/from-cart", orderHandler.CreateOrderFromCart)
+
+			// Payment integration
+			r.Post("/{id}/payments", orderHandler.CreateOrderPayment)
+			r.Post("/{id}/payments/process", orderHandler.ProcessOrderPayment)
+			r.Get("/{id}/payments", orderHandler.GetOrderPayment)
 		})
 	})
 

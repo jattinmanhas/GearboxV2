@@ -16,6 +16,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/handlers"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	addressRepo := repository.NewAddressRepository(database)
 
 	// Initialize services
-	jwtService := services.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
+	jwtService := jwt.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, roleRepo, jwtService)
 	userService := services.NewUserService(userRepo, authService)
 	roleService := services.NewRoleService(roleRepo, userRepo)
@@ -53,10 +54,10 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService, authService, jwtService)
 	roleHandler := handlers.NewRoleHandler(roleService)
-	addressHandler := handlers.NewAddressHandler(addressService)
+	addressHandler := handlers.NewAddressHandler(addressService, authService)
 
 	// Initialize router
-	appRouter := router.NewRouter(authHandler, authService, roleHandler, addressHandler)
+	appRouter := router.NewRouter(authHandler, authService, roleHandler, addressHandler, jwtService)
 
 	// Create HTTP server
 	server := &http.Server{

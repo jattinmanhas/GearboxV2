@@ -11,7 +11,7 @@ import (
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -88,12 +88,12 @@ func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string)
 	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
 }
 
-func (m *MockAuthService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*services.RefreshTokenClaims, error) {
+func (m *MockAuthService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*jwt.RefreshTokenClaims, error) {
 	args := m.Called(ctx, refreshTokenString)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*services.RefreshTokenClaims), args.Error(1)
+	return args.Get(0).(*jwt.RefreshTokenClaims), args.Error(1)
 }
 
 func (m *MockAuthService) Logout(ctx context.Context, refreshToken string) error {
@@ -106,12 +106,12 @@ func (m *MockAuthService) LogoutAll(ctx context.Context, userID uint) error {
 	return args.Error(0)
 }
 
-func (m *MockAuthService) ValidateAccessToken(ctx context.Context, tokenString string) (*services.Claims, error) {
+func (m *MockAuthService) ValidateAccessToken(ctx context.Context, tokenString string) (*jwt.Claims, error) {
 	args := m.Called(ctx, tokenString)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*services.Claims), args.Error(1)
+	return args.Get(0).(*jwt.Claims), args.Error(1)
 }
 
 func (m *MockAuthService) GetUserFromToken(ctx context.Context, tokenString string) (*domain.User, error) {
@@ -140,7 +140,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create test user and refresh token
@@ -208,7 +208,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create invalid request
@@ -238,7 +238,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create request with missing fields
@@ -273,7 +273,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// 🎭 Mock Expectations: Auth service should return error
@@ -319,7 +319,7 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create test user and refresh token
@@ -384,7 +384,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// 🎭 Mock Expectations: Auth service should handle logout
@@ -432,7 +432,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create request without refresh token cookie
@@ -466,16 +466,17 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
-		jwtService := services.NewJWTService("test-secret", "test-refresh-secret")
+		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService)
 
 		// Create test user and access token
 		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}
-		accessToken, err := jwtService.GenerateAccessToken(user)
+		jwtUser := &jwt.User{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role}
+		accessToken, err := jwtService.GenerateAccessToken(jwtUser)
 		require.NoError(t, err)
 
 		// 🎭 Mock Expectations: Auth service should handle logout
-		claims := &services.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
+		claims := &jwt.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
 		mockAuthService.On("LogoutAll", mock.Anything, uint(1)).Return(nil)
 
 		// Create request with access token cookie

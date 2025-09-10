@@ -54,6 +54,11 @@ type OrderHandler interface {
 
 	// Cart Integration
 	CreateOrderFromCart(w http.ResponseWriter, r *http.Request)
+
+	// Payment Integration
+	CreateOrderPayment(w http.ResponseWriter, r *http.Request)
+	ProcessOrderPayment(w http.ResponseWriter, r *http.Request)
+	GetOrderPayment(w http.ResponseWriter, r *http.Request)
 }
 
 type orderHandler struct {
@@ -71,8 +76,8 @@ func NewOrderHandler(orderService services.OrderService) OrderHandler {
 // CreateOrder handles POST /api/v1/orders
 func (h *orderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := middleware.ExtractUserIDFromContext(r.Context())
-	if !ok {
+	userID := middleware.GetUserIDFromContext(r.Context())
+	if userID == 0 {
 		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
 		return
 	}
@@ -925,8 +930,8 @@ func (h *orderHandler) GetTopSellingProducts(w http.ResponseWriter, r *http.Requ
 // CreateOrderFromCart handles POST /api/v1/orders/from-cart
 func (h *orderHandler) CreateOrderFromCart(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := middleware.ExtractUserIDFromContext(r.Context())
-	if !ok {
+	userID := middleware.GetUserIDFromContext(r.Context())
+	if userID == 0 {
 		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
 		return
 	}
@@ -1018,4 +1023,108 @@ func getTimeParam(r *http.Request, key string) *time.Time {
 		return &timeValue
 	}
 	return nil
+}
+
+// Payment Integration Handlers
+
+// CreateOrderPayment creates a payment for an order
+func (h *orderHandler) CreateOrderPayment(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := chi.URLParam(r, "id")
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
+	if err != nil {
+		httpx.BadRequest(w, "Invalid order ID", nil)
+		return
+	}
+
+	var req dto.CreatePaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.BadRequest(w, "Invalid request body", nil)
+		return
+	}
+
+	// Validate request
+	if err := validation.ValidateStruct(&req); err != nil {
+		httpx.BadRequest(w, "Validation failed", map[string]interface{}{
+			"errors": err,
+		})
+		return
+	}
+
+	// Create payment
+	payment, err := h.orderService.CreatePaymentForOrder(r.Context(), orderID, &req)
+	if err != nil {
+		httpx.InternalServerError(w, "Failed to create payment", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	httpx.Created(w, "Payment created successfully", map[string]interface{}{
+		"payment": payment,
+	})
+}
+
+// ProcessOrderPayment processes a payment for an order
+func (h *orderHandler) ProcessOrderPayment(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := chi.URLParam(r, "id")
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
+	if err != nil {
+		httpx.BadRequest(w, "Invalid order ID", nil)
+		return
+	}
+
+	var req dto.ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.BadRequest(w, "Invalid request body", nil)
+		return
+	}
+
+	// Validate request
+	if err := validation.ValidateStruct(&req); err != nil {
+		httpx.BadRequest(w, "Validation failed", map[string]interface{}{
+			"errors": err,
+		})
+		return
+	}
+
+	// Process payment
+	payment, err := h.orderService.ProcessOrderPayment(r.Context(), orderID, &req)
+	if err != nil {
+		httpx.InternalServerError(w, "Failed to process payment", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	httpx.OK(w, "Payment processed successfully", map[string]interface{}{
+		"payment": payment,
+	})
+}
+
+// GetOrderPayment retrieves payment information for an order
+func (h *orderHandler) GetOrderPayment(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := chi.URLParam(r, "id")
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
+	if err != nil {
+		httpx.BadRequest(w, "Invalid order ID", nil)
+		return
+	}
+
+	// Get payment
+	payment, err := h.orderService.GetOrderPayment(r.Context(), orderID)
+	if err != nil {
+		httpx.InternalServerError(w, "Failed to get payment", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if payment == nil {
+		httpx.NotFound(w, "Payment not found", nil)
+		return
+	}
+
+	httpx.OK(w, "Payment retrieved successfully", map[string]interface{}{
+		"payment": payment,
+	})
 }

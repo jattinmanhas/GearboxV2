@@ -472,8 +472,8 @@ func (s *cartService) GetCartItemCount(ctx context.Context, cartID int64) (int, 
 // ApplyCouponToCart applies a coupon to a cart
 func (s *cartService) ApplyCouponToCart(ctx context.Context, cartID int64, req *dto.ApplyCouponRequest) (*domain.CartCoupon, error) {
 	// Get user ID from context (extracted from JWT token by middleware)
-	userIDValue, ok := middleware.ExtractUserIDFromContext(ctx)
-	if !ok {
+	userIDValue := middleware.GetUserIDFromContext(ctx)
+	if userIDValue == 0 {
 		return nil, fmt.Errorf("user ID not found in context")
 	}
 	userID := int64(userIDValue)

@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,8 +19,8 @@ type IAuthService interface {
 	RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error)
 	Logout(ctx context.Context, refreshToken string) error
 	LogoutAll(ctx context.Context, userID uint) error
-	ValidateAccessToken(ctx context.Context, tokenString string) (*Claims, error)
-	ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*RefreshTokenClaims, error)
+	ValidateAccessToken(ctx context.Context, tokenString string) (*jwt.Claims, error)
+	ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*jwt.RefreshTokenClaims, error)
 	GetUserFromToken(ctx context.Context, tokenString string) (*domain.User, error)
 	GenerateAccessTokenFromUser(ctx context.Context, user *domain.User) (string, error)
 	CleanupExpiredTokens(ctx context.Context) error
@@ -28,10 +30,10 @@ type authService struct {
 	userRepo         repository.IUserRepository
 	refreshTokenRepo repository.IRefreshTokenRepository
 	roleRepo         repository.IRoleRepository
-	jwtService       *JWTService
+	jwtService       *jwt.JWTService
 }
 
-func NewAuthService(userRepo repository.IUserRepository, refreshTokenRepo repository.IRefreshTokenRepository, roleRepo repository.IRoleRepository, jwtService *JWTService) IAuthService {
+func NewAuthService(userRepo repository.IUserRepository, refreshTokenRepo repository.IRefreshTokenRepository, roleRepo repository.IRoleRepository, jwtService *jwt.JWTService) IAuthService {
 	return &authService{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
@@ -55,16 +57,33 @@ func (a *authService) Login(ctx context.Context, username, password, userAgent, 
 		return nil, nil, "", fmt.Errorf("invalid credentials")
 	}
 
+	// Convert domain user to shared JWT user
+	jwtUser := &jwt.User{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+	}
+
 	// Generate access token (stored in cookie by handler)
-	accessToken, err := a.jwtService.GenerateAccessToken(user)
+	accessToken, err := a.jwtService.GenerateAccessToken(jwtUser)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	// Generate refresh token
-	refreshToken, err := a.jwtService.GenerateRefreshToken(user)
+	refreshTokenJWT, err := a.jwtService.GenerateRefreshToken(jwtUser)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Create refresh token domain object
+	refreshToken := &domain.RefreshToken{
+		UserID:       user.ID,
+		RefreshToken: refreshTokenJWT,
+		ExpiresAt:    time.Now().Add(a.jwtService.GetRefreshTokenExpiry()),
+		CreatedAt:    time.Now(),
+		IsRevoked:    false,
 	}
 
 	// Set additional fields for refresh token
@@ -110,22 +129,39 @@ func (a *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 	} else {
 		user.Role = roleName
 	}
-	
+
 	// Revoke old refresh token
 	if err := a.refreshTokenRepo.RevokeRefreshToken(ctx, refreshTokenString); err != nil {
 		return nil, nil, "", fmt.Errorf("failed to revoke old token: %w", err)
 	}
 
+	// Convert domain user to shared JWT user
+	jwtUser := &jwt.User{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+	}
+
 	// Generate new access token (stored in cookie by handler)
-	accessToken, err := a.jwtService.GenerateAccessToken(user)
+	accessToken, err := a.jwtService.GenerateAccessToken(jwtUser)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	// Generate new refresh token
-	newRefreshToken, err := a.jwtService.GenerateRefreshToken(user)
+	refreshTokenJWT, err := a.jwtService.GenerateRefreshToken(jwtUser)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Create refresh token domain object
+	newRefreshToken := &domain.RefreshToken{
+		UserID:       user.ID,
+		RefreshToken: refreshTokenJWT,
+		ExpiresAt:    time.Now().Add(a.jwtService.GetRefreshTokenExpiry()),
+		CreatedAt:    time.Now(),
+		IsRevoked:    false,
 	}
 
 	// Copy user agent and IP from old token
@@ -151,12 +187,12 @@ func (a *authService) LogoutAll(ctx context.Context, userID uint) error {
 }
 
 // ValidateAccessToken validates an access token and returns claims
-func (a *authService) ValidateAccessToken(ctx context.Context, tokenString string) (*Claims, error) {
+func (a *authService) ValidateAccessToken(ctx context.Context, tokenString string) (*jwt.Claims, error) {
 	return a.jwtService.ValidateAccessToken(tokenString)
 }
 
 // ValidateRefreshToken validates a refresh token and returns the claims
-func (a *authService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*RefreshTokenClaims, error) {
+func (a *authService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*jwt.RefreshTokenClaims, error) {
 	// Validate refresh token JWT
 	claims, err := a.jwtService.ValidateRefreshToken(refreshTokenString)
 	if err != nil {
@@ -179,7 +215,14 @@ func (a *authService) ValidateRefreshToken(ctx context.Context, refreshTokenStri
 
 // GenerateAccessTokenFromUser generates a new access token for a user
 func (a *authService) GenerateAccessTokenFromUser(ctx context.Context, user *domain.User) (string, error) {
-	return a.jwtService.GenerateAccessToken(user)
+	// Convert domain user to shared JWT user
+	jwtUser := &jwt.User{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+	}
+	return a.jwtService.GenerateAccessToken(jwtUser)
 }
 
 // GetUserFromToken extracts user information from a valid access token

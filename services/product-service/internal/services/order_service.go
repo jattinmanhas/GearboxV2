@@ -49,6 +49,12 @@ type OrderService interface {
 
 	// Cart Integration
 	CreateOrderFromCart(ctx context.Context, userID int64, cartID int64, req *dto.CreateOrderFromCartRequest) (*domain.Order, error)
+
+	// Payment Integration
+	CreatePaymentForOrder(ctx context.Context, orderID int64, req *dto.CreatePaymentRequest) (*PaymentServiceResponse, error)
+	ProcessOrderPayment(ctx context.Context, orderID int64, req *dto.ProcessPaymentRequest) (*PaymentServiceResponse, error)
+	GetOrderPayment(ctx context.Context, orderID int64) (*PaymentServiceResponse, error)
+	UpdateOrderPaymentStatus(ctx context.Context, orderID int64, status string) error
 }
 
 type orderService struct {
@@ -58,9 +64,10 @@ type orderService struct {
 	cartService      CartService
 	couponService    CouponService
 	authClient       *AuthServiceClient
+	paymentClient    *PaymentServiceClient
 }
 
-func NewOrderService(orderRepo repository.OrderRepository, productRepo repository.ProductRepository, inventoryService InventoryService, cartService CartService, couponService CouponService, authClient *AuthServiceClient) OrderService {
+func NewOrderService(orderRepo repository.OrderRepository, productRepo repository.ProductRepository, inventoryService InventoryService, cartService CartService, couponService CouponService, authClient *AuthServiceClient, paymentClient *PaymentServiceClient) OrderService {
 	return &orderService{
 		orderRepo:        orderRepo,
 		productRepo:      productRepo,
@@ -68,6 +75,7 @@ func NewOrderService(orderRepo repository.OrderRepository, productRepo repositor
 		cartService:      cartService,
 		couponService:    couponService,
 		authClient:       authClient,
+		paymentClient:    paymentClient,
 	}
 }
 
@@ -923,4 +931,166 @@ func (s *orderService) getBillingAddress(ctx context.Context, req *dto.CreateOrd
 
 	// Default to shipping address
 	return s.getShippingAddress(ctx, req)
+}
+
+// Payment Integration Methods
+
+// CreatePaymentForOrder creates a payment for an order
+func (s *orderService) CreatePaymentForOrder(ctx context.Context, orderID int64, req *dto.CreatePaymentRequest) (*PaymentServiceResponse, error) {
+	// Get order details
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+	if order == nil {
+		return nil, fmt.Errorf("order not found")
+	}
+
+	// Check if order already has a payment
+	existingPayment, err := s.paymentClient.GetOrderPayment(ctx, orderID, "")
+	if err == nil && existingPayment != nil {
+		return nil, fmt.Errorf("order already has a payment")
+	}
+
+	// Get auth token from context
+	authToken := middleware.GetAuthTokenFromContext(ctx)
+	if authToken == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	// Create payment request
+	paymentReq := &PaymentServiceRequest{
+		OrderID:         orderID,
+		PaymentMethodID: req.PaymentMethodID,
+		Amount:          order.TotalAmount,
+		Currency:        order.Currency,
+		GatewayID:       req.GatewayID,
+		Metadata:        req.Metadata,
+	}
+
+	// Create payment in payment service
+	payment, err := s.paymentClient.CreatePayment(ctx, paymentReq, authToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create payment: %w", err)
+	}
+
+	// Update order payment status to pending
+	order.PaymentStatus = "pending"
+	order.UpdatedAt = time.Now()
+	_, err = s.UpdateOrder(ctx, orderID, &dto.UpdateOrderRequest{
+		PaymentStatus: &order.PaymentStatus,
+	})
+	if err != nil {
+		// Log error but don't fail payment creation
+		fmt.Printf("Warning: failed to update order payment status: %v\n", err)
+	}
+
+	return payment, nil
+}
+
+// ProcessOrderPayment processes a payment for an order
+func (s *orderService) ProcessOrderPayment(ctx context.Context, orderID int64, req *dto.ProcessPaymentRequest) (*PaymentServiceResponse, error) {
+	// Get order details
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+	if order == nil {
+		return nil, fmt.Errorf("order not found")
+	}
+
+	// Get auth token from context
+	authToken := middleware.GetAuthTokenFromContext(ctx)
+	if authToken == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	// Get existing payment for the order
+	payment, err := s.paymentClient.GetOrderPayment(ctx, orderID, authToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order payment: %w", err)
+	}
+	if payment == nil {
+		return nil, fmt.Errorf("no payment found for order")
+	}
+
+	// Process payment
+	processReq := &ProcessPaymentRequest{
+		PaymentID:   payment.ID,
+		PaymentData: req.PaymentData,
+		ReturnURL:   req.ReturnURL,
+		CancelURL:   req.CancelURL,
+	}
+
+	processedPayment, err := s.paymentClient.ProcessPayment(ctx, processReq, authToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process payment: %w", err)
+	}
+
+	// Update order payment status based on payment result
+	var newPaymentStatus string
+	switch processedPayment.Status {
+	case "completed":
+		newPaymentStatus = "paid"
+	case "failed":
+		newPaymentStatus = "failed"
+	case "cancelled":
+		newPaymentStatus = "failed"
+	default:
+		newPaymentStatus = "pending"
+	}
+
+	// Update order payment status
+	order.PaymentStatus = newPaymentStatus
+	order.UpdatedAt = time.Now()
+	_, err = s.UpdateOrder(ctx, orderID, &dto.UpdateOrderRequest{
+		PaymentStatus: &order.PaymentStatus,
+	})
+	if err != nil {
+		// Log error but don't fail payment processing
+		fmt.Printf("Warning: failed to update order payment status: %v\n", err)
+	}
+
+	return processedPayment, nil
+}
+
+// GetOrderPayment retrieves payment information for an order
+func (s *orderService) GetOrderPayment(ctx context.Context, orderID int64) (*PaymentServiceResponse, error) {
+	// Get auth token from context
+	authToken := middleware.GetAuthTokenFromContext(ctx)
+	if authToken == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	// Get payment from payment service
+	payment, err := s.paymentClient.GetOrderPayment(ctx, orderID, authToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order payment: %w", err)
+	}
+
+	return payment, nil
+}
+
+// UpdateOrderPaymentStatus updates the payment status of an order
+func (s *orderService) UpdateOrderPaymentStatus(ctx context.Context, orderID int64, status string) error {
+	// Get order details
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return fmt.Errorf("failed to get order: %w", err)
+	}
+	if order == nil {
+		return fmt.Errorf("order not found")
+	}
+
+	// Update order payment status
+	order.PaymentStatus = status
+	order.UpdatedAt = time.Now()
+	_, err = s.UpdateOrder(ctx, orderID, &dto.UpdateOrderRequest{
+		PaymentStatus: &order.PaymentStatus,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update order payment status: %w", err)
+	}
+
+	return nil
 }

@@ -5,15 +5,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/handlers"
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/middleware"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
+	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
-func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler, addressHandler handlers.IAddressHandler) *chi.Mux {
+func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler, addressHandler handlers.IAddressHandler, jwtService *jwt.JWTService) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global CORS middleware
-	router.Use(middleware.CORSMiddleware([]string{"*"}))
+	router.Use(sharedMiddleware.CORSMiddleware([]string{"*"}))
 
 	// Health check endpoint
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,8 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 		// Protected routes (require authentication)
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(authService))
+			sharedAuthService := sharedMiddleware.NewSharedAuthService(jwtService)
+			r.Use(sharedMiddleware.AuthMiddleware(sharedAuthService))
 
 			// Authentication routes
 			r.Post("/logout", authHandler.Logout)
@@ -52,7 +54,7 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 			// Admin-only user listing + cleanup
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequireAdmin())
+				r.Use(sharedMiddleware.RequireAdmin())
 				r.Get("/users", authHandler.GetAllUsers)
 				r.Post("/cleanup-expired-tokens", authHandler.CleanupExpiredTokens)
 			})
@@ -65,7 +67,7 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 				// Editor+ can assign roles
 				r.Group(func(r chi.Router) {
-					r.Use(middleware.RequireEditor())
+					r.Use(sharedMiddleware.RequireEditor())
 					r.Post("/assign", roleHandler.AssignRoleToUser)
 					r.Delete("/remove", roleHandler.RemoveUserRole)
 				})

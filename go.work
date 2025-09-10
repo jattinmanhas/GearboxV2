@@ -5,3 +5,5 @@ use ./services/shared
 use ./services/auth-service
 
 use ./services/product-service
+
+use ./services/payment-service

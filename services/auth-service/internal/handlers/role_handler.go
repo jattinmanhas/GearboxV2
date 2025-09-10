@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/middleware"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
+	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type IRoleHandler interface {
@@ -78,14 +79,14 @@ func (h *RoleHandler) AssignRoleToUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the current user from context (who is assigning the role)
-	claims := middleware.GetClaimsFromContext(r.Context())
+	claims := sharedMiddleware.GetClaimsFromContext(r.Context())
 	if claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "authentication required", nil)
 		return
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*services.Claims)
+	c, ok := claims.(*jwt.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -114,14 +115,14 @@ func (h *RoleHandler) RemoveUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the current user from context (who is removing the role)
-	claims := middleware.GetClaimsFromContext(r.Context())
+	claims := sharedMiddleware.GetClaimsFromContext(r.Context())
 	if claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "authentication required", nil)
 		return
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*services.Claims)
+	c, ok := claims.(*jwt.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -140,14 +141,14 @@ func (h *RoleHandler) RemoveUserRole(w http.ResponseWriter, r *http.Request) {
 // GetMyRole returns the current user's role
 func (h *RoleHandler) GetMyRole(w http.ResponseWriter, r *http.Request) {
 	// Get the current user from context
-	claims := middleware.GetClaimsFromContext(r.Context())
+	claims := sharedMiddleware.GetClaimsFromContext(r.Context())
 	if claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "authentication required", nil)
 		return
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*services.Claims)
+	c, ok := claims.(*jwt.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -165,14 +166,14 @@ func (h *RoleHandler) GetMyRole(w http.ResponseWriter, r *http.Request) {
 // CheckPermission checks if the current user has a specific permission level
 func (h *RoleHandler) CheckPermission(w http.ResponseWriter, r *http.Request) {
 	// Get the current user from context
-	claims := middleware.GetClaimsFromContext(r.Context())
+	claims := sharedMiddleware.GetClaimsFromContext(r.Context())
 	if claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "authentication required", nil)
 		return
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*services.Claims)
+	c, ok := claims.(*jwt.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return

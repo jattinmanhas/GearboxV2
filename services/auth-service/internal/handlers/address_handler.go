@@ -35,20 +35,21 @@ type IAddressHandler interface {
 
 type addressHandler struct {
 	addressService services.IAddressService
+	authService    services.IAuthService
 }
 
-func NewAddressHandler(addressService services.IAddressService) IAddressHandler {
+func NewAddressHandler(addressService services.IAddressService, authService services.IAuthService) IAddressHandler {
 	return &addressHandler{
 		addressService: addressService,
+		authService:    authService,
 	}
 }
 
 // Address operations
-
 func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -65,7 +66,7 @@ func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := h.addressService.CreateAddress(r.Context(), userID, &req)
+	address, err := h.addressService.CreateAddress(r.Context(), user.ID, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to create address", err)
 		return
@@ -76,13 +77,13 @@ func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
 
 func (h *addressHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	addresses, err := h.addressService.GetAddressesByUserID(r.Context(), userID)
+	addresses, err := h.addressService.GetAddressesByUserID(r.Context(), user.ID)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get addresses", err)
 		return
@@ -93,8 +94,8 @@ func (h *addressHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
 
 func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -107,7 +108,7 @@ func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	address, err := h.addressService.GetAddressByID(r.Context(), userID, uint(addressID))
+	address, err := h.addressService.GetAddressByID(r.Context(), user.ID, uint(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -122,13 +123,13 @@ func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) 
 
 func (h *addressHandler) GetDefaultAddress(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	address, err := h.addressService.GetDefaultAddressByUserID(r.Context(), userID)
+	address, err := h.addressService.GetDefaultAddressByUserID(r.Context(), user.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "no default address found", nil)
@@ -143,8 +144,8 @@ func (h *addressHandler) GetDefaultAddress(w http.ResponseWriter, r *http.Reques
 
 func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -169,7 +170,7 @@ func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := h.addressService.UpdateAddress(r.Context(), userID, uint(addressID), &req)
+	address, err := h.addressService.UpdateAddress(r.Context(), user.ID, uint(addressID), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -184,8 +185,8 @@ func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 
 func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -198,7 +199,7 @@ func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.addressService.DeleteAddress(r.Context(), userID, uint(addressID))
+	err = h.addressService.DeleteAddress(r.Context(), user.ID, uint(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -213,8 +214,8 @@ func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 
 func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -231,7 +232,7 @@ func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err := h.addressService.SetDefaultAddress(r.Context(), userID, req.AddressID)
+	err = h.addressService.SetDefaultAddress(r.Context(), user.ID, req.AddressID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -248,8 +249,8 @@ func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Reques
 
 func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -266,7 +267,7 @@ func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	phone, err := h.addressService.CreatePhoneNumber(r.Context(), userID, &req)
+	phone, err := h.addressService.CreatePhoneNumber(r.Context(), user.ID, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to create phone number", err)
 		return
@@ -277,13 +278,13 @@ func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Reques
 
 func (h *addressHandler) GetPhoneNumbers(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	phones, err := h.addressService.GetPhoneNumbersByUserID(r.Context(), userID)
+	phones, err := h.addressService.GetPhoneNumbersByUserID(r.Context(), user.ID)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get phone numbers", err)
 		return
@@ -294,8 +295,8 @@ func (h *addressHandler) GetPhoneNumbers(w http.ResponseWriter, r *http.Request)
 
 func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -308,7 +309,7 @@ func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	phone, err := h.addressService.GetPhoneNumberByID(r.Context(), userID, uint(phoneID))
+	phone, err := h.addressService.GetPhoneNumberByID(r.Context(), user.ID, uint(phoneID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -323,13 +324,13 @@ func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Reque
 
 func (h *addressHandler) GetPrimaryPhone(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	phone, err := h.addressService.GetPrimaryPhoneByUserID(r.Context(), userID)
+	phone, err := h.addressService.GetPrimaryPhoneByUserID(r.Context(), user.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "no primary phone found", nil)
@@ -344,8 +345,8 @@ func (h *addressHandler) GetPrimaryPhone(w http.ResponseWriter, r *http.Request)
 
 func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -370,7 +371,7 @@ func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	phone, err := h.addressService.UpdatePhoneNumber(r.Context(), userID, uint(phoneID), &req)
+	phone, err := h.addressService.UpdatePhoneNumber(r.Context(), user.ID, uint(phoneID), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -385,8 +386,8 @@ func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Reques
 
 func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -399,7 +400,7 @@ func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = h.addressService.DeletePhoneNumber(r.Context(), userID, uint(phoneID))
+	err = h.addressService.DeletePhoneNumber(r.Context(), user.ID, uint(phoneID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -414,8 +415,8 @@ func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Reques
 
 func (h *addressHandler) SetPrimaryPhone(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
+	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -432,7 +433,7 @@ func (h *addressHandler) SetPrimaryPhone(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := h.addressService.SetPrimaryPhone(r.Context(), userID, req.PhoneID)
+	err = h.addressService.SetPrimaryPhone(r.Context(), user.ID, req.PhoneID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
