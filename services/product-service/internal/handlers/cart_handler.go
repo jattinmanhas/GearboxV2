@@ -9,9 +9,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type ICartHandler interface {
@@ -130,7 +132,26 @@ func (h *cartHandler) GetCartBySession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cart, err := h.cartService.GetCartBySessionID(r.Context(), sessionID)
+	// Check if user is authenticated and try to get cart by user ID first
+	var cart *domain.Cart
+	var err error
+
+	authenticatedUserID := sharedMiddleware.GetUserIDFromContext(r.Context())
+	if authenticatedUserID > 0 {
+		// User is logged in, try to get cart by user ID first
+		userIDInt64 := int64(authenticatedUserID)
+		cart, err = h.cartService.GetCartByUserID(r.Context(), userIDInt64)
+		if err == nil {
+			// Found cart for authenticated user, return it
+		} else {
+			// No cart for user, try session-based cart as fallback
+			cart, err = h.cartService.GetCartBySessionID(r.Context(), sessionID)
+		}
+	} else {
+		// User is not logged in, get cart by session ID
+		cart, err = h.cartService.GetCartBySessionID(r.Context(), sessionID)
+	}
+
 	if err != nil {
 		httpx.Error(w, http.StatusNotFound, "Cart not found", err)
 		return
@@ -206,7 +227,6 @@ func (h *cartHandler) DeleteCart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("user_id")
 	currency := r.URL.Query().Get("currency")
 
 	if currency == "" {
@@ -221,14 +241,24 @@ func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
 		sessionID = uuid.New().String()
 	}
 
+	// Check if user is authenticated via context (from OptionalAuthMiddleware)
 	var userID *int64
-	if userIDStr != "" {
-		id, err := strconv.ParseInt(userIDStr, 10, 64)
-		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "Invalid user ID", err)
-			return
+	authenticatedUserID := sharedMiddleware.GetUserIDFromContext(r.Context())
+	if authenticatedUserID > 0 {
+		// User is logged in, use the authenticated user ID
+		userIDInt64 := int64(authenticatedUserID)
+		userID = &userIDInt64
+	} else {
+		// User is not logged in, check for user_id query parameter (for backward compatibility)
+		userIDStr := r.URL.Query().Get("user_id")
+		if userIDStr != "" {
+			id, err := strconv.ParseInt(userIDStr, 10, 64)
+			if err != nil {
+				httpx.Error(w, http.StatusBadRequest, "Invalid user ID", err)
+				return
+			}
+			userID = &id
 		}
-		userID = &id
 	}
 
 	cart, err := h.cartService.GetOrCreateCart(r.Context(), userID, sessionID, currency)

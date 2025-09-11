@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Shield,
   FileText,
-  BarChart3
+  BarChart3,
+  FolderTree
 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
@@ -53,6 +54,7 @@ const navigationSections = [
     title: "E-commerce",
     items: [
       { name: "Products", href: "/dashboard/products", icon: Package },
+      { name: "Categories", href: "/dashboard/categories", icon: FolderTree },
       { name: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
     ]
   },

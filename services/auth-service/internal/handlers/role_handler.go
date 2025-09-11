@@ -7,7 +7,6 @@ import (
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
-	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
@@ -86,7 +85,7 @@ func (h *RoleHandler) AssignRoleToUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*jwt.Claims)
+	c, ok := claims.(*sharedMiddleware.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -122,7 +121,7 @@ func (h *RoleHandler) RemoveUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*jwt.Claims)
+	c, ok := claims.(*sharedMiddleware.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -148,7 +147,7 @@ func (h *RoleHandler) GetMyRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*jwt.Claims)
+	c, ok := claims.(*sharedMiddleware.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return
@@ -173,7 +172,7 @@ func (h *RoleHandler) CheckPermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Type assert to get the actual claims
-	c, ok := claims.(*jwt.Claims)
+	c, ok := claims.(*sharedMiddleware.Claims)
 	if !ok {
 		httpx.Error(w, http.StatusInternalServerError, "invalid claims format", nil)
 		return

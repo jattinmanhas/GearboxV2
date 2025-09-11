@@ -28,6 +28,7 @@ interface UserState {
   setError: (error: string | null) => void
   login: (userData: User) => void
   logout: () => void
+  updateProfile: (profileData: Partial<User>) => void
 }
 
 export const useUserStore = create<UserState>()(
@@ -92,6 +93,15 @@ export const useUserStore = create<UserState>()(
             error: null,
           })
           console.log("User data cleared from Zustand store")
+        }
+      },
+
+      updateProfile: (profileData: Partial<User>) => {
+        const currentUser = get().user
+        if (currentUser) {
+          set({
+            user: { ...currentUser, ...profileData }
+          })
         }
       },
     }),

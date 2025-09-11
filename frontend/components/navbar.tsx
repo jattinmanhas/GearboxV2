@@ -15,8 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { CpuIcon, Menu, X, User, Settings, LogOut } from "lucide-react"
+import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart } from "lucide-react"
 import { useUserStore } from "@/lib/stores/user-store"
+import { useCartStore } from "@/lib/stores/cart-store"
 
 export type NavItems = {
   label: string
@@ -50,6 +51,7 @@ export function Navbar() {
   
   // Get user data from Zustand store
   const { user, isAuthenticated, logout } = useUserStore()
+  const { getItemCount } = useCartStore()
   
   // Debug: Log user data
   useEffect(() => {
@@ -142,8 +144,21 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Right side - User menu and theme toggle */}
+          {/* Right side - Cart, User menu and theme toggle */}
           <div className="flex items-center gap-4">
+            {/* Cart Icon */}
+            <Button variant="ghost" size="sm" asChild className="relative">
+              <Link href="/shop">
+                <ShoppingCart className="h-4 w-4" />
+                {getItemCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {getItemCount()}
+                  </span>
+                )}
+                <span className="sr-only">Shopping Cart</span>
+              </Link>
+            </Button>
+
             {/* Theme Toggle */}
             <ThemeToggle />
 

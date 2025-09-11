@@ -1,4 +1,21 @@
-import { RegisterRequest, LoginRequest, ApiResponse } from './types'
+import { 
+  RegisterRequest, 
+  LoginRequest, 
+  ApiResponse, 
+  Category, 
+  Product, 
+  CreateCategoryRequest, 
+  UpdateCategoryRequest, 
+  CreateProductRequest, 
+  UpdateProductRequest, 
+  ListProductsResponse, 
+  ListCategoriesResponse,
+  UserProfile,
+  Address,
+  CreateAddressRequest,
+  UpdateAddressRequest,
+  UpdateProfileRequest
+} from './types'
 
 const API_BASE_URL = '/api/v1'
 
@@ -82,6 +99,228 @@ export const authApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+}
+
+export const productApi = {
+  // Categories
+  async getCategories(page: number = 1, limit: number = 10, search?: string): Promise<ListCategoriesResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(search && { search }),
+    })
+    
+    const response = await fetch(`${API_BASE_URL}/products/categories?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<ListCategoriesResponse>(response)
+  },
+
+  async getCategory(id: number): Promise<Category> {
+    const response = await fetch(`${API_BASE_URL}/products/categories/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<Category>(response)
+  },
+
+  async createCategory(categoryData: CreateCategoryRequest): Promise<Category> {
+    const response = await fetch(`${API_BASE_URL}/products/categories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryData),
+    })
+    
+    return handleResponse<Category>(response)
+  },
+
+  async updateCategory(id: number, categoryData: UpdateCategoryRequest): Promise<Category> {
+    const response = await fetch(`${API_BASE_URL}/products/categories/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryData),
+    })
+    
+    return handleResponse<Category>(response)
+  },
+
+  async deleteCategory(id: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/products/categories/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Products
+  async getProducts(page: number = 1, limit: number = 10, search?: string, categoryId?: number): Promise<ListProductsResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(search && { search }),
+      ...(categoryId && { category_id: categoryId.toString() }),
+    })
+    
+    const response = await fetch(`${API_BASE_URL}/products?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<ListProductsResponse>(response)
+  },
+
+  async getProduct(id: number): Promise<Product> {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<Product>(response)
+  },
+
+  async createProduct(productData: CreateProductRequest): Promise<Product> {
+    const response = await fetch(`${API_BASE_URL}/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(productData),
+    })
+    
+    return handleResponse<Product>(response)
+  },
+
+  async updateProduct(id: number, productData: UpdateProductRequest): Promise<Product> {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(productData),
+    })
+    
+    return handleResponse<Product>(response)
+  },
+
+  async deleteProduct(id: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+}
+
+export const profileApi = {
+  // User Profile
+  async getProfile(): Promise<UserProfile> {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<UserProfile>(response)
+  },
+
+  async updateProfile(profileData: UpdateProfileRequest): Promise<UserProfile> {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(profileData),
+    })
+    
+    return handleResponse<UserProfile>(response)
+  },
+
+  // Addresses
+  async getAddresses(): Promise<Address[]> {
+    const response = await fetch(`${API_BASE_URL}/auth/addresses`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<Address[]>(response)
+  },
+
+  async getAddress(id: number): Promise<Address> {
+    const response = await fetch(`${API_BASE_URL}/auth/addresses/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<Address>(response)
+  },
+
+  async createAddress(addressData: CreateAddressRequest): Promise<Address> {
+    const response = await fetch(`${API_BASE_URL}/auth/addresses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(addressData),
+    })
+    
+    return handleResponse<Address>(response)
+  },
+
+  async updateAddress(id: number, addressData: UpdateAddressRequest): Promise<Address> {
+    const response = await fetch(`${API_BASE_URL}/auth/addresses/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(addressData),
+    })
+    
+    return handleResponse<Address>(response)
+  },
+
+  async deleteAddress(id: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/addresses/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
     })
     
     return handleResponse<ApiResponse>(response)

@@ -86,6 +86,11 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Cart routes (supports both guest and authenticated users)
 		r.Route("/carts", func(r chi.Router) {
+			// Add optional authentication middleware to check for logged-in users
+			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			authService := sharedMiddleware.NewSharedAuthService(jwtService)
+			r.Use(sharedMiddleware.OptionalAuthMiddleware(authService))
+
 			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)

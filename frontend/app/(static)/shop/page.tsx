@@ -1,40 +1,281 @@
-import React from "react"
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Search, 
+  Filter, 
+  Grid, 
+  List, 
+  ShoppingCart,
+  Star,
+  Heart,
+  Package
+} from "lucide-react"
+import { productApi } from "@/lib/api"
+import { Product, Category } from "@/lib/types"
+import { ProductCard } from "./components/product-card"
+import { ProductFilters } from "./components/product-filters"
+import { CartDrawer } from "./components/cart-drawer"
+import { useCartStore } from "@/lib/stores/cart-store"
 
 export default function ShopPage() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-6">Tech Shop</h1>
-        
-        <div className="space-y-6">
-          <div className="p-6 border rounded-lg">
-            <h2 className="text-2xl font-semibold mb-3">Featured Products</h2>
-            <p className="text-muted-foreground">
-              Discover the latest and greatest tech products with expert reviews and competitive prices.
-            </p>
-          </div>
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>()
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
+  const [sortBy, setSortBy] = useState("name")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="p-6 border rounded-lg">
-                <div className="h-48 bg-muted rounded-lg mb-4 flex items-center justify-center">
-                  <span className="text-muted-foreground">Product Image {i}</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Product {i}</h3>
-                <p className="text-muted-foreground mb-4">
-                  High-quality tech product with excellent features and performance.
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold">$299.99</span>
-                  <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90">
-                    Add to Cart
-                  </button>
-                </div>
-              </div>
-            ))}
+  // Cart store
+  const { isOpen, setCartOpen, getItemCount } = useCartStore()
+
+  const loadProducts = async (page: number = 1, search: string = "", categoryId?: number) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await productApi.getProducts(page, 12, search, categoryId)
+      setProducts(response.products)
+      setTotalPages(response.total_pages)
+      setTotal(response.total)
+      setCurrentPage(response.page)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load products")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadCategories = async () => {
+    try {
+      const response = await productApi.getCategories(1, 100)
+      setCategories(response.categories)
+    } catch (err) {
+      console.error("Failed to load categories:", err)
+    }
+  }
+
+  useEffect(() => {
+    loadProducts()
+    loadCategories()
+  }, [])
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+    loadProducts(1, value, selectedCategory)
+  }
+
+  const handleCategoryFilter = (categoryId: number | undefined) => {
+    setSelectedCategory(categoryId)
+    setCurrentPage(1)
+    loadProducts(1, searchTerm, categoryId)
+  }
+
+  const handlePriceFilter = (range: [number, number]) => {
+    setPriceRange(range)
+    // Note: Backend would need to support price filtering
+    // For now, we'll filter on the frontend
+    const filteredProducts = products.filter(p => 
+      p.price >= range[0] && p.price <= range[1]
+    )
+    setProducts(filteredProducts)
+  }
+
+  const handleSort = (sort: string) => {
+    setSortBy(sort)
+    const sortedProducts = [...products].sort((a, b) => {
+      switch (sort) {
+        case "price-low":
+          return a.price - b.price
+        case "price-high":
+          return b.price - a.price
+        case "name":
+          return a.name.localeCompare(b.name)
+        case "newest":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        default:
+          return 0
+      }
+    })
+    setProducts(sortedProducts)
+  }
+
+  const filteredProducts = products.filter(p => 
+    p.price >= priceRange[0] && p.price <= priceRange[1]
+  )
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Shop</h1>
+              <p className="text-muted-foreground">
+                Discover amazing products at great prices
+              </p>
+            </div>
+            <Button 
+              onClick={() => setCartOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              Cart ({getItemCount()})
+            </Button>
           </div>
         </div>
       </div>
+
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar Filters */}
+          <div className="lg:w-64 space-y-4">
+            <ProductFilters
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategoryChange={handleCategoryFilter}
+              priceRange={priceRange}
+              onPriceChange={handlePriceFilter}
+            />
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 space-y-6">
+            {/* Search and Controls */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search products..."
+                      value={searchTerm}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => handleSort(e.target.value)}
+                      className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                    >
+                      <option value="name">Sort by Name</option>
+                      <option value="price-low">Price: Low to High</option>
+                      <option value="price-high">Price: High to Low</option>
+                      <option value="newest">Newest First</option>
+                    </select>
+                    <div className="flex border rounded-md">
+                      <Button
+                        variant={viewMode === "grid" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("grid")}
+                        className="rounded-r-none"
+                      >
+                        <Grid className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant={viewMode === "list" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("list")}
+                        className="rounded-l-none"
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Results Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  {total} products
+                </Badge>
+                {selectedCategory && (
+                  <Badge variant="outline">
+                    {categories.find(c => c.id === selectedCategory)?.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Products Grid/List */}
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-muted-foreground">Loading products...</div>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <div className="text-destructive mb-4">{error}</div>
+                <Button onClick={() => loadProducts()}>Try Again</Button>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <div className="text-muted-foreground mb-4">
+                  No products found. Try adjusting your filters.
+                </div>
+              </div>
+            ) : (
+              <div className={
+                viewMode === "grid" 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "space-y-4"
+              }>
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    viewMode={viewMode}
+                    categories={categories}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={isOpen} onOpenChange={setCartOpen} />
     </div>
   )
 }

@@ -33,7 +33,7 @@ func main() {
 	// Initialize JWT service
 	jwtService := jwt.NewJWTService(
 		cfg.JWT.Secret,
-		cfg.JWT.Secret, // Using same secret for access and refresh tokens
+		cfg.JWT.RefreshSecret,
 	)
 
 	// Initialize repositories

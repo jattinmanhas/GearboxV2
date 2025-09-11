@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -49,8 +48,7 @@ type DatabaseConfig struct {
 // JWTConfig holds JWT-related configuration
 type JWTConfig struct {
 	Secret        string        `json:"secret"`
-	AccessExpiry  time.Duration `json:"access_expiry"`
-	RefreshExpiry time.Duration `json:"refresh_expiry"`
+	RefreshSecret string        `json:"refresh_secret"`
 }
 
 // PaymentGatewayConfig holds payment gateway configuration
@@ -117,8 +115,7 @@ func LoadConfig() (*Config, error) {
 
 	// JWT configuration
 	config.JWT.Secret = getEnv("JWT_SECRET", "your-jwt-secret-key-here")
-	config.JWT.AccessExpiry = getEnvAsDuration("JWT_ACCESS_EXPIRY", "15m")
-	config.JWT.RefreshExpiry = getEnvAsDuration("JWT_REFRESH_EXPIRY", "7d")
+	config.JWT.RefreshSecret = getEnv("JWT_REFRESH_SECRET", "your-jwt-refresh-secret-key-here")
 
 	// Payment gateway configuration
 	config.PaymentGateways.Stripe.SecretKey = getEnv("STRIPE_SECRET_KEY", "")
@@ -177,20 +174,4 @@ func getEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
-}
-
-func getEnvAsDuration(key, defaultValue string) time.Duration {
-	if value := os.Getenv(key); value != "" {
-		if duration, err := time.ParseDuration(value); err == nil {
-			return duration
-		}
-	}
-
-	// Parse default value
-	if duration, err := time.ParseDuration(defaultValue); err == nil {
-		return duration
-	}
-
-	// Fallback to 15 minutes
-	return 15 * time.Minute
 }

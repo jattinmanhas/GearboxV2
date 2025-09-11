@@ -67,3 +67,204 @@ export function formDataToLoginRequest(formData: LoginFormData): LoginRequest {
     password: formData.password,
   }
 }
+
+// Product and Category types for dashboard
+export interface Category {
+  id: number
+  name: string
+  description: string
+  slug: string
+  parent_id?: number
+  is_active: boolean
+  sort_order: number
+  image_url: string
+  meta_title: string
+  meta_description: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Product {
+  id: number
+  name: string
+  description: string
+  short_description: string
+  sku: string
+  price: number
+  compare_price: number
+  cost_price: number
+  weight: number
+  dimensions: string
+  is_active: boolean
+  is_digital: boolean
+  requires_shipping: boolean
+  taxable: boolean
+  track_quantity: boolean
+  min_quantity: number
+  max_quantity: number
+  meta_title: string
+  meta_description: string
+  tags: string
+  category_ids: number[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCategoryRequest {
+  name: string
+  description: string
+  slug: string
+  parent_id?: number
+  is_active: boolean
+  sort_order: number
+  image_url: string
+  meta_title: string
+  meta_description: string
+}
+
+export interface UpdateCategoryRequest {
+  name?: string
+  description?: string
+  slug?: string
+  parent_id?: number
+  is_active?: boolean
+  sort_order?: number
+  image_url?: string
+  meta_title?: string
+  meta_description?: string
+}
+
+export interface CreateProductRequest {
+  name: string
+  description: string
+  short_description?: string
+  sku: string
+  price: number
+  compare_price?: number
+  cost_price?: number
+  weight?: number
+  dimensions?: string
+  is_active: boolean
+  is_digital: boolean
+  requires_shipping: boolean
+  taxable: boolean
+  track_quantity: boolean
+  min_quantity?: number
+  max_quantity?: number
+  meta_title?: string
+  meta_description?: string
+  tags?: string
+  category_ids?: number[]
+}
+
+export interface UpdateProductRequest {
+  name?: string
+  description?: string
+  short_description?: string
+  sku?: string
+  price?: number
+  compare_price?: number
+  cost_price?: number
+  weight?: number
+  dimensions?: string
+  is_active?: boolean
+  is_digital?: boolean
+  requires_shipping?: boolean
+  taxable?: boolean
+  track_quantity?: boolean
+  min_quantity?: number
+  max_quantity?: number
+  meta_title?: string
+  meta_description?: string
+  tags?: string
+  category_ids?: number[]
+}
+
+export interface ListProductsResponse {
+  products: Product[]
+  total: number
+  page: number
+  limit: number
+  total_pages: number
+}
+
+export interface ListCategoriesResponse {
+  categories: Category[]
+  total: number
+  page: number
+  limit: number
+  total_pages: number
+}
+
+// User Profile and Address types
+export interface UserProfile {
+  id: number
+  username: string
+  email: string
+  first_name: string
+  middle_name?: string
+  last_name: string
+  phone_number?: string
+  date_of_birth?: string
+  avatar?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Address {
+  id: number
+  user_id: number
+  type: 'billing' | 'shipping'
+  first_name: string
+  last_name: string
+  company?: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  phone_number?: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateAddressRequest {
+  type: 'billing' | 'shipping'
+  first_name: string
+  last_name: string
+  company?: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  phone_number?: string
+  is_default?: boolean
+}
+
+export interface UpdateAddressRequest {
+  type?: 'billing' | 'shipping'
+  first_name?: string
+  last_name?: string
+  company?: string
+  address_line_1?: string
+  address_line_2?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+  phone_number?: string
+  is_default?: boolean
+}
+
+export interface UpdateProfileRequest {
+  first_name?: string
+  middle_name?: string
+  last_name?: string
+  phone_number?: string
+  date_of_birth?: string
+  avatar?: string
+}
