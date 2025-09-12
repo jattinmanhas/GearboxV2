@@ -43,11 +43,18 @@ export default function ShopPage() {
     try {
       setLoading(true)
       setError(null)
-      const response = await productApi.getProducts(page, 12, search, categoryId)
-      setProducts(response.products)
-      setTotalPages(response.total_pages)
-      setTotal(response.total)
-      setCurrentPage(response.page)
+      const response = await productApi.getProducts({
+        page,
+        limit: 12,
+        search,
+        category_id: categoryId,
+        sort_by: "created_at",
+        sort_order: "desc"
+      })
+      setProducts(response.data.products)
+      setTotalPages(response.data.total_pages)
+      setTotal(response.data.total)
+      setCurrentPage(response.data.page)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load products")
     } finally {
@@ -57,8 +64,11 @@ export default function ShopPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await productApi.getCategories(1, 100)
-      setCategories(response.categories)
+      const response = await productApi.getCategories({
+        page: 1,
+        limit: 10
+      })
+      setCategories(response.data.categories)
     } catch (err) {
       console.error("Failed to load categories:", err)
     }

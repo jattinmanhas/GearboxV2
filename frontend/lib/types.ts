@@ -105,9 +105,48 @@ export interface Product {
   meta_title: string
   meta_description: string
   tags: string
-  category_ids: number[]
+  category_ids?: number[]
+  category_names?: string[]
   created_at: string
   updated_at: string
+}
+
+export interface ProductVariant {
+  id: number
+  product_id: number
+  name: string
+  sku: string
+  price: number
+  compare_price: number
+  cost_price: number
+  weight: number
+  is_active: boolean
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProductVariantRequest {
+  product_id: number
+  name: string
+  sku: string
+  price: number
+  compare_price?: number
+  cost_price?: number
+  weight?: number
+  is_active?: boolean
+  position?: number
+}
+
+export interface UpdateProductVariantRequest {
+  name?: string
+  sku?: string
+  price?: number
+  compare_price?: number
+  cost_price?: number
+  weight?: number
+  is_active?: boolean
+  position?: number
 }
 
 export interface CreateCategoryRequest {
@@ -179,21 +218,47 @@ export interface UpdateProductRequest {
   tags?: string
   category_ids?: number[]
 }
-
 export interface ListProductsResponse {
-  products: Product[]
-  total: number
-  page: number
-  limit: number
-  total_pages: number
+  data: {
+    products: Product[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }
+}
+
+export interface ProductFilters {
+  search?: string
+  category_id?: number
+  is_active?: boolean
+  is_digital?: boolean
+  min_price?: number
+  max_price?: number
+  in_stock?: boolean
+  tags?: string[]
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+export interface CategoryFilters {
+  search?: string
+  parent_id?: number
+  is_active?: boolean
+  page?: number
+  limit?: number
 }
 
 export interface ListCategoriesResponse {
-  categories: Category[]
-  total: number
-  page: number
-  limit: number
-  total_pages: number
+  data: {
+    categories: Category[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }
 }
 
 // User Profile and Address types

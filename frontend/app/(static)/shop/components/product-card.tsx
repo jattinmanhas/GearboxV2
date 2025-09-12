@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { Product, Category } from "@/lib/types"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { formatPrice } from "@/lib/currency"
 
 interface ProductCardProps {
   product: Product
@@ -28,19 +29,8 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   
   const { addItem } = useCartStore()
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
-  }
 
-  const getCategoryNames = (categoryIds: number[]) => {
-    return categoryIds
-      .map(id => categories.find(cat => cat.id === id)?.name)
-      .filter(Boolean)
-      .slice(0, 2) // Show only first 2 categories
-  }
+  // No longer needed - using category_names from API response
 
   const handleAddToCart = async () => {
     if (!product.is_active) return
@@ -108,9 +98,9 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     <span className="text-sm text-muted-foreground">SKU: {product.sku}</span>
                   </div>
                   
-                  {getCategoryNames(product.category_ids).length > 0 && (
+                  {product.category_names && product.category_names.length > 0 && (
                     <div className="flex gap-1 mb-3">
-                      {getCategoryNames(product.category_ids).map((name, index) => (
+                      {product.category_names.slice(0, 2).map((name, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {name}
                         </Badge>
@@ -212,9 +202,9 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
           </div>
           
           {/* Categories */}
-          {getCategoryNames(product.category_ids).length > 0 && (
+          {product.category_names && product.category_names.length > 0 && (
             <div className="flex gap-1 mb-3">
-              {getCategoryNames(product.category_ids).map((name, index) => (
+              {product.category_names.slice(0, 2).map((name, index) => (
                 <Badge key={index} variant="outline" className="text-xs">
                   {name}
                 </Badge>

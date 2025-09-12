@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { 
   Sheet,
   SheetContent,
@@ -16,9 +17,14 @@ import {
   Minus, 
   Trash2,
   Package,
-  ArrowRight
+  ArrowRight,
+  Search,
+  Filter,
+  SortAsc,
+  SortDesc
 } from "lucide-react"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { formatPrice } from "@/lib/currency"
 
 interface CartDrawerProps {
   open: boolean
@@ -27,6 +33,13 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState<'name' | 'price' | 'quantity'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [showFilters, setShowFilters] = useState(false)
+  const [minPrice, setMinPrice] = useState<number | undefined>()
+  const [maxPrice, setMaxPrice] = useState<number | undefined>()
+  const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all')
   
   const { 
     items: cartItems, 
@@ -36,11 +49,77 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     getTotalPrice 
   } = useCartStore()
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
+
+  // Filter and sort cart items
+  const filteredAndSortedItems = useMemo(() => {
+    let filtered = cartItems.filter(item => {
+      // Search filter
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      if (!matchesSearch) return false
+
+      // Price filters
+      if (minPrice !== undefined && item.price < minPrice) return false
+      if (maxPrice !== undefined && item.price > maxPrice) return false
+
+      // Price range filter
+      switch (priceFilter) {
+        case 'low':
+          if (item.price >= 50) return false
+          break
+        case 'medium':
+          if (item.price < 50 || item.price >= 200) return false
+          break
+        case 'high':
+          if (item.price < 200) return false
+          break
+        case 'all':
+        default:
+          break
+      }
+
+      return true
+    })
+
+    // Sort items
+    filtered.sort((a, b) => {
+      let aValue: string | number
+      let bValue: string | number
+
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'price':
+          aValue = a.price
+          bValue = b.price
+          break
+        case 'quantity':
+          aValue = a.quantity
+          bValue = b.quantity
+          break
+        default:
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return filtered
+  }, [cartItems, searchTerm, sortBy, sortOrder, minPrice, maxPrice, priceFilter])
+
+  const handleSort = (field: 'name' | 'price' | 'quantity') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortOrder('asc')
+    }
   }
 
   const handleUpdateQuantity = async (id: number, newQuantity: number) => {
@@ -76,7 +155,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
@@ -89,6 +168,161 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             Review your items and proceed to checkout
           </SheetDescription>
         </SheetHeader>
+
+        {/* Search and Filter Controls */}
+        {cartItems.length > 0 && (
+          <div className="space-y-3 py-4 border-b">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sort by:</span>
+                <Button
+                  variant={sortBy === 'name' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('name')}
+                  className="h-8"
+                >
+                  Name
+                  {sortBy === 'name' && (
+                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
+                  )}
+                </Button>
+                <Button
+                  variant={sortBy === 'price' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('price')}
+                  className="h-8"
+                >
+                  Price
+                  {sortBy === 'price' && (
+                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
+                  )}
+                </Button>
+                <Button
+                  variant={sortBy === 'quantity' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('quantity')}
+                  className="h-8"
+                >
+                  Qty
+                  {sortBy === 'quantity' && (
+                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
+                  )}
+                </Button>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="h-8"
+              >
+                <Filter className="h-3 w-3 mr-1" />
+                Filters
+              </Button>
+            </div>
+
+            {/* Results Count */}
+            {(searchTerm || priceFilter !== 'all' || minPrice !== undefined || maxPrice !== undefined) && (
+              <div className="text-sm text-muted-foreground">
+                {filteredAndSortedItems.length} of {cartItems.length} items
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Advanced Filters Panel */}
+        {showFilters && cartItems.length > 0 && (
+          <div className="border-b py-4 space-y-4">
+            <h3 className="font-medium text-sm">Filters</h3>
+            
+            {/* Price Range Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Price Range</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={priceFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriceFilter('all')}
+                  className="h-8"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={priceFilter === 'low' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriceFilter('low')}
+                  className="h-8"
+                >
+                  Under $50
+                </Button>
+                <Button
+                  variant={priceFilter === 'medium' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriceFilter('medium')}
+                  className="h-8"
+                >
+                  $50 - $200
+                </Button>
+                <Button
+                  variant={priceFilter === 'high' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriceFilter('high')}
+                  className="h-8"
+                >
+                  Over $200
+                </Button>
+              </div>
+            </div>
+
+            {/* Custom Price Range */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Custom Price Range</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min price"
+                  value={minPrice || ''}
+                  onChange={(e) => setMinPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="h-8"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max price"
+                  value={maxPrice || ''}
+                  onChange={(e) => setMaxPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="h-8"
+                />
+              </div>
+            </div>
+
+            {/* Clear Filters */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('')
+                setMinPrice(undefined)
+                setMaxPrice(undefined)
+                setPriceFilter('all')
+              }}
+              className="w-full h-8"
+            >
+              Clear All Filters
+            </Button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-hidden flex flex-col">
           {cartItems.length === 0 ? (
@@ -108,7 +342,25 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             <>
               {/* Cart Items */}
               <div className="flex-1 overflow-y-auto space-y-4 py-4">
-                {cartItems.map((item) => (
+                {filteredAndSortedItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      {searchTerm ? 'No items match your search' : 'No items in cart'}
+                    </p>
+                    {searchTerm && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSearchTerm('')}
+                        className="mt-2"
+                      >
+                        Clear Search
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  filteredAndSortedItems.map((item) => (
                   <div key={item.id} className="flex gap-3 p-3 border rounded-lg">
                     {/* Product Image */}
                     <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
@@ -156,7 +408,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Cart Summary */}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
@@ -95,7 +96,35 @@ func (h *productHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.OK(w, "product retrieved", product)
+	// Convert domain Product to ProductResponse
+	productResponse := dto.ProductResponse{
+		ID:               product.ID,
+		Name:             product.Name,
+		Description:      product.Description,
+		ShortDesc:        product.ShortDesc,
+		SKU:              product.SKU,
+		Price:            product.Price,
+		ComparePrice:     product.ComparePrice,
+		CostPrice:        product.CostPrice,
+		Weight:           product.Weight,
+		Dimensions:       product.Dimensions,
+		IsActive:         product.IsActive,
+		IsDigital:        product.IsDigital,
+		RequiresShipping: product.RequiresShipping,
+		Taxable:          product.Taxable,
+		TrackQuantity:    product.TrackQuantity,
+		MinQuantity:      product.MinQuantity,
+		MaxQuantity:      product.MaxQuantity,
+		MetaTitle:        product.MetaTitle,
+		MetaDescription:  product.MetaDesc,
+		Tags:             product.Tags,
+		CategoryIDs:      product.CategoryIDs,
+		CategoryNames:    product.CategoryNames,
+		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+	}
+
+	httpx.OK(w, "product retrieved", productResponse)
 }
 
 // GetProductBySKU handles GET /api/v1/products/sku/{sku}

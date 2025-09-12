@@ -10,11 +10,16 @@ import {
   UpdateProductRequest, 
   ListProductsResponse, 
   ListCategoriesResponse,
+  ProductFilters,
+  CategoryFilters,
   UserProfile,
   Address,
   CreateAddressRequest,
   UpdateAddressRequest,
-  UpdateProfileRequest
+  UpdateProfileRequest,
+  ProductVariant,
+  CreateProductVariantRequest,
+  UpdateProductVariantRequest
 } from './types'
 
 const API_BASE_URL = '/api/v1'
@@ -107,12 +112,17 @@ export const authApi = {
 
 export const productApi = {
   // Categories
-  async getCategories(page: number = 1, limit: number = 10, search?: string): Promise<ListCategoriesResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(search && { search }),
-    })
+  async getCategories(filters: CategoryFilters = {}): Promise<ListCategoriesResponse> {
+    const params = new URLSearchParams()
+    
+    // Pagination
+    if (filters.page) params.append('page', filters.page.toString())
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    
+    // Search and filters
+    if (filters.search) params.append('search', filters.search)
+    if (filters.parent_id) params.append('parent_id', filters.parent_id.toString())
+    if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString())
     
     const response = await fetch(`${API_BASE_URL}/products/categories?${params}`, {
       method: 'GET',
@@ -171,13 +181,24 @@ export const productApi = {
   },
 
   // Products
-  async getProducts(page: number = 1, limit: number = 10, search?: string, categoryId?: number): Promise<ListProductsResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(search && { search }),
-      ...(categoryId && { category_id: categoryId.toString() }),
-    })
+  async getProducts(filters: ProductFilters = {}): Promise<ListProductsResponse> {
+    const params = new URLSearchParams()
+    
+    // Pagination
+    if (filters.page) params.append('page', filters.page.toString())
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    
+    // Search and filters
+    if (filters.search) params.append('search', filters.search)
+    if (filters.category_id) params.append('category_id', filters.category_id.toString())
+    if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString())
+    if (filters.is_digital !== undefined) params.append('is_digital', filters.is_digital.toString())
+    if (filters.min_price !== undefined) params.append('min_price', filters.min_price.toString())
+    if (filters.max_price !== undefined) params.append('max_price', filters.max_price.toString())
+    if (filters.in_stock !== undefined) params.append('in_stock', filters.in_stock.toString())
+    if (filters.tags && filters.tags.length > 0) params.append('tags', filters.tags.join(','))
+    if (filters.sort_by) params.append('sort_by', filters.sort_by)
+    if (filters.sort_order) params.append('sort_order', filters.sort_order)
     
     const response = await fetch(`${API_BASE_URL}/products?${params}`, {
       method: 'GET',
@@ -226,6 +247,68 @@ export const productApi = {
 
   async deleteProduct(id: number): Promise<ApiResponse> {
     const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Product Variants
+  async getProductVariants(productId: number): Promise<ProductVariant[]> {
+    const response = await fetch(`${API_BASE_URL}/products/${productId}/variants`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    const result = await handleResponse<{data: ProductVariant[]}>(response)
+    return result.data
+  },
+
+  async getProductVariant(variantId: number): Promise<ProductVariant> {
+    const response = await fetch(`${API_BASE_URL}/products/variants/${variantId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    const result = await handleResponse<{data: ProductVariant}>(response)
+    return result.data
+  },
+
+  async createProductVariant(productId: number, variantData: CreateProductVariantRequest): Promise<ProductVariant> {
+    const response = await fetch(`${API_BASE_URL}/products/${productId}/variants`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(variantData),
+    })
+    
+    const result = await handleResponse<{data: ProductVariant}>(response)
+    return result.data
+  },
+
+  async updateProductVariant(variantId: number, variantData: UpdateProductVariantRequest): Promise<ProductVariant> {
+    const response = await fetch(`${API_BASE_URL}/products/variants/${variantId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(variantData),
+    })
+    
+    const result = await handleResponse<{data: ProductVariant}>(response)
+    return result.data
+  },
+
+  async deleteProductVariant(variantId: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/products/variants/${variantId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

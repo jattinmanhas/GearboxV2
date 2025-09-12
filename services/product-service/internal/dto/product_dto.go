@@ -50,29 +50,30 @@ type UpdateProductRequest struct {
 
 // ProductResponse represents the response for product data
 type ProductResponse struct {
-	ID               int64   `json:"id"`
-	Name             string  `json:"name"`
-	Description      string  `json:"description"`
-	ShortDesc        string  `json:"short_description"`
-	SKU              string  `json:"sku"`
-	Price            float64 `json:"price"`
-	ComparePrice     float64 `json:"compare_price"`
-	CostPrice        float64 `json:"cost_price"`
-	Weight           float64 `json:"weight"`
-	Dimensions       string  `json:"dimensions"`
-	IsActive         bool    `json:"is_active"`
-	IsDigital        bool    `json:"is_digital"`
-	RequiresShipping bool    `json:"requires_shipping"`
-	Taxable          bool    `json:"taxable"`
-	TrackQuantity    bool    `json:"track_quantity"`
-	MinQuantity      int     `json:"min_quantity"`
-	MaxQuantity      int     `json:"max_quantity"`
-	MetaTitle        string  `json:"meta_title"`
-	MetaDescription  string  `json:"meta_description"`
-	Tags             string  `json:"tags"`
-	CategoryIDs      []int64 `json:"category_ids"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
+	ID               int64    `json:"id"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	ShortDesc        string   `json:"short_description"`
+	SKU              string   `json:"sku"`
+	Price            float64  `json:"price"`
+	ComparePrice     float64  `json:"compare_price"`
+	CostPrice        float64  `json:"cost_price"`
+	Weight           float64  `json:"weight"`
+	Dimensions       string   `json:"dimensions"`
+	IsActive         bool     `json:"is_active"`
+	IsDigital        bool     `json:"is_digital"`
+	RequiresShipping bool     `json:"requires_shipping"`
+	Taxable          bool     `json:"taxable"`
+	TrackQuantity    bool     `json:"track_quantity"`
+	MinQuantity      int      `json:"min_quantity"`
+	MaxQuantity      int      `json:"max_quantity"`
+	MetaTitle        string   `json:"meta_title"`
+	MetaDescription  string   `json:"meta_description"`
+	Tags             string   `json:"tags"`
+	CategoryIDs      []int64  `json:"category_ids"`
+	CategoryNames    []string `json:"category_names"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
 }
 
 // ListProductsRequest represents the request to list products with filters

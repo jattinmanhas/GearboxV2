@@ -19,7 +19,8 @@ import {
   RotateCcw
 } from "lucide-react"
 import { productApi } from "@/lib/api"
-import { Product, Category } from "@/lib/types"
+import { Product, Category, ProductVariant } from "@/lib/types"
+import { formatPrice } from "@/lib/currency"
 
 export default function ProductDetailPage() {
   const params = useParams()
@@ -27,6 +28,8 @@ export default function ProductDetailPage() {
   
   const [product, setProduct] = useState<Product | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
@@ -38,12 +41,25 @@ export default function ProductDetailPage() {
       try {
         setLoading(true)
         setError(null)
-        const [productData, categoriesData] = await Promise.all([
+        const [productData, categoriesData, variantsData] = await Promise.all([
           productApi.getProduct(parseInt(productId)),
-          productApi.getCategories(1, 100)
+          productApi.getCategories({
+            page: 1,
+            limit: 10
+          }),
+          productApi.getProductVariants(parseInt(productId))
         ])
         setProduct(productData)
-        setCategories(categoriesData.categories)
+        setCategories(categoriesData.data.categories)
+        setVariants(variantsData)
+        
+        // Set the first active variant as selected, or the first variant if none are active
+        const activeVariants = variantsData.filter(v => v.is_active)
+        if (activeVariants.length > 0) {
+          setSelectedVariant(activeVariants[0])
+        } else if (variantsData.length > 0) {
+          setSelectedVariant(variantsData[0])
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load product")
       } finally {
@@ -56,18 +72,8 @@ export default function ProductDetailPage() {
     }
   }, [productId])
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
-  }
 
-  const getCategoryNames = (categoryIds: number[]) => {
-    return categoryIds
-      .map(id => categories.find(cat => cat.id === id)?.name)
-      .filter(Boolean)
-  }
+  // No longer needed - using category_names from API response
 
   const handleAddToCart = async () => {
     if (!product) return
@@ -181,27 +187,60 @@ export default function ProductDetailPage() {
               {/* Price */}
               <div className="mb-4">
                 <div className="text-3xl font-bold">
-                  {formatPrice(product.price)}
+                  {selectedVariant ? formatPrice(selectedVariant.price) : formatPrice(product.price)}
                 </div>
-                {product.compare_price > 0 && (
+                {(selectedVariant ? selectedVariant.compare_price : product.compare_price) > 0 && (
                   <div className="text-lg text-muted-foreground line-through">
-                    {formatPrice(product.compare_price)}
+                    {formatPrice(selectedVariant ? selectedVariant.compare_price : product.compare_price)}
                   </div>
                 )}
               </div>
             </div>
 
             {/* Categories */}
-            {getCategoryNames(product.category_ids).length > 0 && (
+            {product.category_names && product.category_names.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium mb-2">Categories</h3>
                 <div className="flex gap-2">
-                  {getCategoryNames(product.category_ids).map((name, index) => (
+                  {product.category_names.map((name, index) => (
                     <Badge key={index} variant="outline">
                       {name}
                     </Badge>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Variants */}
+            {variants.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium mb-2">Options</h3>
+                <div className="flex flex-wrap gap-2">
+                  {variants
+                    .filter(variant => variant.is_active)
+                    .sort((a, b) => a.position - b.position)
+                    .map((variant) => (
+                    <Button
+                      key={variant.id}
+                      variant={selectedVariant?.id === variant.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedVariant(variant)}
+                      className="flex items-center gap-2"
+                    >
+                      {variant.name}
+                      <span className="text-xs text-muted-foreground">
+                        ({formatPrice(variant.price)})
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+                {selectedVariant && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Selected: <span className="font-medium">{selectedVariant.name}</span>
+                    <span className="ml-2">•</span>
+                    <span className="ml-2">SKU: {selectedVariant.sku}</span>
+                  </div>
+                )}
               </div>
             )}
 

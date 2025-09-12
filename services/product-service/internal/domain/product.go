@@ -29,6 +29,10 @@ type Product struct {
 	Tags             string    `json:"tags" db:"tags"`
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+
+	// Category information (populated by repository)
+	CategoryIDs   []int64  `json:"category_ids,omitempty"`
+	CategoryNames []string `json:"category_names,omitempty"`
 }
 
 // ProductVariant represents different variations of a product (size, color, etc.)

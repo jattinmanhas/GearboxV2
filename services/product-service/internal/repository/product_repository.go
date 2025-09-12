@@ -95,6 +95,14 @@ func (r *productRepository) GetProductByID(ctx context.Context, id int64) (*doma
 		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
 
+	// Populate category information
+	categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+	}
+	product.CategoryIDs = categoryIDs
+	product.CategoryNames = categoryNames
+
 	return &product, nil
 }
 
@@ -110,6 +118,14 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 		}
 		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
+
+	// Populate category information
+	categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+	}
+	product.CategoryIDs = categoryIDs
+	product.CategoryNames = categoryNames
 
 	return &product, nil
 }
@@ -197,7 +213,52 @@ func (r *productRepository) ListProducts(ctx context.Context, filter *domain.Pro
 		return nil, 0, fmt.Errorf("failed to list products: %w", err)
 	}
 
+	// Populate category information for each product
+	for _, product := range products {
+		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+		}
+		product.CategoryIDs = categoryIDs
+		product.CategoryNames = categoryNames
+	}
+
 	return products, total, nil
+}
+
+// getProductCategories retrieves category IDs and names for a product
+func (r *productRepository) getProductCategories(ctx context.Context, productID int64) ([]int64, []string, error) {
+	query := `
+		SELECT c.id, c.name 
+		FROM categories c
+		INNER JOIN product_categories pc ON c.id = pc.category_id
+		WHERE pc.product_id = $1
+		ORDER BY c.name`
+
+	rows, err := r.db.QueryContext(ctx, query, productID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get product categories: %w", err)
+	}
+	defer rows.Close()
+
+	var categoryIDs []int64
+	var categoryNames []string
+
+	for rows.Next() {
+		var id int64
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+		categoryIDs = append(categoryIDs, id)
+		categoryNames = append(categoryNames, name)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("error iterating categories: %w", err)
+	}
+
+	return categoryIDs, categoryNames, nil
 }
 
 // GetProductsByCategory retrieves products by category
@@ -228,6 +289,16 @@ func (r *productRepository) GetProductsByCategory(ctx context.Context, categoryI
 	err = r.db.SelectContext(ctx, &products, query, categoryID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get products by category: %w", err)
+	}
+
+	// Populate category information for each product
+	for _, product := range products {
+		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+		}
+		product.CategoryIDs = categoryIDs
+		product.CategoryNames = categoryNames
 	}
 
 	return products, total, nil
@@ -272,6 +343,16 @@ func (r *productRepository) SearchProducts(ctx context.Context, query string, of
 		return nil, 0, fmt.Errorf("failed to search products: %w", err)
 	}
 
+	// Populate category information for each product
+	for _, product := range products {
+		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+		}
+		product.CategoryIDs = categoryIDs
+		product.CategoryNames = categoryNames
+	}
+
 	return products, total, nil
 }
 
@@ -314,6 +395,16 @@ func (r *productRepository) GetProductsByTags(ctx context.Context, tags []string
 	err = r.db.SelectContext(ctx, &products, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get products by tags: %w", err)
+	}
+
+	// Populate category information for each product
+	for _, product := range products {
+		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get categories for product %d: %w", product.ID, err)
+		}
+		product.CategoryIDs = categoryIDs
+		product.CategoryNames = categoryNames
 	}
 
 	return products, total, nil

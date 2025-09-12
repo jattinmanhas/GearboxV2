@@ -26,15 +26,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
-  DollarSign
+  TrendingUp
 } from "lucide-react"
 import { Product, Category } from "@/lib/types"
+import { formatPrice } from "@/lib/currency"
 
 interface ProductTableProps {
   products: Product[]
   categories: Category[]
   onEdit: (product: Product) => void
   onDelete: (id: number) => void
+  onManageVariants: (product: Product) => void
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
@@ -45,6 +47,7 @@ export function ProductTable({
   categories, 
   onEdit, 
   onDelete, 
+  onManageVariants,
   currentPage, 
   totalPages, 
   onPageChange 
@@ -68,15 +71,9 @@ export function ProductTable({
     })
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
-  }
 
 
-  if (products.length === 0) {
+  if (!products || products.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="text-muted-foreground mb-4">
@@ -92,12 +89,12 @@ export function ProductTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Categories</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="w-[300px]">Product</TableHead>
+              <TableHead className="w-[120px]">SKU</TableHead>
+              <TableHead className="w-[120px]">Price</TableHead>
+              <TableHead className="w-[200px]">Categories</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[100px]">Created</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -126,7 +123,6 @@ export function ProductTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-1">
-                    <DollarSign className="h-3 w-3 text-muted-foreground" />
                     <span className="font-medium">{formatPrice(product.price)}</span>
                     {product.compare_price > 0 && (
                       <span className="text-sm text-muted-foreground line-through">
@@ -137,19 +133,16 @@ export function ProductTable({
                 </TableCell>
                 <TableCell>
                   <div className="max-w-xs">
-                    {product.category_ids.length > 0 ? (
+                    {product.category_names && product.category_names.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {product.category_ids.slice(0, 2).map((categoryId) => {
-                          const category = categories.find(cat => cat.id === categoryId)
-                          return category ? (
-                            <Badge key={categoryId} variant="secondary" className="text-xs">
-                              {category.name}
-                            </Badge>
-                          ) : null
-                        })}
-                        {product.category_ids.length > 2 && (
+                        {product.category_names.slice(0, 2).map((categoryName, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {categoryName}
+                          </Badge>
+                        ))}
+                        {product.category_names && product.category_names.length > 2 && (
                           <Badge variant="outline" className="text-xs">
-                            +{product.category_ids.length - 2} more
+                            +{product.category_names.length - 2} more
                           </Badge>
                         )}
                       </div>
@@ -160,8 +153,8 @@ export function ProductTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col space-y-1">
-                    <Badge variant={product.is_active ? "default" : "secondary"}>
-                      {product.is_active ? (
+                    <Badge variant={(product.is_active ?? true) ? "default" : "secondary"}>
+                      {(product.is_active ?? true) ? (
                         <>
                           <Eye className="w-3 h-3 mr-1" />
                           Active
@@ -173,11 +166,20 @@ export function ProductTable({
                         </>
                       )}
                     </Badge>
-                    {product.is_digital && (
-                      <Badge variant="outline" className="text-xs">
-                        Digital
-                      </Badge>
-                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {(product.is_digital ?? false) && (
+                        <Badge variant="outline" className="text-xs">
+                          <Package className="w-2 h-2 mr-1" />
+                          Digital
+                        </Badge>
+                      )}
+                      {(product.track_quantity ?? false) && (
+                        <Badge variant="outline" className="text-xs">
+                          <TrendingUp className="w-2 h-2 mr-1" />
+                          Tracked
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>{formatDate(product.created_at)}</TableCell>
@@ -193,6 +195,10 @@ export function ProductTable({
                       <DropdownMenuItem onClick={() => onEdit(product)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onManageVariants(product)}>
+                        <Package className="mr-2 h-4 w-4" />
+                        Manage Variants
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => handleDelete(product.id)}
@@ -211,13 +217,21 @@ export function ProductTable({
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Enhanced Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
+            Showing page {currentPage} of {totalPages}
           </div>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(1)}
+              disabled={currentPage <= 1}
+            >
+              First
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -227,6 +241,35 @@ export function ProductTable({
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
+            
+            {/* Page Numbers */}
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onPageChange(pageNum)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            
             <Button
               variant="outline"
               size="sm"
@@ -235,6 +278,14 @@ export function ProductTable({
             >
               Next
               <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(totalPages)}
+              disabled={currentPage >= totalPages}
+            >
+              Last
             </Button>
           </div>
         </div>

@@ -291,6 +291,8 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
+			CategoryIDs:      product.CategoryIDs,
+			CategoryNames:    product.CategoryNames,
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -353,6 +355,8 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
+			CategoryIDs:      product.CategoryIDs,
+			CategoryNames:    product.CategoryNames,
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -415,6 +419,8 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
+			CategoryIDs:      product.CategoryIDs,
+			CategoryNames:    product.CategoryNames,
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -477,6 +483,8 @@ func (s *productService) GetProductsByTags(ctx context.Context, tags []string, p
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
+			CategoryIDs:      product.CategoryIDs,
+			CategoryNames:    product.CategoryNames,
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}

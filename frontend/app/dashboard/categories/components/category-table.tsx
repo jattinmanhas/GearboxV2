@@ -24,9 +24,14 @@ import {
   EyeOff, 
   MoreHorizontal,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Calendar,
+  Tag
 } from "lucide-react"
 import { Category } from "@/lib/types"
+import { LoadingState } from "@/components/ui/loading"
 
 interface CategoryTableProps {
   categories: Category[]
@@ -35,6 +40,8 @@ interface CategoryTableProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
+  viewMode?: 'grid' | 'list'
+  loading?: boolean
 }
 
 export function CategoryTable({ 
@@ -43,7 +50,9 @@ export function CategoryTable({
   onDelete, 
   currentPage, 
   totalPages, 
-  onPageChange 
+  onPageChange,
+  viewMode = 'list',
+  loading = false
 }: CategoryTableProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
@@ -71,12 +80,185 @@ export function CategoryTable({
       .replace(/(^-|-$)/g, '')
   }
 
-  if (categories.length === 0) {
+  if (!categories || categories.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="text-muted-foreground mb-4">
-          No categories found. Create your first category to get started.
+      <LoadingState
+        type="empty"
+        emptyText="Get started by creating your first category to organize your products."
+        emptyIcon={<Folder className="h-8 w-8 text-muted-foreground" />}
+      />
+    )
+  }
+
+  if (viewMode === 'grid') {
+    return (
+      <div className="space-y-4">
+        {/* Grid View */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.map((category) => (
+            <div key={category.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                    {category.image_url ? (
+                      <img 
+                        src={category.image_url} 
+                        alt={category.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      category.parent_id ? (
+                        <Folder className="h-6 w-6 text-muted-foreground" />
+                      ) : (
+                        <FolderOpen className="h-6 w-6 text-primary" />
+                      )
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground">{category.slug || generateSlug(category.name)}</p>
+                  </div>
+                </div>
+                <Badge variant={category.is_active ? "default" : "secondary"}>
+                  {category.is_active ? (
+                    <>
+                      <Eye className="w-3 h-3 mr-1" />
+                      Active
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-3 h-3 mr-1" />
+                      Inactive
+                    </>
+                  )}
+                </Badge>
+              </div>
+              
+              {category.description && (
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  {category.description}
+                </p>
+              )}
+              
+              <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                <div className="flex items-center space-x-2">
+                  <Tag className="h-3 w-3" />
+                  <span>Sort Order: {category.sort_order}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(category.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(category)}
+                    className="h-8"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(category.id)}
+                    disabled={deletingId === category.id}
+                    className="h-8 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {deletingId === category.id ? "Deleting..." : "Delete"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
+
+        {/* Enhanced Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center space-x-1">
+              {/* First Page */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(1)}
+                disabled={currentPage <= 1}
+                className="h-8 w-8 p-0"
+              >
+                «
+              </Button>
+              
+              {/* Previous Page */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="h-8"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              
+              {/* Page Numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onPageChange(pageNum)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              
+              {/* Next Page */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="h-8"
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+              
+              {/* Last Page */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(totalPages)}
+                disabled={currentPage >= totalPages}
+                className="h-8 w-8 p-0"
+              >
+                »
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -99,14 +281,22 @@ export function CategoryTable({
             {categories.map((category) => (
               <TableRow key={category.id}>
                 <TableCell className="font-medium">
-                  <div className="flex items-center space-x-2">
-                    {category.image_url && (
-                      <img 
-                        src={category.image_url} 
-                        alt={category.name}
-                        className="w-8 h-8 rounded object-cover"
-                      />
-                    )}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded overflow-hidden bg-muted flex items-center justify-center">
+                      {category.image_url ? (
+                        <img 
+                          src={category.image_url} 
+                          alt={category.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        category.parent_id ? (
+                          <Folder className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <FolderOpen className="h-5 w-5 text-primary" />
+                        )
+                      )}
+                    </div>
                     <div>
                       <div className="font-medium">{category.name}</div>
                       {category.description && (
@@ -169,30 +359,83 @@ export function CategoryTable({
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Enhanced Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            {/* First Page */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(1)}
+              disabled={currentPage <= 1}
+              className="h-8 w-8 p-0"
+            >
+              «
+            </Button>
+            
+            {/* Previous Page */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1}
+              className="h-8"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mr-1" />
               Previous
             </Button>
+            
+            {/* Page Numbers */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onPageChange(pageNum)}
+                  className="h-8 w-8 p-0"
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            
+            {/* Next Page */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages}
+              className="h-8"
             >
               Next
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+            
+            {/* Last Page */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(totalPages)}
+              disabled={currentPage >= totalPages}
+              className="h-8 w-8 p-0"
+            >
+              »
             </Button>
           </div>
         </div>
