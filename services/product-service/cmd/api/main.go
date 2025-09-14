@@ -63,13 +63,13 @@ func main() {
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	productHandler := handlers.NewProductHandler(productService)
-	cartHandler := handlers.NewCartHandler(cartService)
+	cartHandler := handlers.NewCartHandler(cartService, cfg.SecureCookies)
 	inventoryHandler := handlers.NewInventoryHandler(inventoryService)
 	couponHandler := handlers.NewCouponHandler(couponService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
 	// Initialize router
-	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler, couponHandler, orderHandler, cfg.JWTSecret)
+	appRouter := router.NewRouter(categoryHandler, productHandler, cartHandler, inventoryHandler, couponHandler, orderHandler, cfg.JWTSecret, cfg.JWTRefreshSecret)
 
 	// Create HTTP server
 	server := &http.Server{

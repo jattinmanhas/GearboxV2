@@ -52,7 +52,7 @@ func main() {
 	addressService := services.NewAddressService(addressRepo)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userService, authService, jwtService)
+	authHandler := handlers.NewAuthHandler(userService, authService, jwtService, cfg.Environment)
 	roleHandler := handlers.NewRoleHandler(roleService)
 	addressHandler := handlers.NewAddressHandler(addressService, authService)
 

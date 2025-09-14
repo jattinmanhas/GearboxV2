@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ import { ProductCard } from "./components/product-card"
 import { ProductFilters } from "./components/product-filters"
 import { CartDrawer } from "./components/cart-drawer"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { useWishlistStore } from "@/lib/stores/wishlist-store"
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -37,20 +39,32 @@ export default function ShopPage() {
   const [total, setTotal] = useState(0)
 
   // Cart store
-  const { isOpen, setCartOpen, getItemCount } = useCartStore()
+  const { isOpen, setCartOpen, getItemCount, loadCart } = useCartStore()
+  
+  // Wishlist store
+  const { loadWishlists, getWishlistItemCount } = useWishlistStore()
 
-  const loadProducts = async (page: number = 1, search: string = "", categoryId?: number) => {
+  const loadProducts = async (page: number = 1, search: string = "", categoryId?: number, priceRange?: [number, number], sortBy?: string) => {
     try {
       setLoading(true)
       setError(null)
-      const response = await productApi.getProducts({
+      
+      const filters: any = {
         page,
         limit: 12,
-        search,
+        search: search || undefined,
         category_id: categoryId,
-        sort_by: "created_at",
+        sort_by: sortBy || "created_at",
         sort_order: "desc"
-      })
+      }
+      
+      // Add price filters if provided
+      if (priceRange) {
+        filters.min_price = priceRange[0]
+        filters.max_price = priceRange[1]
+      }
+      
+      const response = await productApi.getProducts(filters)
       setProducts(response.data.products)
       setTotalPages(response.data.total_pages)
       setTotal(response.data.total)
@@ -77,52 +91,64 @@ export default function ShopPage() {
   useEffect(() => {
     loadProducts()
     loadCategories()
-  }, [])
+    // Load cart to show correct item count
+    loadCart().catch(error => {
+      console.warn('Cart loading failed:', error)
+      // Continue without cart functionality
+    })
+    // Try to load wishlists, but don't fail if it doesn't work
+    loadWishlists().catch(error => {
+      console.warn('Wishlist loading failed:', error)
+      // Continue without wishlist functionality
+    })
+  }, [loadWishlists, loadCart])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)
     setCurrentPage(1)
-    loadProducts(1, value, selectedCategory)
+    loadProducts(1, value, selectedCategory, priceRange, sortBy)
   }
 
   const handleCategoryFilter = (categoryId: number | undefined) => {
     setSelectedCategory(categoryId)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, categoryId)
+    loadProducts(1, searchTerm, categoryId, priceRange, sortBy)
   }
 
   const handlePriceFilter = (range: [number, number]) => {
     setPriceRange(range)
-    // Note: Backend would need to support price filtering
-    // For now, we'll filter on the frontend
-    const filteredProducts = products.filter(p => 
-      p.price >= range[0] && p.price <= range[1]
-    )
-    setProducts(filteredProducts)
+    setCurrentPage(1)
+    loadProducts(1, searchTerm, selectedCategory, range, sortBy)
   }
 
   const handleSort = (sort: string) => {
     setSortBy(sort)
-    const sortedProducts = [...products].sort((a, b) => {
-      switch (sort) {
-        case "price-low":
-          return a.price - b.price
-        case "price-high":
-          return b.price - a.price
-        case "name":
-          return a.name.localeCompare(b.name)
-        case "newest":
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        default:
-          return 0
-      }
-    })
-    setProducts(sortedProducts)
+    setCurrentPage(1)
+    
+    // Map frontend sort values to backend sort values
+    let backendSort = "created_at"
+    switch (sort) {
+      case "price-low":
+        backendSort = "price"
+        break
+      case "price-high":
+        backendSort = "price"
+        break
+      case "name":
+        backendSort = "name"
+        break
+      case "newest":
+        backendSort = "created_at"
+        break
+      default:
+        backendSort = "created_at"
+    }
+    
+    loadProducts(1, searchTerm, selectedCategory, priceRange, backendSort)
   }
 
-  const filteredProducts = products.filter(p => 
-    p.price >= priceRange[0] && p.price <= priceRange[1]
-  )
+  // No need for client-side filtering since we're doing it on the backend
+  const filteredProducts = products
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,13 +162,25 @@ export default function ShopPage() {
                 Discover amazing products at great prices
               </p>
             </div>
-            <Button 
-              onClick={() => setCartOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              Cart ({getItemCount()})
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                asChild
+                className="flex items-center gap-2"
+              >
+                <Link href="/wishlist">
+                  <Heart className="h-4 w-4" />
+                  Wishlist ({getWishlistItemCount()})
+                </Link>
+              </Button>
+              <Button 
+                onClick={() => setCartOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Cart ({getItemCount()})
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -263,8 +301,12 @@ export default function ShopPage() {
               <div className="flex items-center justify-center space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage <= 1}
+                  onClick={() => {
+                    const newPage = Math.max(1, currentPage - 1)
+                    setCurrentPage(newPage)
+                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy)
+                  }}
+                  disabled={currentPage <= 1 || loading}
                 >
                   Previous
                 </Button>
@@ -273,8 +315,12 @@ export default function ShopPage() {
                 </span>
                 <Button
                   variant="outline"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage >= totalPages}
+                  onClick={() => {
+                    const newPage = Math.min(totalPages, currentPage + 1)
+                    setCurrentPage(newPage)
+                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy)
+                  }}
+                  disabled={currentPage >= totalPages || loading}
                 >
                   Next
                 </Button>

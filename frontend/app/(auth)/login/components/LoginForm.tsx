@@ -92,8 +92,8 @@ export function LoginForm({
         // Debug: Log the user data being stored
         console.log("User data to store:", userData)
         
-        // Store user data in Zustand store
-        login(userData)
+        // Store user data in Zustand store and handle cart merging
+        await login(userData)
         
         // Redirect to dashboard or home
         router.push("/")

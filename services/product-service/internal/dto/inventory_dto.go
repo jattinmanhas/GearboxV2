@@ -34,6 +34,11 @@ type InventoryResponse struct {
 	LastRestocked     string `json:"last_restocked"`
 	CreatedAt         string `json:"created_at"`
 	UpdatedAt         string `json:"updated_at"`
+	// Product information for display
+	ProductName string  `json:"product_name"`
+	ProductSKU  string  `json:"product_sku"`
+	VariantName *string `json:"variant_name"`
+	VariantSKU  *string `json:"variant_sku"`
 }
 
 // StockMovementRequest represents the request to record stock movement

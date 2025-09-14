@@ -472,14 +472,16 @@ func (s *cartService) GetCartItemCount(ctx context.Context, cartID int64) (int, 
 // ApplyCouponToCart applies a coupon to a cart
 func (s *cartService) ApplyCouponToCart(ctx context.Context, cartID int64, req *dto.ApplyCouponRequest) (*domain.CartCoupon, error) {
 	// Get user ID from context (extracted from JWT token by middleware)
+	// For guest users, this will be 0, which is fine
 	userIDValue := middleware.GetUserIDFromContext(ctx)
-	if userIDValue == 0 {
-		return nil, fmt.Errorf("user ID not found in context")
+	var userID *int64
+	if userIDValue != 0 {
+		userIDVal := int64(userIDValue)
+		userID = &userIDVal
 	}
-	userID := int64(userIDValue)
 
 	// Use coupon service to apply coupon
-	coupon, discountAmount, err := s.couponService.ApplyCouponToCart(ctx, cartID, req.CouponCode, &userID)
+	coupon, discountAmount, err := s.couponService.ApplyCouponToCart(ctx, cartID, req.CouponCode, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply coupon: %w", err)
 	}

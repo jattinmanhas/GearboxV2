@@ -18,6 +18,11 @@ type Inventory struct {
 	LastRestocked     time.Time `json:"last_restocked" db:"last_restocked"`
 	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+	// Product information for display
+	ProductName string  `json:"product_name" db:"product_name"`
+	ProductSKU  string  `json:"product_sku" db:"product_sku"`
+	VariantName *string `json:"variant_name" db:"variant_name"`
+	VariantSKU  *string `json:"variant_sku" db:"variant_sku"`
 }
 
 // InventoryMovement represents inventory movements (stock in/out)
@@ -74,7 +79,6 @@ type InventorySummary struct {
 	TotalValue        float64 `db:"total_value" json:"total_value"`
 	AverageStockLevel float64 `db:"average_stock_level" json:"average_stock_level"`
 }
-
 
 // Additional types for repository
 type ListInventoryRequest struct {

@@ -26,3 +26,12 @@ export const formatPriceWithoutSymbol = (price: number): string => {
     maximumFractionDigits: 2,
   }).format(price)
 }
+
+export const formatCurrency = (price: number): string => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(price)
+}

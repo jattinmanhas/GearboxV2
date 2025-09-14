@@ -158,6 +158,7 @@ export default function ProductsPage() {
     try {
       await productApi.updateProduct(id, productData)
       setEditingProduct(null)
+      setShowForm(false)
       loadProducts()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product")

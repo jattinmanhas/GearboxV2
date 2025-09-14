@@ -1,30 +1,33 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
 import { 
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet"
 import { 
   ShoppingCart, 
   Plus, 
   Minus, 
-  Trash2,
+  Trash2, 
+  X,
   Package,
+  CreditCard,
   ArrowRight,
-  Search,
-  Filter,
-  SortAsc,
-  SortDesc
+  Loader2
 } from "lucide-react"
-import { useCartStore } from "@/lib/stores/cart-store"
-import { formatPrice } from "@/lib/currency"
+import { useCartStore, useHydrateCartStore } from "@/lib/stores/cart-store"
+import { formatCurrency } from "@/lib/currency"
+import Link from "next/link"
 
 interface CartDrawerProps {
   open: boolean
@@ -32,126 +35,95 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<'name' | 'price' | 'quantity'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [showFilters, setShowFilters] = useState(false)
-  const [minPrice, setMinPrice] = useState<number | undefined>()
-  const [maxPrice, setMaxPrice] = useState<number | undefined>()
-  const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all')
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Hydrate the store on client side
+  useHydrateCartStore()
   
   const { 
-    items: cartItems, 
+    cart, 
+    items, 
+    isLoading, 
+    error, 
+    loadCart, 
     updateQuantity, 
     removeItem, 
-    clearCart, 
-    getTotalPrice 
+    clearCart,
+    getItemCount,
+    getTotalPrice,
+    applyCoupon,
+    removeCoupon
   } = useCartStore()
+  
+  const [couponCode, setCouponCode] = useState("")
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [couponMessage, setCouponMessage] = useState("")
 
+  // Prevent hydration mismatch by only rendering on client
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
-  // Filter and sort cart items
-  const filteredAndSortedItems = useMemo(() => {
-    let filtered = cartItems.filter(item => {
-      // Search filter
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchTerm.toLowerCase())
-      
-      if (!matchesSearch) return false
-
-      // Price filters
-      if (minPrice !== undefined && item.price < minPrice) return false
-      if (maxPrice !== undefined && item.price > maxPrice) return false
-
-      // Price range filter
-      switch (priceFilter) {
-        case 'low':
-          if (item.price >= 50) return false
-          break
-        case 'medium':
-          if (item.price < 50 || item.price >= 200) return false
-          break
-        case 'high':
-          if (item.price < 200) return false
-          break
-        case 'all':
-        default:
-          break
-      }
-
-      return true
-    })
-
-    // Sort items
-    filtered.sort((a, b) => {
-      let aValue: string | number
-      let bValue: string | number
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-          break
-        case 'price':
-          aValue = a.price
-          bValue = b.price
-          break
-        case 'quantity':
-          aValue = a.quantity
-          bValue = b.quantity
-          break
-        default:
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
-
-    return filtered
-  }, [cartItems, searchTerm, sortBy, sortOrder, minPrice, maxPrice, priceFilter])
-
-  const handleSort = (field: 'name' | 'price' | 'quantity') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
+  useEffect(() => {
+    if (open && !cart) {
+      loadCart()
     }
+  }, [open, cart, loadCart])
+
+  const handleQuantityChange = async (itemId: number, newQuantity: number) => {
+    await updateQuantity(itemId, newQuantity)
   }
 
-  const handleUpdateQuantity = async (id: number, newQuantity: number) => {
-    setIsUpdating(true)
+  const handleRemoveItem = async (itemId: number) => {
+    await removeItem(itemId)
+  }
+
+  const handleClearCart = async () => {
+    await clearCart()
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !cart) return
+    
+    setIsApplyingCoupon(true)
+    setCouponMessage("")
     try {
-      updateQuantity(id, newQuantity)
+      await applyCoupon(couponCode.trim())
+      setCouponCode("") // Clear the input on success
+      setCouponMessage("Coupon applied successfully!")
     } catch (error) {
-      console.error("Failed to update quantity:", error)
+      console.error("Failed to apply coupon:", error)
+      setCouponMessage(error instanceof Error ? error.message : "Failed to apply coupon")
     } finally {
-      setIsUpdating(false)
+      setIsApplyingCoupon(false)
     }
   }
 
-  const handleRemoveItem = async (id: number) => {
-    setIsUpdating(true)
-    try {
-      removeItem(id)
-    } catch (error) {
-      console.error("Failed to remove item:", error)
-    } finally {
-      setIsUpdating(false)
-    }
+  const itemCount = getItemCount()
+  const totalPrice = getTotalPrice()
+  
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Shopping Cart
+            </SheetTitle>
+            <SheetDescription>
+              Loading...
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading cart...</span>
+          </div>
+        </SheetContent>
+      </Sheet>
+    )
   }
-
-  const handleClearCart = () => {
-    clearCart()
-  }
-
-  const subtotal = getTotalPrice()
-  const shipping = subtotal > 50 ? 0 : 9.99
-  const tax = subtotal * 0.08 // 8% tax
-  const total = subtotal + shipping + tax
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -160,306 +132,237 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             Shopping Cart
-            {cartItems.length > 0 && (
-              <Badge variant="secondary">{cartItems.length}</Badge>
+            {itemCount > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {itemCount}
+              </Badge>
             )}
           </SheetTitle>
           <SheetDescription>
-            Review your items and proceed to checkout
+            {itemCount > 0 
+              ? `${itemCount} item${itemCount === 1 ? '' : 's'} in your cart`
+              : "Your cart is empty"
+            }
           </SheetDescription>
         </SheetHeader>
 
-        {/* Search and Filter Controls */}
-        {cartItems.length > 0 && (
-          <div className="space-y-3 py-4 border-b">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search items..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <div className="flex flex-col h-full max-h-[calc(100vh-8rem)]">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Loading cart...</span>
             </div>
-
-            {/* Sort Controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Sort by:</span>
-                <Button
-                  variant={sortBy === 'name' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('name')}
-                  className="h-8"
-                >
-                  Name
-                  {sortBy === 'name' && (
-                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
-                  )}
-                </Button>
-                <Button
-                  variant={sortBy === 'price' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('price')}
-                  className="h-8"
-                >
-                  Price
-                  {sortBy === 'price' && (
-                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
-                  )}
-                </Button>
-                <Button
-                  variant={sortBy === 'quantity' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('quantity')}
-                  className="h-8"
-                >
-                  Qty
-                  {sortBy === 'quantity' && (
-                    sortOrder === 'asc' ? <SortAsc className="h-3 w-3 ml-1" /> : <SortDesc className="h-3 w-3 ml-1" />
-                  )}
-                </Button>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="h-8"
-              >
-                <Filter className="h-3 w-3 mr-1" />
-                Filters
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="text-destructive mb-4">{error}</div>
+              <Button onClick={loadCart} variant="outline">
+                Try Again
               </Button>
             </div>
-
-            {/* Results Count */}
-            {(searchTerm || priceFilter !== 'all' || minPrice !== undefined || maxPrice !== undefined) && (
-              <div className="text-sm text-muted-foreground">
-                {filteredAndSortedItems.length} of {cartItems.length} items
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Advanced Filters Panel */}
-        {showFilters && cartItems.length > 0 && (
-          <div className="border-b py-4 space-y-4">
-            <h3 className="font-medium text-sm">Filters</h3>
-            
-            {/* Price Range Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Price Range</label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={priceFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriceFilter('all')}
-                  className="h-8"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={priceFilter === 'low' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriceFilter('low')}
-                  className="h-8"
-                >
-                  Under $50
-                </Button>
-                <Button
-                  variant={priceFilter === 'medium' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriceFilter('medium')}
-                  className="h-8"
-                >
-                  $50 - $200
-                </Button>
-                <Button
-                  variant={priceFilter === 'high' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriceFilter('high')}
-                  className="h-8"
-                >
-                  Over $200
-                </Button>
-              </div>
-            </div>
-
-            {/* Custom Price Range */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Custom Price Range</label>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="number"
-                  placeholder="Min price"
-                  value={minPrice || ''}
-                  onChange={(e) => setMinPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="h-8"
-                />
-                <Input
-                  type="number"
-                  placeholder="Max price"
-                  value={maxPrice || ''}
-                  onChange={(e) => setMaxPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="h-8"
-                />
-              </div>
-            </div>
-
-            {/* Clear Filters */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchTerm('')
-                setMinPrice(undefined)
-                setMaxPrice(undefined)
-                setPriceFilter('all')
-              }}
-              className="w-full h-8"
-            >
-              Clear All Filters
-            </Button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {cartItems.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
-                <p className="text-muted-foreground mb-4">
-                  Add some products to get started
-                </p>
-                <Button onClick={() => onOpenChange(false)}>
+          ) : itemCount === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
+              <p className="text-muted-foreground mb-4">
+                Add some items to get started
+              </p>
+              <Button asChild onClick={() => onOpenChange(false)}>
+                <Link href="/shop">
                   Continue Shopping
-                </Button>
-              </div>
+                </Link>
+              </Button>
             </div>
           ) : (
             <>
               {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto space-y-4 py-4">
-                {filteredAndSortedItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      {searchTerm ? 'No items match your search' : 'No items in cart'}
-                    </p>
-                    {searchTerm && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSearchTerm('')}
-                        className="mt-2"
-                      >
-                        Clear Search
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  filteredAndSortedItems.map((item) => (
-                  <div key={item.id} className="flex gap-3 p-3 border rounded-lg">
-                    {/* Product Image */}
-                    <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                      <Package className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
-                      <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                      <p className="text-sm font-semibold">{formatPrice(item.price)}</p>
-                      
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                          disabled={isUpdating}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm font-medium min-w-[2rem] text-center">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                          disabled={isUpdating}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(item.id)}
-                          disabled={isUpdating}
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+              <div className="flex-1 overflow-y-auto py-4 min-h-0">
+                <div className="space-y-4">
+                  {items.map((item) => (
+                    <Card key={item.id} className="p-4">
+                      <div className="flex gap-3">
+                        {/* Product Image */}
+                        <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              alt={item.name || 'Product'} 
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          ) : (
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm line-clamp-2 mb-1">
+                            {item.name || `Product ${item.product_id}`}
+                          </h4>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            SKU: {item.sku || `SKU-${item.product_id}`}
+                          </p>
+                          
+                          {/* Variant Info */}
+                          {item.variant_name && (
+                            <p className="text-xs text-blue-600 mb-2">
+                              Variant: {item.variant_name}
+                              {item.variant_sku && ` (${item.variant_sku})`}
+                            </p>
+                          )}
+                          
+                          {/* Quantity Controls */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center border rounded-md">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                disabled={isLoading}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="px-3 py-1 text-sm min-w-[2rem] text-center">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                disabled={isLoading || (item.maxQuantity ? item.quantity >= item.maxQuantity : false)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveItem(item.id)}
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {/* Price */}
+                        <div className="text-right">
+                          <div className="font-medium text-sm">
+                            {formatCurrency(item.total_price)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(item.unit_price)} each
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Coupon Section */}
+              <div className="py-4 border-t">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Coupon Code</h4>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim() || isApplyingCoupon}
+                      size="sm"
+                    >
+                      {isApplyingCoupon ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Apply"
+                      )}
+                    </Button>
                   </div>
-                  ))
-                )}
+                  {couponMessage && (
+                    <div className={`text-sm ${couponMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                      {couponMessage}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Cart Summary */}
-              <div className="border-t pt-4 space-y-4">
-                {/* Clear Cart */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearCart}
-                  className="w-full text-destructive hover:text-destructive"
-                >
-                  Clear Cart
-                </Button>
-
-                {/* Order Summary */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+              <div className="py-4 border-t space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span>{formatCurrency(cart?.subtotal || totalPrice)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span>
-                      {shipping === 0 ? "Free" : formatPrice(shipping)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tax</span>
-                    <span>{formatPrice(tax)}</span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-base border-t pt-2">
+                  {cart && cart.tax_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Tax</span>
+                      <span>{formatCurrency(cart.tax_amount)}</span>
+                    </div>
+                  )}
+                  {cart && cart.shipping_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Shipping</span>
+                      <span>{formatCurrency(cart.shipping_amount)}</span>
+                    </div>
+                  )}
+                  {cart && cart.discount_amount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount</span>
+                      <span>-{formatCurrency(cart.discount_amount)}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between font-semibold">
                     <span>Total</span>
-                    <span>{formatPrice(total)}</span>
+                    <span>{formatCurrency(cart?.total || totalPrice)}</span>
                   </div>
                 </div>
 
-                {/* Checkout Button */}
-                <Button className="w-full" size="lg">
-                  Proceed to Checkout
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-
-                {/* Continue Shopping */}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => onOpenChange(false)}
-                >
-                  Continue Shopping
-                </Button>
+                {/* Action Buttons */}
+                <div className="space-y-2">
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    asChild
+                  >
+                    <Link href="/checkout">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Proceed to Checkout
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Link>
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      asChild
+                    >
+                      <Link href="/shop" onClick={() => onOpenChange(false)}>
+                        Continue Shopping
+                      </Link>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleClearCart}
+                      disabled={isLoading}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Clear
+                    </Button>
+                  </div>
+                </div>
               </div>
             </>
           )}

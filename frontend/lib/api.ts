@@ -35,7 +35,7 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+export async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json()
   
   if (!response.ok) {
@@ -409,3 +409,316 @@ export const profileApi = {
     return handleResponse<ApiResponse>(response)
   },
 }
+
+// Cart API
+export const cartApi = {
+  // Cart Management
+  async getCartBySession(currency: string = 'INR'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts?endpoint=session&currency=${currency}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getOrCreateCart(currency: string = 'INR'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts?endpoint=get-or-create&currency=${currency}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getCart(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async updateCart(cartId: string, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async deleteCart(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  // Cart Items
+  async addItemToCart(cartId: string, itemData: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(itemData),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getCartItems(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/items`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async updateCartItem(itemId: string, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/items/${itemId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async deleteCartItem(itemId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/items/${itemId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async clearCartItems(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/items`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  // Cart Summary
+  async getCartSummary(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/summary`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  // Cart Merging
+  async mergeCarts(targetCartId: string, sourceCartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${targetCartId}/merge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ source_cart_id: sourceCartId }),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  // Cart Coupons
+  async applyCouponToCart(cartId: string, couponCode: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/coupons`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ coupon_code: couponCode }),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async removeCouponFromCart(cartId: string, couponCode: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/coupons`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ coupon_code: couponCode }),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getCartCoupons(cartId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/carts/${cartId}/coupons`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+}
+
+// Wishlist API
+export const wishlistApi = {
+  // Wishlist Management
+  async getWishlists(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async createWishlist(data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getWishlist(wishlistId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async updateWishlist(wishlistId: string, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async deleteWishlist(wishlistId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  // Wishlist Items
+  async getWishlistItems(wishlistId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}/items`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async addItemToWishlist(wishlistId: string, itemData: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(itemData),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async removeItemFromWishlist(itemId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/items/${itemId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async moveItemToCart(itemId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/items/${itemId}/move-to-cart`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+}
+
+// Export coupon API
+export { couponApi } from './coupon-api'

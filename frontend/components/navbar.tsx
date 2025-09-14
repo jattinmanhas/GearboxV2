@@ -15,9 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart } from "lucide-react"
+import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart, Heart } from "lucide-react"
 import { useUserStore } from "@/lib/stores/user-store"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { useWishlistStore } from "@/lib/stores/wishlist-store"
 
 export type NavItems = {
   label: string
@@ -52,6 +53,7 @@ export function Navbar() {
   // Get user data from Zustand store
   const { user, isAuthenticated, logout } = useUserStore()
   const { getItemCount } = useCartStore()
+  const { getWishlistItemCount } = useWishlistStore()
   
   // Debug: Log user data
   useEffect(() => {
@@ -144,8 +146,23 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Right side - Cart, User menu and theme toggle */}
+          {/* Right side - Cart, Wishlist, User menu and theme toggle */}
           <div className="flex items-center gap-4">
+            {/* Wishlist Icon */}
+            {isAuthenticated && (
+              <Button variant="ghost" size="sm" asChild className="relative">
+                <Link href="/wishlist">
+                  <Heart className="h-4 w-4" />
+                  {getWishlistItemCount() > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {getWishlistItemCount()}
+                    </span>
+                  )}
+                  <span className="sr-only">Wishlist</span>
+                </Link>
+              </Button>
+            )}
+
             {/* Cart Icon */}
             <Button variant="ghost" size="sm" asChild className="relative">
               <Link href="/shop">
@@ -197,6 +214,12 @@ export function Navbar() {
                     <Link href="/profile" className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/wishlist" className="flex items-center">
+                      <Heart className="mr-2 h-4 w-4" />
+                      <span>Wishlist</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -259,6 +282,18 @@ export function Navbar() {
                 </Link>
               ))}
               
+              {/* Mobile wishlist for authenticated users */}
+              {isAuthenticated && (
+                <div className="pt-4 space-y-2">
+                  <Button variant="ghost" asChild className="w-full justify-start">
+                    <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Heart className="mr-2 h-4 w-4" />
+                      Wishlist
+                    </Link>
+                  </Button>
+                </div>
+              )}
+
               {/* Mobile auth buttons */}
               {!isAuthenticated && (
                 <div className="pt-4 space-y-2">

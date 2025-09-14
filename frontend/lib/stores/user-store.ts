@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authApi } from '../api'
+import { useCartStore } from './cart-store'
 
 export interface User {
   id: number
@@ -65,7 +66,7 @@ export const useUserStore = create<UserState>()(
         set({ error })
       },
 
-      login: (userData: User) => {
+      login: async (userData: User) => {
         console.log("Zustand login called with:", userData)
         set({
           user: userData,
@@ -74,6 +75,33 @@ export const useUserStore = create<UserState>()(
           error: null,
         })
         console.log("Zustand state updated")
+        
+        // Handle cart merging when user logs in
+        try {
+          const cartStore = useCartStore.getState()
+          
+          // Get the current guest cart (if any)
+          const guestCart = cartStore.cart
+          
+          if (guestCart && guestCart.session_id && !guestCart.user_id) {
+            console.log("Guest cart found, attempting to merge with user cart")
+            
+            // Load/create user cart
+            await cartStore.loadCart()
+            
+            // If we have a guest cart and a user cart, merge them
+            if (cartStore.cart && cartStore.cart.id !== guestCart.id) {
+              console.log("Merging guest cart with user cart")
+              await cartStore.mergeCarts(cartStore.cart.id, guestCart.id)
+            }
+          } else {
+            // No guest cart, just load the user's cart
+            await cartStore.loadCart()
+          }
+        } catch (error) {
+          console.error("Cart merging error:", error)
+          // Don't fail login if cart merging fails
+        }
       },
 
       logout: async () => {

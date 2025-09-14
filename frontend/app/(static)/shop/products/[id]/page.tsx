@@ -20,6 +20,8 @@ import {
 } from "lucide-react"
 import { productApi } from "@/lib/api"
 import { Product, Category, ProductVariant } from "@/lib/types"
+import { useCartStore } from "@/lib/stores/cart-store"
+import { useWishlistStore } from "@/lib/stores/wishlist-store"
 import { formatPrice } from "@/lib/currency"
 
 export default function ProductDetailPage() {
@@ -33,8 +35,22 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [isWishlisting, setIsWishlisting] = useState(false)
+
+  const { addItem, isLoading: cartLoading } = useCartStore()
+  const { 
+    addItemToWishlist, 
+    removeItemFromWishlist, 
+    isProductInWishlist,
+    wishlists,
+    loadWishlists 
+  } = useWishlistStore()
+
+  // Check if product is in any wishlist
+  const isWishlisted = product ? wishlists.some(wishlist => 
+    isProductInWishlist(product.id, wishlist.id)
+  ) : false
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -80,10 +96,11 @@ export default function ProductDetailPage() {
     
     setIsAddingToCart(true)
     try {
-      // TODO: Implement add to cart functionality
-      console.log("Adding to cart:", product.id, "quantity:", quantity)
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await addItem({
+        product_id: product.id,
+        product_variant_id: selectedVariant?.id,
+        quantity: quantity
+      })
     } catch (error) {
       console.error("Failed to add to cart:", error)
     } finally {
@@ -91,9 +108,42 @@ export default function ProductDetailPage() {
     }
   }
 
-  const handleWishlist = () => {
-    setIsWishlisted(!isWishlisted)
-    // TODO: Implement wishlist functionality
+  const handleWishlist = async () => {
+    if (!product || isWishlisting) return
+    
+    setIsWishlisting(true)
+    try {
+      // Load wishlists if not already loaded
+      if (wishlists.length === 0) {
+        await loadWishlists()
+      }
+      
+      if (isWishlisted) {
+        // Find the wishlist containing this product and remove it
+        const wishlistWithProduct = wishlists.find(wishlist => 
+          isProductInWishlist(product.id, wishlist.id)
+        )
+        if (wishlistWithProduct) {
+          const item = wishlistWithProduct.items.find(item => item.product_id === product.id)
+          if (item) {
+            await removeItemFromWishlist(wishlistWithProduct.id, item.id)
+          }
+        }
+      } else {
+        // Add to the first wishlist (or create a default one)
+        if (wishlists.length > 0) {
+          await addItemToWishlist(wishlists[0].id, product.id)
+        } else {
+          // Create a default wishlist first
+          // TODO: Implement default wishlist creation
+          console.log("No wishlists available, need to create one first")
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update wishlist:", error)
+    } finally {
+      setIsWishlisting(false)
+    }
   }
 
   if (loading) {
@@ -284,7 +334,7 @@ export default function ProductDetailPage() {
                   className="flex-1"
                   size="lg"
                   onClick={handleAddToCart}
-                  disabled={!product.is_active || isAddingToCart}
+                  disabled={!product.is_active || isAddingToCart || cartLoading}
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   {isAddingToCart ? "Adding..." : "Add to Cart"}
@@ -293,6 +343,7 @@ export default function ProductDetailPage() {
                   variant="outline"
                   size="lg"
                   onClick={handleWishlist}
+                  disabled={isWishlisting}
                   className={isWishlisted ? "text-red-500" : ""}
                 >
                   <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />

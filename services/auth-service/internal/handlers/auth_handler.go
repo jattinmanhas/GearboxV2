@@ -34,13 +34,15 @@ type authHandler struct {
 	userService services.IUserService
 	authService services.IAuthService
 	jwtService  *jwt.JWTService
+	environment string
 }
 
-func NewAuthHandler(userService services.IUserService, authService services.IAuthService, jwtService *jwt.JWTService) IAuthHandler {
+func NewAuthHandler(userService services.IUserService, authService services.IAuthService, jwtService *jwt.JWTService, environment string) IAuthHandler {
 	return &authHandler{
 		userService: userService,
 		authService: authService,
 		jwtService:  jwtService,
+		environment: environment,
 	}
 }
 
@@ -51,7 +53,7 @@ func (h *authHandler) setAccessTokenCookie(w http.ResponseWriter, token string) 
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true, // Set to false in development
+		Secure:   h.environment == "production", // Only secure in production
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.jwtService.GetAccessTokenExpiry().Seconds()),
 	})
@@ -64,7 +66,7 @@ func (h *authHandler) setRefreshTokenCookie(w http.ResponseWriter, token string)
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true, // Set to false in development
+		Secure:   h.environment == "production", // Only secure in production
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.jwtService.GetRefreshTokenExpiry().Seconds()),
 	})
@@ -77,7 +79,7 @@ func (h *authHandler) clearAuthCookies(w http.ResponseWriter) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.environment == "production", // Only secure in production
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})
@@ -87,7 +89,7 @@ func (h *authHandler) clearAuthCookies(w http.ResponseWriter) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.environment == "production", // Only secure in production
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})

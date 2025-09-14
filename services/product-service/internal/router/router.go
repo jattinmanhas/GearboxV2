@@ -11,7 +11,7 @@ import (
 	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
-func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler, couponHandler handlers.CouponHandler, orderHandler handlers.OrderHandler, jwtSecret string) *chi.Mux {
+func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handlers.IProductHandler, cartHandler handlers.ICartHandler, inventoryHandler handlers.IInventoryHandler, couponHandler handlers.CouponHandler, orderHandler handlers.OrderHandler, jwtSecret, jwtRefreshSecret string) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global middleware
@@ -87,7 +87,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 		// Cart routes (supports both guest and authenticated users)
 		r.Route("/carts", func(r chi.Router) {
 			// Add optional authentication middleware to check for logged-in users
-			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 			authService := sharedMiddleware.NewSharedAuthService(jwtService)
 			r.Use(sharedMiddleware.OptionalAuthMiddleware(authService))
 
@@ -133,7 +133,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Wishlist routes (requires authentication - user-specific)
 		r.Route("/wishlists", func(r chi.Router) {
-			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 			authService := sharedMiddleware.NewSharedAuthService(jwtService)
 			r.Use(sharedMiddleware.AuthMiddleware(authService))
 			r.Post("/", cartHandler.CreateWishlist)
@@ -153,7 +153,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Inventory routes (requires editor/admin roles)
 		r.Route("/inventory", func(r chi.Router) {
-			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+			jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 			authService := sharedMiddleware.NewSharedAuthService(jwtService)
 			r.Use(sharedMiddleware.AuthMiddleware(authService))
 			r.Use(sharedMiddleware.RequireEditor())
@@ -191,7 +191,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 			// Protected routes (requires editor/admin roles)
 			r.Group(func(r chi.Router) {
-				jwtService := jwt.NewJWTService(jwtSecret, jwtSecret)
+				jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 				authService := sharedMiddleware.NewSharedAuthService(jwtService)
 				r.Use(sharedMiddleware.AuthMiddleware(authService))
 				r.Use(sharedMiddleware.RequireEditor())
@@ -209,7 +209,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Order routes (protected - requires authentication)
 		r.Route("/orders", func(r chi.Router) {
-			jwtService := jwt.NewJWTService(jwtSecret, jwtSecret) // Using same secret for both access and refresh
+			jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 			authService := sharedMiddleware.NewSharedAuthService(jwtService)
 			r.Use(sharedMiddleware.AuthMiddleware(authService))
 			r.Post("/", orderHandler.CreateOrder)

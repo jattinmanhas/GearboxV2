@@ -333,3 +333,188 @@ export interface UpdateProfileRequest {
   date_of_birth?: string
   avatar?: string
 }
+
+// Inventory Management Types
+export interface Inventory {
+  id: number
+  product_id: number
+  product_variant_id?: number
+  quantity: number
+  reserved_quantity: number
+  available_quantity: number
+  min_stock_level: number
+  max_stock_level?: number
+  reorder_point: number
+  last_restocked: string
+  created_at: string
+  updated_at: string
+  // Additional fields for display
+  product_name: string
+  product_sku: string
+  variant_name?: string
+  variant_sku?: string
+}
+
+export interface CreateInventoryRequest {
+  product_id: number
+  product_variant_id?: number
+  quantity: number
+  min_stock_level: number
+  max_stock_level?: number
+  reorder_point: number
+}
+
+export interface UpdateInventoryRequest {
+  quantity?: number
+  min_stock_level?: number
+  max_stock_level?: number
+  reorder_point?: number
+}
+
+export interface StockMovement {
+  id: number
+  product_id: number
+  product_variant_id?: number
+  movement_type: 'in' | 'out' | 'adjustment' | 'transfer'
+  quantity: number
+  previous_quantity: number
+  new_quantity: number
+  reference?: string
+  reference_type?: string
+  reason?: string
+  notes?: string
+  created_by?: number
+  created_at: string
+  // Additional fields for display
+  product_name?: string
+  product_sku?: string
+  variant_name?: string
+  variant_sku?: string
+}
+
+export interface StockMovementRequest {
+  product_id: number
+  product_variant_id?: number
+  movement_type: 'in' | 'out' | 'adjustment' | 'transfer'
+  quantity: number
+  reference?: string
+  reference_type?: string
+  reason?: string
+  notes?: string
+  created_by?: number
+}
+
+export interface StockReservation {
+  id: number
+  product_id: number
+  product_variant_id?: number
+  order_id: number
+  quantity: number
+  expires_at: string
+  created_at: string
+  // Additional fields for display
+  product_name?: string
+  product_sku?: string
+  variant_name?: string
+  variant_sku?: string
+}
+
+export interface ReserveStockRequest {
+  product_id: number
+  product_variant_id?: number
+  order_id: number
+  quantity: number
+  expires_at: string
+}
+
+export interface ReleaseStockRequest {
+  reservation_id?: number
+  order_id?: number
+}
+
+export interface InventoryAlert {
+  id: number
+  product_id: number
+  product_variant_id?: number
+  alert_type: 'low_stock' | 'out_of_stock' | 'overstock'
+  current_quantity: number
+  threshold_quantity: number
+  is_resolved: boolean
+  resolved_at?: string
+  created_at: string
+  // Additional fields for display
+  product_name?: string
+  product_sku?: string
+  variant_name?: string
+  variant_sku?: string
+}
+
+export interface InventorySummary {
+  total_products: number
+  total_variants: number
+  total_quantity: number
+  total_reserved: number
+  total_available: number
+  low_stock_items: number
+  out_of_stock_items: number
+  total_value: number
+  average_stock_level: number
+}
+
+export interface ListInventoryRequest {
+  product_id?: number
+  product_variant_id?: number
+  low_stock?: boolean
+  out_of_stock?: boolean
+  page?: number
+  limit?: number
+}
+
+export interface ListInventoryResponse {
+  inventory: Inventory[]
+  total: number
+  page: number
+  limit: number
+  total_pages: number
+}
+
+export interface ListStockMovementsRequest {
+  product_id?: number
+  product_variant_id?: number
+  movement_type?: 'in' | 'out' | 'adjustment' | 'transfer'
+  start_date?: string
+  end_date?: string
+  page?: number
+  limit?: number
+}
+
+export interface ListStockMovementsResponse {
+  movements: StockMovement[]
+  total: number
+  page: number
+  limit: number
+  total_pages: number
+}
+
+export interface BulkStockUpdateItem {
+  product_id: number
+  product_variant_id?: number
+  quantity: number
+  movement_type: 'in' | 'out' | 'adjustment'
+  reason: string
+  notes?: string
+}
+
+export interface BulkStockUpdateRequest {
+  updates: BulkStockUpdateItem[]
+}
+
+export interface BulkStockUpdateResponse {
+  updated_items: number
+  failed_items: Array<{
+    product_id: number
+    product_variant_id?: number
+    error: string
+  }>
+  success: boolean
+}

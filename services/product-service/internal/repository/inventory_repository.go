@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/domain"
-	
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -185,40 +185,46 @@ func (r *inventoryRepository) ListInventory(ctx context.Context, req *domain.Lis
 	argIndex := 1
 
 	if req.ProductID != nil {
-		whereClause += fmt.Sprintf(" AND product_id = $%d", argIndex)
+		whereClause += fmt.Sprintf(" AND i.product_id = $%d", argIndex)
 		args = append(args, *req.ProductID)
 		argIndex++
 	}
 
 	if req.ProductVariantID != nil {
-		whereClause += fmt.Sprintf(" AND product_variant_id = $%d", argIndex)
+		whereClause += fmt.Sprintf(" AND i.product_variant_id = $%d", argIndex)
 		args = append(args, *req.ProductVariantID)
 		argIndex++
 	}
 
 	if req.LowStock != nil && *req.LowStock {
-		whereClause += " AND available_quantity <= reorder_point"
+		whereClause += " AND i.available_quantity <= i.reorder_point"
 	}
 
 	if req.OutOfStock != nil && *req.OutOfStock {
-		whereClause += " AND available_quantity = 0"
+		whereClause += " AND i.available_quantity = 0"
 	}
 
 	// Count total records
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM inventory %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM inventory i %s", whereClause)
 	var total int64
 	err := r.db.GetContext(ctx, &total, countQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count inventory: %w", err)
 	}
 
-	// Get paginated results
+	// Get paginated results with product information
 	offset := (req.Page - 1) * req.Limit
 	query := fmt.Sprintf(`
-		SELECT id, product_id, product_variant_id, quantity, reserved_quantity, available_quantity,
-			   min_stock_level, max_stock_level, reorder_point, last_restocked, created_at, updated_at
-		FROM inventory %s
-		ORDER BY created_at DESC
+		SELECT 
+			i.id, i.product_id, i.product_variant_id, i.quantity, i.reserved_quantity, i.available_quantity,
+			i.min_stock_level, i.max_stock_level, i.reorder_point, i.last_restocked, i.created_at, i.updated_at,
+			p.name as product_name, p.sku as product_sku,
+			pv.name as variant_name, pv.sku as variant_sku
+		FROM inventory i
+		LEFT JOIN products p ON i.product_id = p.id
+		LEFT JOIN product_variants pv ON i.product_variant_id = pv.id
+		%s
+		ORDER BY i.created_at DESC
 		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
 
 	args = append(args, req.Limit, offset)

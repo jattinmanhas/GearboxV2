@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
+import { useUserStore } from "@/lib/stores/user-store"
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -16,7 +17,9 @@ import {
   Shield,
   FileText,
   BarChart3,
-  FolderTree
+  FolderTree,
+  Warehouse,
+  Ticket
 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
@@ -55,7 +58,9 @@ const navigationSections = [
     items: [
       { name: "Products", href: "/dashboard/products", icon: Package },
       { name: "Categories", href: "/dashboard/categories", icon: FolderTree },
+      { name: "Inventory", href: "/dashboard/inventory", icon: Warehouse },
       { name: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
+      { name: "Coupons", href: "/dashboard/coupons", icon: Ticket },
     ]
   },
   {
@@ -74,6 +79,7 @@ const navigationSections = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const { user, logout } = useUserStore()
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["Overview"]) // Start with Overview expanded
   )
@@ -88,6 +94,18 @@ export function DashboardSidebar() {
       }
       return newSet
     })
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      // Redirect to home page after logout
+      window.location.href = '/'
+    } catch (error) {
+      console.error("Logout error:", error)
+      // Still redirect even if logout fails
+      window.location.href = '/'
+    }
   }
 
   return (
@@ -161,15 +179,26 @@ export function DashboardSidebar() {
                 <User className="h-3 w-3" />
               </div>
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-xs font-medium">Admin User</span>
-                <span className="truncate text-xs text-muted-foreground">admin@gearbox.com</span>
+                <span className="truncate text-xs font-medium">
+                  {user?.firstName && user?.lastName 
+                    ? `${user.firstName} ${user.lastName}`
+                    : user?.username || 'User'
+                  }
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user?.email || user?.username || 'No email'}
+                </span>
               </div>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="flex items-center justify-between px-2 py-1">
               <ThemeToggle />
-              <SidebarMenuButton size="sm" className="h-7 w-7 p-0 rounded-md">
+              <SidebarMenuButton 
+                size="sm" 
+                className="h-7 w-7 p-0 rounded-md hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleLogout}
+              >
                 <LogOut className="h-3 w-3" />
                 <span className="sr-only">Logout</span>
               </SidebarMenuButton>

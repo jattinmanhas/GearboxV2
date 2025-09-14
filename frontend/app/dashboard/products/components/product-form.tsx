@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
+import { MultiSelect, MultiSelectOption } from "@/components/ui/multi-select"
 import { 
   Dialog,
   DialogContent,
@@ -73,7 +73,7 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
         meta_title: product.meta_title,
         meta_description: product.meta_description,
         tags: product.tags,
-        category_ids: product.category_ids,
+        category_ids: product.category_ids || [],
       })
     }
   }, [product])
@@ -128,18 +128,21 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
     }
   }
 
-  const handleCategoryChange = (categoryId: number, checked: boolean) => {
+  const handleCategoryChange = (selectedValues: (string | number)[]) => {
     setFormData(prev => ({
       ...prev,
-      category_ids: checked 
-        ? [...prev.category_ids, categoryId]
-        : prev.category_ids.filter(id => id !== categoryId)
+      category_ids: selectedValues.map(id => Number(id))
     }))
   }
 
+  const categoryOptions: MultiSelectOption[] = categories.map(category => ({
+    value: category.id,
+    label: category.name
+  }))
+
   return (
     <Dialog open={true} onOpenChange={onCancel}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>
             {product ? "Edit Product" : "Create New Product"}
@@ -337,19 +340,16 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
           {/* Categories */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Categories</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {categories.map((category) => (
-                <div key={category.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`category-${category.id}`}
-                    checked={formData.category_ids.includes(category.id)}
-                    onCheckedChange={(checked) => handleCategoryChange(category.id, checked as boolean)}
-                  />
-                  <Label htmlFor={`category-${category.id}`} className="text-sm">
-                    {category.name}
-                  </Label>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <Label>Select Categories</Label>
+              <MultiSelect
+                options={categoryOptions}
+                selectedValues={formData.category_ids}
+                onSelectionChange={handleCategoryChange}
+                placeholder="Search and select categories..."
+                searchPlaceholder="Search categories..."
+                maxDisplayed={2}
+              />
             </div>
           </div>
 

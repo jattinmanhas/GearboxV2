@@ -74,12 +74,14 @@ type ICartHandler interface {
 }
 
 type cartHandler struct {
-	cartService services.CartService
+	cartService   services.CartService
+	secureCookies bool
 }
 
-func NewCartHandler(cartService services.CartService) ICartHandler {
+func NewCartHandler(cartService services.CartService, secureCookies bool) ICartHandler {
 	return &cartHandler{
-		cartService: cartService,
+		cartService:   cartService,
+		secureCookies: secureCookies,
 	}
 }
 
@@ -287,7 +289,7 @@ func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
 			Name:     "cart_session",
 			Value:    cart.SessionID,
 			Path:     "/",
-			Secure:   true,                 // Only send over HTTPS
+			Secure:   h.secureCookies,      // Configurable secure setting
 			SameSite: http.SameSiteLaxMode, // Allow cross-site requests for better UX
 			HttpOnly: true,                 // Prevent XSS attacks
 		}
@@ -873,12 +875,13 @@ func (h *cartHandler) GetCartConversionFunnel(w http.ResponseWriter, r *http.Req
 // Wishlist Management
 
 func (h *cartHandler) CreateWishlist(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("user_id")
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "Invalid user ID", err)
+	// Get user ID from JWT claims in context
+	userID := sharedMiddleware.GetUserIDFromContext(r.Context())
+	if userID == 0 {
+		httpx.Error(w, http.StatusUnauthorized, "User not authenticated", nil)
 		return
 	}
+	userIDInt64 := int64(userID)
 
 	var req dto.CreateWishlistRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -886,7 +889,7 @@ func (h *cartHandler) CreateWishlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wishlist, err := h.cartService.CreateWishlist(r.Context(), userID, &req)
+	wishlist, err := h.cartService.CreateWishlist(r.Context(), userIDInt64, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "Failed to create wishlist", err)
 		return
@@ -931,12 +934,13 @@ func (h *cartHandler) GetWishlist(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *cartHandler) GetWishlists(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("user_id")
-	userID, err := strconv.ParseInt(userIDStr, 10, 64)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "Invalid user ID", err)
+	// Get user ID from JWT claims in context
+	userID := sharedMiddleware.GetUserIDFromContext(r.Context())
+	if userID == 0 {
+		httpx.Error(w, http.StatusUnauthorized, "User not authenticated", nil)
 		return
 	}
+	userIDInt64 := int64(userID)
 
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -956,7 +960,7 @@ func (h *cartHandler) GetWishlists(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response, err := h.cartService.GetWishlistsByUserID(r.Context(), userID, page, limit)
+	response, err := h.cartService.GetWishlistsByUserID(r.Context(), userIDInt64, page, limit)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "Failed to get wishlists", err)
 		return

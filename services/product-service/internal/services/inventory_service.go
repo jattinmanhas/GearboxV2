@@ -229,6 +229,11 @@ func (s *inventoryService) ListInventory(ctx context.Context, req *dto.ListInven
 			LastRestocked:     inv.LastRestocked.Format("2006-01-02T15:04:05Z07:00"),
 			CreatedAt:         inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:         inv.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			// Product information
+			ProductName: inv.ProductName,
+			ProductSKU:  inv.ProductSKU,
+			VariantName: inv.VariantName,
+			VariantSKU:  inv.VariantSKU,
 		}
 		inventoryResponses = append(inventoryResponses, response)
 	}

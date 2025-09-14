@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,8 +13,10 @@ import {
   Package,
   Eye
 } from "lucide-react"
-import { Product, Category } from "@/lib/types"
+import { Product, Category, ProductVariant } from "@/lib/types"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { useWishlistStore } from "@/lib/stores/wishlist-store"
+import { productApi } from "@/lib/api"
 import { formatPrice } from "@/lib/currency"
 
 interface ProductCardProps {
@@ -24,30 +26,62 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, viewMode, categories }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [isWishlisting, setIsWishlisting] = useState(false)
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [variantsLoading, setVariantsLoading] = useState(false)
   
-  const { addItem } = useCartStore()
+  const { addItem, isLoading: cartLoading } = useCartStore()
+  const { 
+    addItemToWishlist, 
+    removeItemFromWishlist, 
+    isProductInWishlist,
+    wishlists,
+    loadWishlists,
+    createWishlist
+  } = useWishlistStore()
 
+  // Load variants for this product
+  useEffect(() => {
+    const loadVariants = async () => {
+      try {
+        setVariantsLoading(true)
+        const variantsData = await productApi.getProductVariants(product.id)
+        setVariants(variantsData)
+        
+        // Set the first active variant as selected, or the first variant if none are active
+        const activeVariants = variantsData.filter(v => v.is_active)
+        if (activeVariants.length > 0) {
+          setSelectedVariant(activeVariants[0])
+        } else if (variantsData.length > 0) {
+          setSelectedVariant(variantsData[0])
+        }
+      } catch (error) {
+        console.error("Failed to load variants:", error)
+      } finally {
+        setVariantsLoading(false)
+      }
+    }
 
-  // No longer needed - using category_names from API response
+    loadVariants()
+  }, [product.id])
+
+  // Check if product is in any wishlist
+  const isWishlisted = wishlists.some(wishlist => 
+    isProductInWishlist(product.id, wishlist.id)
+  )
 
   const handleAddToCart = async () => {
     if (!product.is_active) return
     
     setIsAddingToCart(true)
     try {
-      // Add to cart using the store
-      addItem({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        sku: product.sku,
-        maxQuantity: product.max_quantity || 999
+      await addItem({
+        product_id: product.id,
+        product_variant_id: selectedVariant?.id,
+        quantity: 1
       })
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
     } catch (error) {
       console.error("Failed to add to cart:", error)
     } finally {
@@ -55,9 +89,57 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
     }
   }
 
-  const handleWishlist = () => {
-    setIsWishlisted(!isWishlisted)
-    // TODO: Implement wishlist functionality
+  const handleWishlist = async () => {
+    if (isWishlisting) return
+    
+    setIsWishlisting(true)
+    try {
+      // Load wishlists if not already loaded
+      if (wishlists.length === 0) {
+        await loadWishlists()
+      }
+      
+      if (isWishlisted) {
+        // Find the wishlist containing this product and remove it
+        const wishlistWithProduct = wishlists.find(wishlist => 
+          isProductInWishlist(product.id, wishlist.id)
+        )
+        if (wishlistWithProduct) {
+          const item = wishlistWithProduct.items.find(item => item.product_id === product.id)
+          if (item) {
+            await removeItemFromWishlist(wishlistWithProduct.id, item.id)
+          }
+        }
+      } else {
+        // Add to the first wishlist (or create a default one)
+        if (wishlists.length > 0) {
+          await addItemToWishlist(wishlists[0].id, product.id)
+        } else {
+          // Try to create a default wishlist first
+          try {
+            await createWishlist({
+              name: "My Wishlist",
+              description: "Default wishlist",
+              is_public: false
+            })
+            // After creating, try to add the item
+            if (wishlists.length > 0) {
+              await addItemToWishlist(wishlists[0].id, product.id)
+            }
+          } catch (createError) {
+            console.error("Failed to create default wishlist:", createError)
+            // Show a user-friendly message
+            alert("Wishlist functionality is currently unavailable. Please try again later.")
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update wishlist:", error)
+      // Show a user-friendly message
+      alert("Failed to update wishlist. Please try again later.")
+    } finally {
+      setIsWishlisting(false)
+    }
   }
 
   if (viewMode === "list") {
@@ -113,11 +195,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 <div className="text-right ml-4">
                   <div className="mb-3">
                     <div className="text-2xl font-bold">
-                      {formatPrice(product.price)}
+                      {selectedVariant ? formatPrice(selectedVariant.price) : formatPrice(product.price)}
                     </div>
-                    {product.compare_price > 0 && (
+                    {(selectedVariant ? selectedVariant.compare_price : product.compare_price) > 0 && (
                       <div className="text-sm text-muted-foreground line-through">
-                        {formatPrice(product.compare_price)}
+                        {formatPrice(selectedVariant ? selectedVariant.compare_price : product.compare_price)}
                       </div>
                     )}
                   </div>
@@ -127,6 +209,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                       variant="outline"
                       size="sm"
                       onClick={handleWishlist}
+                      disabled={isWishlisting}
                       className={isWishlisted ? "text-red-500" : ""}
                     >
                       <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
@@ -134,7 +217,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     <Button
                       size="sm"
                       onClick={handleAddToCart}
-                      disabled={!product.is_active || isAddingToCart}
+                      disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {isAddingToCart ? "Adding..." : "Add to Cart"}
@@ -173,6 +256,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               variant="outline"
               size="sm"
               onClick={handleWishlist}
+              disabled={isWishlisting}
               className={`h-8 w-8 p-0 ${isWishlisted ? "text-red-500" : ""}`}
             >
               <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
@@ -215,11 +299,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
           {/* Price */}
           <div className="mb-3">
             <div className="text-lg font-bold">
-              {formatPrice(product.price)}
+              {selectedVariant ? formatPrice(selectedVariant.price) : formatPrice(product.price)}
             </div>
-            {product.compare_price > 0 && (
+            {(selectedVariant ? selectedVariant.compare_price : product.compare_price) > 0 && (
               <div className="text-sm text-muted-foreground line-through">
-                {formatPrice(product.compare_price)}
+                {formatPrice(selectedVariant ? selectedVariant.compare_price : product.compare_price)}
               </div>
             )}
           </div>
@@ -229,7 +313,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
             <Button
               className="flex-1"
               onClick={handleAddToCart}
-              disabled={!product.is_active || isAddingToCart}
+              disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
               {isAddingToCart ? "Adding..." : "Add to Cart"}

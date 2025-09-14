@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -69,8 +70,9 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 
 			// Access token is invalid or expired, try refresh token
 			refreshToken := authService.ExtractTokenFromCookie(r, "refresh_token")
+			fmt.Println("refreshToken", refreshToken)
 			if refreshToken == "" {
-				httpx.Error(w, http.StatusUnauthorized, "access token required", nil)
+				httpx.Error(w, http.StatusUnauthorized, "refresh token required", nil)
 				return
 			}
 
@@ -78,9 +80,11 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 			// Use refresh token claims directly (no DB query needed)
 			refreshClaims, err := authService.ValidateRefreshToken(r.Context(), refreshToken)
 			if err != nil {
+				fmt.Printf("DEBUG: Refresh token validation failed: %v\n", err)
 				httpx.Error(w, http.StatusUnauthorized, "invalid refresh token", err)
 				return
 			}
+			fmt.Printf("DEBUG: Refresh token validation successful for user %d\n", refreshClaims.UserID)
 
 			// Generate new access token using JWT service directly
 			// Create minimal user object from claims (no DB query)

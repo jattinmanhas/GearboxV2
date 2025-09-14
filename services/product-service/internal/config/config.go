@@ -16,6 +16,8 @@ type Config struct {
 	AuthServiceURL    string
 	PaymentServiceURL string
 	JWTSecret         string
+	JWTRefreshSecret  string
+	SecureCookies     bool
 }
 
 // ServerConfig holds server-related configuration
@@ -64,6 +66,8 @@ func LoadConfig() (*Config, error) {
 		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
 		PaymentServiceURL: getEnv("PAYMENT_SERVICE_URL", "http://localhost:8083"),
 		JWTSecret:         getEnv("JWT_SECRET", "your-jwt-secret-key"),
+		JWTRefreshSecret:  getEnv("JWT_REFRESH_SECRET", "your-jwt-refresh-secret-key"),
+		SecureCookies:     getBoolEnv("SECURE_COOKIES", false), // Default to false for development
 	}
 
 	return config, nil
@@ -101,6 +105,15 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
 		if duration, err := time.ParseDuration(value); err == nil {
 			return duration
+		}
+	}
+	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
 		}
 	}
 	return defaultValue
