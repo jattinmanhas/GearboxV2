@@ -11,6 +11,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type IAddressHandler interface {
@@ -47,9 +48,9 @@ func NewAddressHandler(addressService services.IAddressService, authService serv
 
 // Address operations
 func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context (set by auth middleware)
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -66,7 +67,7 @@ func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := h.addressService.CreateAddress(r.Context(), user.ID, &req)
+	address, err := h.addressService.CreateAddress(r.Context(), claims.UserID, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to create address", err)
 		return
@@ -76,14 +77,14 @@ func (h *addressHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *addressHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	addresses, err := h.addressService.GetAddressesByUserID(r.Context(), user.ID)
+	addresses, err := h.addressService.GetAddressesByUserID(r.Context(), claims.UserID)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get addresses", err)
 		return
@@ -93,9 +94,9 @@ func (h *addressHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -108,7 +109,7 @@ func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	address, err := h.addressService.GetAddressByID(r.Context(), user.ID, uint(addressID))
+	address, err := h.addressService.GetAddressByID(r.Context(), claims.UserID, uint(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -122,14 +123,14 @@ func (h *addressHandler) GetAddressByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *addressHandler) GetDefaultAddress(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	address, err := h.addressService.GetDefaultAddressByUserID(r.Context(), user.ID)
+	address, err := h.addressService.GetDefaultAddressByUserID(r.Context(), claims.UserID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "no default address found", nil)
@@ -143,9 +144,9 @@ func (h *addressHandler) GetDefaultAddress(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -170,7 +171,7 @@ func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := h.addressService.UpdateAddress(r.Context(), user.ID, uint(addressID), &req)
+	address, err := h.addressService.UpdateAddress(r.Context(), claims.UserID, uint(addressID), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -184,9 +185,9 @@ func (h *addressHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -199,7 +200,7 @@ func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.addressService.DeleteAddress(r.Context(), user.ID, uint(addressID))
+	err = h.addressService.DeleteAddress(r.Context(), claims.UserID, uint(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -213,9 +214,9 @@ func (h *addressHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -232,7 +233,7 @@ func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = h.addressService.SetDefaultAddress(r.Context(), user.ID, req.AddressID)
+	err := h.addressService.SetDefaultAddress(r.Context(), claims.UserID, req.AddressID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "address not found", nil)
@@ -248,9 +249,9 @@ func (h *addressHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Reques
 // Phone number operations
 
 func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -267,7 +268,7 @@ func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	phone, err := h.addressService.CreatePhoneNumber(r.Context(), user.ID, &req)
+	phone, err := h.addressService.CreatePhoneNumber(r.Context(), claims.UserID, &req)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to create phone number", err)
 		return
@@ -277,14 +278,14 @@ func (h *addressHandler) CreatePhoneNumber(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *addressHandler) GetPhoneNumbers(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	phones, err := h.addressService.GetPhoneNumbersByUserID(r.Context(), user.ID)
+	phones, err := h.addressService.GetPhoneNumbersByUserID(r.Context(), claims.UserID)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get phone numbers", err)
 		return
@@ -294,9 +295,9 @@ func (h *addressHandler) GetPhoneNumbers(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -309,7 +310,7 @@ func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	phone, err := h.addressService.GetPhoneNumberByID(r.Context(), user.ID, uint(phoneID))
+	phone, err := h.addressService.GetPhoneNumberByID(r.Context(), claims.UserID, uint(phoneID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -323,14 +324,14 @@ func (h *addressHandler) GetPhoneNumberByID(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *addressHandler) GetPrimaryPhone(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
 
-	phone, err := h.addressService.GetPrimaryPhoneByUserID(r.Context(), user.ID)
+	phone, err := h.addressService.GetPrimaryPhoneByUserID(r.Context(), claims.UserID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "no primary phone found", nil)
@@ -344,9 +345,9 @@ func (h *addressHandler) GetPrimaryPhone(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -371,7 +372,7 @@ func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	phone, err := h.addressService.UpdatePhoneNumber(r.Context(), user.ID, uint(phoneID), &req)
+	phone, err := h.addressService.UpdatePhoneNumber(r.Context(), claims.UserID, uint(phoneID), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -385,9 +386,9 @@ func (h *addressHandler) UpdatePhoneNumber(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -400,7 +401,7 @@ func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = h.addressService.DeletePhoneNumber(r.Context(), user.ID, uint(phoneID))
+	err = h.addressService.DeletePhoneNumber(r.Context(), claims.UserID, uint(phoneID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)
@@ -414,9 +415,9 @@ func (h *addressHandler) DeletePhoneNumber(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *addressHandler) SetPrimaryPhone(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	user, err := h.authService.GetUserFromToken(r.Context(), services.ExtractTokenFromCookie(r, "access_token"))
-	if err != nil {
+	// Get user ID from JWT claims (set by auth middleware)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "user not authenticated", nil)
 		return
 	}
@@ -433,7 +434,7 @@ func (h *addressHandler) SetPrimaryPhone(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = h.addressService.SetPrimaryPhone(r.Context(), user.ID, req.PhoneID)
+	err := h.addressService.SetPrimaryPhone(r.Context(), claims.UserID, req.PhoneID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			httpx.Error(w, http.StatusNotFound, "phone number not found", nil)

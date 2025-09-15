@@ -44,7 +44,7 @@ export default function ProfilePage() {
         profileApi.getAddresses()
       ])
       setProfile(profileData)
-      setAddresses(addressesData)
+      setAddresses(Array.isArray(addressesData) ? addressesData : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile")
     } finally {
@@ -118,6 +118,9 @@ export default function ProfilePage() {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString || dateString === '0001-01-01T00:00:00Z' || dateString === '') {
+      return 'Not provided'
+    }
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -185,9 +188,9 @@ export default function ProfilePage() {
             <CardContent>
               <div className="flex items-start space-x-6">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={profile.avatar} alt={`${profile.first_name} ${profile.last_name}`} />
+                  <AvatarImage src={profile.avatar || ''} alt={`${profile.first_name || ''} ${profile.last_name || ''}`} />
                   <AvatarFallback className="text-lg">
-                    {profile.first_name[0]}{profile.last_name[0]}
+                    {(profile.first_name?.[0] || '').toUpperCase()}{(profile.last_name?.[0] || '').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 
@@ -198,7 +201,7 @@ export default function ProfilePage() {
                       <div>
                         <p className="text-sm font-medium">Full Name</p>
                         <p className="text-sm text-muted-foreground">
-                          {profile.first_name} {profile.middle_name && `${profile.middle_name} `}{profile.last_name}
+                          {profile.first_name || 'N/A'} {profile.middle_name && `${profile.middle_name} `}{profile.last_name || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -273,7 +276,7 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {addresses.length === 0 ? (
+              {(addresses || []).length === 0 ? (
                 <div className="text-center py-8">
                   <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold mb-2">No addresses yet</h3>
@@ -287,7 +290,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addresses.map((address) => (
+                  {(addresses || []).map((address) => (
                     <AddressCard
                       key={address.id}
                       address={address}

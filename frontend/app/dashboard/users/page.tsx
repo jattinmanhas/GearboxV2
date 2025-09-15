@@ -1,0 +1,254 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { userApi, roleApi } from "@/lib/api"
+import { User, Role, UserFilters, UpdateUserRequest, ChangePasswordRequest } from "@/lib/types"
+import { UserTable } from "./components/user-table"
+import { UserForm } from "./components/user-form"
+import { UserFilters as UserFiltersComponent } from "./components/user-filters"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus, Users, UserCheck, UserX } from "lucide-react"
+import { AlertMessage } from "@/components/ui/alert-message"
+
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [filters, setFilters] = useState<UserFilters>({
+    page: 1,
+    limit: 10,
+  })
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    total_pages: 0,
+  })
+
+  // Load users and roles
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await userApi.getUsers(filters)
+      
+      // Ensure we have valid data
+      const usersData = response.data?.users || []
+      setUsers(usersData)
+      setPagination({
+        total: response.data?.total || 0,
+        page: response.data?.page || 1,
+        limit: response.data?.limit || 10,
+        total_pages: response.data?.total_pages || 0,
+      })
+    } catch (err: unknown) {
+      const error = err as Error
+      console.error('Error loading users:', error)
+      // Check if it's an authentication error
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        setError("Authentication required. Please log in to view users.")
+      } else {
+        setError(error.message || "Failed to load users")
+      }
+      setUsers([]) // Set empty array on error
+    } finally {
+      setLoading(false)
+    }
+  }, [filters])
+
+  const loadRoles = useCallback(async () => {
+    try {
+      const response = await roleApi.getRoles()
+      
+      // Ensure we have an array
+      const rolesData = Array.isArray(response) ? response : []
+      setRoles(rolesData)
+    } catch (err: unknown) {
+      const error = err as Error
+      console.error("Failed to load roles:", error)
+      setRoles([]) // Set empty array on error
+    }
+  }, [])
+
+  useEffect(() => {
+    loadUsers()
+    loadRoles()
+  }, [loadUsers, loadRoles])
+
+
+  const handleUpdateUser = async (id: number, userData: UpdateUserRequest) => {
+    try {
+      setError(null)
+      await userApi.updateUser(id, userData)
+      setSuccess("User updated successfully")
+      setEditingUser(null)
+      loadUsers()
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || "Failed to update user")
+    }
+  }
+
+  const handleDeleteUser = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this user?")) return
+    
+    try {
+      setError(null)
+      await userApi.deleteUser(id)
+      setSuccess("User deleted successfully")
+      loadUsers()
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || "Failed to delete user")
+    }
+  }
+
+  const handleChangePassword = async (id: number, passwordData: ChangePasswordRequest) => {
+    try {
+      setError(null)
+      await userApi.changePassword(id, passwordData)
+      setSuccess("Password changed successfully")
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || "Failed to change password")
+    }
+  }
+
+  const handleLogoutAll = async (id: number) => {
+    if (!confirm("Are you sure you want to logout this user from all devices?")) return
+    
+    try {
+      setError(null)
+      await userApi.logoutAll(id)
+      setSuccess("User logged out from all devices")
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || "Failed to logout user")
+    }
+  }
+
+  const handleFiltersChange = (newFilters: UserFilters) => {
+    setFilters({ ...filters, ...newFilters, page: 1 })
+  }
+
+  const handlePageChange = (page: number) => {
+    setFilters({ ...filters, page })
+  }
+
+  const activeUsers = Array.isArray(users) ? users.filter(user => user.is_active).length : 0
+  const inactiveUsers = Array.isArray(users) ? users.filter(user => !user.is_active).length : 0
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground">
+            Manage users, roles, and permissions
+          </p>
+        </div>
+        <Button onClick={() => userApi.cleanupExpiredTokens()}>
+          <Plus className="h-4 w-4 mr-2" />
+          Cleanup Tokens
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pagination.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{activeUsers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inactive Users</CardTitle>
+            <UserX className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{inactiveUsers}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Filter users by various criteria</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UserFiltersComponent
+            filters={filters}
+            roles={roles}
+            onFiltersChange={handleFiltersChange}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Alerts */}
+      {error && (
+        <AlertMessage
+          type="error"
+          message={error}
+        />
+      )}
+      {success && (
+        <AlertMessage
+          type="success"
+          message={success}
+        />
+      )}
+
+      {/* User Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>
+            Manage user accounts and their permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UserTable
+            users={users}
+            roles={roles}
+            loading={loading}
+            pagination={pagination}
+            onEdit={setEditingUser}
+            onDelete={handleDeleteUser}
+            onChangePassword={handleChangePassword}
+            onLogoutAll={handleLogoutAll}
+            onPageChange={handlePageChange}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <UserForm
+          user={editingUser}
+          roles={roles}
+          onSubmit={(userData: UpdateUserRequest) => handleUpdateUser(editingUser.id, userData)}
+          onClose={() => setEditingUser(null)}
+        />
+      )}
+    </div>
+  )
+}

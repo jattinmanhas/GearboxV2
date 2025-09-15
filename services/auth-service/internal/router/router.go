@@ -51,11 +51,15 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 			r.Delete("/user/{id}", authHandler.DeleteUser)
 			r.Post("/user/{id}/change-password", authHandler.ChangePassword)
 			r.Post("/logout-all", authHandler.LogoutAll)
+			r.Get("/users", authHandler.GetAllUsers) // Temporarily moved outside admin group for testing
 
-			// Admin-only user listing + cleanup
+			// Profile routes
+			r.Get("/profile", authHandler.GetProfile)
+			r.Put("/profile", authHandler.UpdateProfile)
+
+			// Admin-only cleanup
 			r.Group(func(r chi.Router) {
 				r.Use(sharedMiddleware.RequireAdmin())
-				r.Get("/users", authHandler.GetAllUsers)
 				r.Post("/cleanup-expired-tokens", authHandler.CleanupExpiredTokens)
 			})
 

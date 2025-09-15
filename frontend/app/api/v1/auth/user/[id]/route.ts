@@ -1,0 +1,92 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:8080'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+
+    // Forward the request to the auth service
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/user/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || '',
+      },
+    })
+
+    const data = await response.json()
+
+    // Return the same status and data from the auth service
+    return NextResponse.json(data, { status: response.status })
+  } catch (error) {
+    console.error('Get user proxy error:', error)
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+    const body = await request.json()
+
+    // Forward the request to the auth service
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/user/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || '',
+      },
+      body: JSON.stringify(body),
+    })
+
+    const data = await response.json()
+
+    // Return the same status and data from the auth service
+    return NextResponse.json(data, { status: response.status })
+  } catch (error) {
+    console.error('Update user proxy error:', error)
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+
+    // Forward the request to the auth service
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/user/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || '',
+      },
+    })
+
+    const data = await response.json()
+
+    // Return the same status and data from the auth service
+    return NextResponse.json(data, { status: response.status })
+  } catch (error) {
+    console.error('Delete user proxy error:', error)
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

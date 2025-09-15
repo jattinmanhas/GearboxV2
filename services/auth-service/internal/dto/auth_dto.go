@@ -33,6 +33,30 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// Profile DTOs
+type GetProfileResponse struct {
+	ID          uint      `json:"id"`
+	Username    string    `json:"username"`
+	Email       string    `json:"email"`
+	FirstName   string    `json:"first_name"`
+	MiddleName  string    `json:"middle_name"`
+	LastName    string    `json:"last_name"`
+	PhoneNumber string    `json:"phone_number"`
+	DateOfBirth time.Time `json:"date_of_birth"`
+	Avatar      string    `json:"avatar"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type UpdateProfileRequest struct {
+	FirstName   string     `json:"first_name" validate:"omitempty,min=1,max=50"`
+	MiddleName  string     `json:"middle_name" validate:"omitempty,max=50"`
+	LastName    string     `json:"last_name" validate:"omitempty,min=1,max=50"`
+	PhoneNumber string     `json:"phone_number" validate:"omitempty,phone"`
+	DateOfBirth *time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`
+	Avatar      string     `json:"avatar" validate:"omitempty,url"`
+}
+
 // Address DTOs
 
 type CreateAddressRequest struct {

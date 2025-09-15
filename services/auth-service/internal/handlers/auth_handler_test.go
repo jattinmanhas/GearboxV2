@@ -61,6 +61,40 @@ func (m *MockUserService) DeleteUser(ctx context.Context, id int) error {
 	return args.Error(0)
 }
 
+func (m *MockUserService) GetAllUsersWithFilters(ctx context.Context, limit int, offset int, search string, isActive *bool, roleID *int) ([]domain.User, error) {
+	args := m.Called(ctx, limit, offset, search, isActive, roleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.User), args.Error(1)
+}
+
+func (m *MockUserService) GetUsersCount(ctx context.Context) (int, error) {
+	args := m.Called(ctx)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockUserService) GetUsersCountWithFilters(ctx context.Context, search string, isActive *bool, roleID *int) (int, error) {
+	args := m.Called(ctx, search, isActive, roleID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockUserService) GetProfile(ctx context.Context, userID int) (*domain.User, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockUserService) UpdateProfile(ctx context.Context, userID int, updateData *domain.User) (*domain.User, error) {
+	args := m.Called(ctx, userID, updateData)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
 // MockAuthService is a mock implementation of IAuthService
 type MockAuthService struct {
 	mock.Mock
@@ -149,7 +183,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			Username:  "testuser",
 			Email:     "test@example.com",
 			FirstName: "Test",
-			LastName:  "User",
+			LastName:  domain.NewNullString("User"),
 		}
 		refreshToken := &domain.RefreshToken{
 			ID:           1,

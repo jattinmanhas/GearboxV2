@@ -267,11 +267,11 @@ export interface UserProfile {
   username: string
   email: string
   first_name: string
-  middle_name?: string
+  middle_name: string
   last_name: string
-  phone_number?: string
-  date_of_birth?: string
-  avatar?: string
+  phone_number: string
+  date_of_birth: string
+  avatar: string
   created_at: string
   updated_at: string
 }
@@ -518,3 +518,144 @@ export interface BulkStockUpdateResponse {
   }>
   success: boolean
 }
+
+// User Management Types
+export interface User {
+  id: number
+  username: string
+  email: string
+  first_name: string
+  middle_name?: string
+  last_name: string
+  phone_number?: string
+  date_of_birth?: string
+  avatar?: string
+  gender?: string
+  is_active: boolean
+  is_deleted: boolean
+  created_at: string
+  updated_at: string
+  last_login?: string
+  role_id?: number
+  role?: string
+}
+
+export interface UpdateUserRequest {
+  username?: string
+  email?: string
+  first_name?: string
+  middle_name?: string
+  last_name?: string
+  phone_number?: string
+  date_of_birth?: string
+  avatar?: string
+  is_active?: boolean
+}
+
+export interface ChangePasswordRequest {
+  current_password: string
+  new_password: string
+  confirm_password: string
+}
+
+export interface ListUsersResponse {
+  data: {
+    users: User[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }
+}
+
+export interface UserFilters {
+  search?: string
+  is_active?: boolean
+  role_id?: number
+  page?: number
+  limit?: number
+}
+
+// Role Management Types (simplified - roles are fixed)
+export interface Role {
+  id: number
+  name: string
+  description: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignRoleRequest {
+  user_id: number
+  role_id: number
+}
+
+export interface CreateUserRequest {
+  username: string
+  email: string
+  password: string
+  first_name: string
+  middle_name?: string
+  last_name: string
+  phone_number?: string
+  date_of_birth?: string
+  avatar?: string
+  is_active?: boolean
+}
+
+export interface CreateRoleRequest {
+  name: string
+  description: string
+  is_active?: boolean
+}
+
+export interface UpdateRoleRequest {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+
+export interface ListRolesResponse {
+  data: {
+    roles: Role[]
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }
+}
+
+export interface RoleFilters {
+  search?: string
+  is_active?: boolean
+  page?: number
+  limit?: number
+}
+
+export interface RemoveRoleRequest {
+  user_id: number
+  role_id: number
+}
+
+export interface CheckPermissionRequest {
+  permission: string
+  resource?: string
+}
+
+export interface CheckPermissionResponse {
+  has_permission: boolean
+  required_role: string
+  user_role: string
+}
+
+// Fixed roles in the system
+export const FIXED_ROLES = {
+  'admin': 'Administrator',
+  'editor': 'Editor',
+  'moderator': 'Moderator',
+  'viewer': 'Viewer',
+  'user': 'User',
+} as const
+
+export type RoleName = keyof typeof FIXED_ROLES

@@ -19,7 +19,17 @@ import {
   UpdateProfileRequest,
   ProductVariant,
   CreateProductVariantRequest,
-  UpdateProductVariantRequest
+  UpdateProductVariantRequest,
+  User,
+  UpdateUserRequest,
+  ChangePasswordRequest,
+  ListUsersResponse,
+  UserFilters,
+  Role,
+  AssignRoleRequest,
+  RemoveRoleRequest,
+  CheckPermissionRequest,
+  CheckPermissionResponse
 } from './types'
 
 const API_BASE_URL = '/api/v1'
@@ -707,6 +717,18 @@ export const wishlistApi = {
     return handleResponse<any>(response)
   },
 
+  async deleteWishlistItem(itemId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/wishlists/items/${itemId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
   async moveItemToCart(itemId: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/wishlists/items/${itemId}/move-to-cart`, {
       method: 'POST',
@@ -722,3 +744,240 @@ export const wishlistApi = {
 
 // Export coupon API
 export { couponApi } from './coupon-api'
+
+// User Management API
+export const userApi = {
+  // Get all users (Admin only)
+  async getUsers(filters: UserFilters = {}): Promise<ListUsersResponse> {
+    const params = new URLSearchParams()
+    
+    // Pagination
+    if (filters.page) params.append('page', filters.page.toString())
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    
+    // Search and filters
+    if (filters.search) params.append('search', filters.search)
+    if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString())
+    if (filters.role_id) params.append('role_id', filters.role_id.toString())
+    
+    console.log('API getUsers called with filters:', filters)
+    console.log('URL params:', params.toString())
+    
+    const response = await fetch(`${API_BASE_URL}/auth/users?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const data = await handleResponse<{data: any}>(response)
+    
+    // Handle both response formats:
+    // 1. New format: { data: { users: [], total: 0, page: 1, limit: 10, total_pages: 0 } }
+    // 2. Old format: { data: [user1, user2, ...] }
+    let users = []
+    let total = 0
+    let page = 1
+    let limit = 10
+    let total_pages = 0
+    
+    if (Array.isArray(data.data)) {
+      // Old format - data is an array of users
+      users = data.data
+      total = data.data.length
+      page = filters.page || 1
+      limit = filters.limit || 10
+      total_pages = Math.ceil(total / limit)
+    } else if (data.data && typeof data.data === 'object') {
+      // New format - data is an object with pagination
+      users = data.data.users || []
+      total = data.data.total || 0
+      page = data.data.page || 1
+      limit = data.data.limit || 10
+      total_pages = data.data.total_pages || 0
+    }
+    
+    // Transform the response to match the expected structure
+    return {
+      data: {
+        users,
+        total,
+        page,
+        limit,
+        total_pages,
+      }
+    }
+  },
+
+  // Get user by ID
+  async getUser(id: number): Promise<User> {
+    const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<User>(response)
+  },
+
+  // Update user
+  async updateUser(id: number, userData: UpdateUserRequest): Promise<User> {
+    const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(userData),
+    })
+    
+    return handleResponse<User>(response)
+  },
+
+  // Delete user
+  async deleteUser(id: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Change password
+  async changePassword(id: number, passwordData: ChangePasswordRequest): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/user/${id}/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(passwordData),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Logout all devices
+  async logoutAll(id: number): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/logout-all`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ user_id: id }),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Cleanup expired tokens (Admin only)
+  async cleanupExpiredTokens(): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/cleanup-expired-tokens`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+}
+
+// Role Management API
+export const roleApi = {
+  // Get all roles
+  async getRoles(): Promise<Role[]> {
+    const response = await fetch(`${API_BASE_URL}/auth/roles`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const data = await handleResponse<{data: Role[]}>(response)
+    return data.data || []
+  },
+
+  // Get current user's role
+  async getMyRole(): Promise<Role> {
+    const response = await fetch(`${API_BASE_URL}/auth/roles/my-role`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<Role>(response)
+  },
+
+  // Get user's role
+  async getUserRole(userId: number): Promise<Role> {
+    const response = await fetch(`${API_BASE_URL}/auth/roles/user?user_id=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<Role>(response)
+  },
+
+  // Assign role to user (Editor+ only)
+  async assignRole(assignmentData: AssignRoleRequest): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/roles/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(assignmentData),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Remove role from user (Editor+ only)
+  async removeRole(removalData: RemoveRoleRequest): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/roles/remove`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(removalData),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Check permission
+  async checkPermission(permissionData: CheckPermissionRequest): Promise<CheckPermissionResponse> {
+    const params = new URLSearchParams()
+    params.append('permission', permissionData.permission)
+    if (permissionData.resource) {
+      params.append('resource', permissionData.resource)
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/auth/roles/check-permission?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<CheckPermissionResponse>(response)
+  },
+}

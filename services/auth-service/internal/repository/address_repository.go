@@ -84,7 +84,7 @@ func (r *addressRepository) GetAddressesByUserID(ctx context.Context, userID uin
 		WHERE user_id = $1 AND is_deleted = FALSE 
 		ORDER BY is_default DESC, created_at DESC`
 
-	var addresses []domain.UserAddress
+	addresses := make([]domain.UserAddress, 0)
 	if err := r.db.SelectContext(ctx, &addresses, query, userID); err != nil {
 		return nil, fmt.Errorf("failed to get addresses: %w", err)
 	}

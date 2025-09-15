@@ -14,6 +14,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
 type IAuthHandler interface {
@@ -28,6 +29,9 @@ type IAuthHandler interface {
 	ChangePassword(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 	CleanupExpiredTokens(w http.ResponseWriter, r *http.Request)
+	// Profile methods
+	GetProfile(w http.ResponseWriter, r *http.Request)
+	UpdateProfile(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -136,11 +140,11 @@ func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Password:    req.Password,
 		Email:       strings.TrimSpace(req.Email),
 		FirstName:   strings.TrimSpace(req.FirstName),
-		MiddleName:  strings.TrimSpace(req.MiddleName),
-		LastName:    strings.TrimSpace(req.LastName),
-		Avatar:      req.Avatar,
-		Gender:      req.Gender,
-		DateOfBirth: req.DateOfBirth,
+		MiddleName:  domain.NewNullString(strings.TrimSpace(req.MiddleName)),
+		LastName:    domain.NewNullString(strings.TrimSpace(req.LastName)),
+		Avatar:      domain.NewNullString(req.Avatar),
+		Gender:      domain.NewNullString(req.Gender),
+		DateOfBirth: domain.NewNullTime(req.DateOfBirth),
 	}
 
 	if err := h.userService.RegisterNewUser(r.Context(), user); err != nil {
@@ -186,8 +190,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"username":  user.Username,
 			"email":     user.Email,
 			"firstName": user.FirstName,
-			"lastName":  user.LastName,
-			"avatar":    user.Avatar,
+			"lastName":  user.LastName.String,
+			"avatar":    user.Avatar.String,
 			"role":      user.Role,
 		},
 		"message": "Login successful. Tokens stored in HTTP-only cookies.",
@@ -247,7 +251,7 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
-	claims, ok := r.Context().Value("claims").(*jwt.Claims)
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
 	if !ok || claims == nil {
 		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
 		return
@@ -290,35 +294,82 @@ func (h *authHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	// Parse pagination parameters (frontend uses page-based pagination)
+	pageStr := r.URL.Query().Get("page")
+	if pageStr == "" {
+		pageStr = "1"
+	}
+
 	limitStr := r.URL.Query().Get("limit")
 	if limitStr == "" {
 		limitStr = "10"
 	}
 
-	offsetStr := r.URL.Query().Get("offset")
-	if offsetStr == "" {
-		offsetStr = "0"
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		httpx.Error(w, http.StatusBadRequest, "invalid page", err)
+		return
 	}
 
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
+	if err != nil || limit < 1 {
 		httpx.Error(w, http.StatusBadRequest, "invalid limit", err)
 		return
 	}
 
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid offset", err)
-		return
+	// Parse filter parameters
+	search := r.URL.Query().Get("search")
+	isActiveStr := r.URL.Query().Get("is_active")
+	roleIDStr := r.URL.Query().Get("role_id")
+
+	var isActive *bool
+	if isActiveStr != "" {
+		if isActiveStr == "true" {
+			val := true
+			isActive = &val
+		} else if isActiveStr == "false" {
+			val := false
+			isActive = &val
+		}
 	}
 
-	users, err := h.userService.GetAllUsers(r.Context(), limit, offset)
+	var roleID *int
+	if roleIDStr != "" {
+		if id, err := strconv.Atoi(roleIDStr); err == nil {
+			roleID = &id
+		}
+	}
+
+	// Convert page-based pagination to offset-based
+	offset := (page - 1) * limit
+
+	// Get users with filters
+	users, err := h.userService.GetAllUsersWithFilters(r.Context(), limit, offset, search, isActive, roleID)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get users", err)
 		return
 	}
 
-	httpx.OK(w, "fetched users", users)
+	// Get total count for pagination with filters
+	total, err := h.userService.GetUsersCountWithFilters(r.Context(), search, isActive, roleID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get users count", err)
+		return
+	}
+
+	// Calculate total pages
+	totalPages := (total + limit - 1) / limit
+
+	// Return response in the format expected by frontend
+	response := map[string]interface{}{
+		"users":       users,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	}
+
+	httpx.OK(w, "fetched users", response)
 }
 
 func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -348,15 +399,15 @@ func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Convert request to domain.User for the service
 	updateData := &domain.User{
 		FirstName:  strings.TrimSpace(req.FirstName),
-		MiddleName: strings.TrimSpace(req.MiddleName),
-		LastName:   strings.TrimSpace(req.LastName),
-		Avatar:     req.Avatar,
-		Gender:     req.Gender,
+		MiddleName: domain.NewNullString(strings.TrimSpace(req.MiddleName)),
+		LastName:   domain.NewNullString(strings.TrimSpace(req.LastName)),
+		Avatar:     domain.NewNullString(req.Avatar),
+		Gender:     domain.NewNullString(req.Gender),
 	}
 
 	// Handle DateOfBirth separately since it's a pointer in the request
 	if req.DateOfBirth != nil {
-		updateData.DateOfBirth = *req.DateOfBirth
+		updateData.DateOfBirth = domain.NewNullTime(*req.DateOfBirth)
 	}
 
 	// Call the service to update the user (service handles merging with existing data)
@@ -370,7 +421,7 @@ func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		"id":        updatedUser.ID,
 		"username":  updatedUser.Username,
 		"firstName": updatedUser.FirstName,
-		"lastName":  updatedUser.LastName,
+		"lastName":  updatedUser.LastName.String,
 		"email":     updatedUser.Email,
 		"updatedAt": updatedUser.UpdatedAt,
 	})
@@ -439,4 +490,98 @@ func (h *authHandler) CleanupExpiredTokens(w http.ResponseWriter, r *http.Reques
 	}
 
 	httpx.OK(w, "expired tokens cleaned up successfully", nil)
+}
+
+// GetProfile retrieves the current user's profile information
+func (h *authHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	// Extract user ID from JWT claims
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
+		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
+		return
+	}
+
+	// Get user profile
+	user, err := h.userService.GetProfile(r.Context(), int(claims.UserID))
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get profile", err)
+		return
+	}
+
+	// Convert to profile response format
+	profile := dto.GetProfileResponse{
+		ID:          user.ID,
+		Username:    user.Username,
+		Email:       user.Email,
+		FirstName:   user.FirstName,
+		MiddleName:  user.MiddleName.String,
+		LastName:    user.LastName.String,
+		PhoneNumber: user.PhoneNumber.String,
+		DateOfBirth: user.DateOfBirth.Time,
+		Avatar:      user.Avatar.String,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+	}
+
+	httpx.OK(w, "profile retrieved successfully", profile)
+}
+
+// UpdateProfile updates the current user's profile information
+func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	// Extract user ID from JWT claims
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
+		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	// Validate the request
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, "validation failed", validationErrors)
+		return
+	}
+
+	// Convert request to domain.User for the service
+	updateData := &domain.User{
+		FirstName:   strings.TrimSpace(req.FirstName),
+		MiddleName:  domain.NewNullString(strings.TrimSpace(req.MiddleName)),
+		LastName:    domain.NewNullString(strings.TrimSpace(req.LastName)),
+		PhoneNumber: domain.NewNullString(strings.TrimSpace(req.PhoneNumber)),
+		Avatar:      domain.NewNullString(req.Avatar),
+	}
+
+	// Handle DateOfBirth separately since it's a pointer in the request
+	if req.DateOfBirth != nil {
+		updateData.DateOfBirth = domain.NewNullTime(*req.DateOfBirth)
+	}
+
+	// Call the service to update the profile
+	updatedUser, err := h.userService.UpdateProfile(r.Context(), int(claims.UserID), updateData)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to update profile", err)
+		return
+	}
+
+	// Convert to profile response format
+	profile := dto.GetProfileResponse{
+		ID:          updatedUser.ID,
+		Username:    updatedUser.Username,
+		Email:       updatedUser.Email,
+		FirstName:   updatedUser.FirstName,
+		MiddleName:  updatedUser.MiddleName.String,
+		LastName:    updatedUser.LastName.String,
+		PhoneNumber: updatedUser.PhoneNumber.String,
+		DateOfBirth: updatedUser.DateOfBirth.Time,
+		Avatar:      updatedUser.Avatar.String,
+		CreatedAt:   updatedUser.CreatedAt,
+		UpdatedAt:   updatedUser.UpdatedAt,
+	}
+
+	httpx.OK(w, "profile updated successfully", profile)
 }

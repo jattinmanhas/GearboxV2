@@ -92,7 +92,7 @@ export const useUserStore = create<UserState>()(
             // If we have a guest cart and a user cart, merge them
             if (cartStore.cart && cartStore.cart.id !== guestCart.id) {
               console.log("Merging guest cart with user cart")
-              await cartStore.mergeCarts(cartStore.cart.id, guestCart.id)
+              await cartStore.mergeCarts(guestCart.id)
             }
           } else {
             // No guest cart, just load the user's cart

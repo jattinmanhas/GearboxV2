@@ -129,6 +129,27 @@ func (m *MockUserRepository) GetAllUsers(ctx context.Context, limit int, offset 
 	return args.Get(0).([]domain.User), args.Error(1)
 }
 
+// GetAllUsersWithFilters mocks the GetAllUsersWithFilters method
+func (m *MockUserRepository) GetAllUsersWithFilters(ctx context.Context, limit int, offset int, search string, isActive *bool, roleID *int) ([]domain.User, error) {
+	args := m.Called(ctx, limit, offset, search, isActive, roleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.User), args.Error(1)
+}
+
+// GetUsersCount mocks the GetUsersCount method
+func (m *MockUserRepository) GetUsersCount(ctx context.Context) (int, error) {
+	args := m.Called(ctx)
+	return args.Int(0), args.Error(1)
+}
+
+// GetUsersCountWithFilters mocks the GetUsersCountWithFilters method
+func (m *MockUserRepository) GetUsersCountWithFilters(ctx context.Context, search string, isActive *bool, roleID *int) (int, error) {
+	args := m.Called(ctx, search, isActive, roleID)
+	return args.Int(0), args.Error(1)
+}
+
 // UpdateUser mocks the UpdateUser method
 func (m *MockUserRepository) UpdateUser(ctx context.Context, id int, u *domain.User) error {
 	args := m.Called(ctx, id, u)
@@ -301,8 +322,8 @@ func TestUserService_RegisterNewUser(t *testing.T) {
 			Password:    "SecurePass123", // Plain text password
 			Email:       "john@example.com",
 			FirstName:   "John",
-			LastName:    "Doe",
-			DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+			LastName:    domain.NewNullString("Doe"),
+			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		}
 
 		// 🎭 Mock Expectations: Repository should be called with hashed password
@@ -406,7 +427,7 @@ func TestUserService_GetUserByID(t *testing.T) {
 			Username:  "john_doe",
 			Email:     "john@example.com",
 			FirstName: "John",
-			LastName:  "Doe",
+			LastName:  domain.NewNullString("Doe"),
 		}
 
 		// 🎭 Mock Expectations: Repository should return user
@@ -612,17 +633,17 @@ func TestUserService_UpdateUser(t *testing.T) {
 			Username:    "john_doe",
 			Email:       "john@example.com",
 			FirstName:   "John",
-			MiddleName:  "Michael",
-			LastName:    "Doe",
-			Avatar:      "https://example.com/avatar.jpg",
-			Gender:      "male",
-			DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+			MiddleName:  domain.NewNullString("Michael"),
+			LastName:    domain.NewNullString("Doe"),
+			Avatar:      domain.NewNullString("https://example.com/avatar.jpg"),
+			Gender:      domain.NewNullString("male"),
+			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		}
 
 		// Create update request with only some fields
 		updateData := &domain.User{
-			FirstName: "Jonathan",                           // Only updating first name
-			Avatar:    "https://example.com/new-avatar.jpg", // And avatar
+			FirstName: "Jonathan",                                                 // Only updating first name
+			Avatar:    domain.NewNullString("https://example.com/new-avatar.jpg"), // And avatar
 		}
 
 		// 🎭 Mock Expectations: Repository should be called to get existing user
@@ -632,7 +653,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 		mockRepo.On("UpdateUser", mock.Anything, 1, mock.MatchedBy(func(u *domain.User) bool {
 			// Verify that the update data is passed through
 			return u.FirstName == "Jonathan" &&
-				u.Avatar == "https://example.com/new-avatar.jpg"
+				u.Avatar.String == "https://example.com/new-avatar.jpg"
 		})).Return(nil)
 
 		// 🚀 Action: Update user

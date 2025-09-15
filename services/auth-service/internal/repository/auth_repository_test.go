@@ -46,11 +46,11 @@ func TestUserRepository_RegisterNewUser_Success(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  "M",
-		LastName:    "Doe",
-		Avatar:      "avatar.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("M"),
+		LastName:    domain.NewNullString("Doe"),
+		Avatar:      domain.NewNullString("avatar.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	expectedID := uint(1)
@@ -58,13 +58,13 @@ func TestUserRepository_RegisterNewUser_Success(t *testing.T) {
 	// Mock the INSERT query with RETURNING clause
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expectedID))
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -85,23 +85,23 @@ func TestUserRepository_RegisterNewUser_DatabaseError(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  "M",
-		LastName:    "Doe",
-		Avatar:      "avatar.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("M"),
+		LastName:    domain.NewNullString("Doe"),
+		Avatar:      domain.NewNullString("avatar.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Mock database error
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
 	).WillReturnError(sql.ErrConnDone)
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -122,23 +122,23 @@ func TestUserRepository_RegisterNewUser_ScanError(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  "M",
-		LastName:    "Doe",
-		Avatar:      "avatar.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("M"),
+		LastName:    domain.NewNullString("Doe"),
+		Avatar:      domain.NewNullString("avatar.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Mock the query but return invalid data that can't be scanned
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("invalid_id"))
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -159,14 +159,17 @@ func TestUserRepository_GetUserByID_Success(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  "M",
-		LastName:    "Doe",
-		Avatar:      "avatar.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("M"),
+		LastName:    domain.NewNullString("Doe"),
+		PhoneNumber: domain.NewNullString("+1234567890"),
+		Avatar:      domain.NewNullString("avatar.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		IsDeleted:   false,
+		IsActive:    true,
+		RoleID:      1,
 	}
 
 	// Mock the SELECT query
@@ -174,11 +177,11 @@ func TestUserRepository_GetUserByID_Success(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "username", "password", "email", "first_name", "middle_name",
-			"last_name", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted",
+			"last_name", "phone_number", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted", "is_active", "role_id",
 		}).AddRow(
 			expectedUser.ID, expectedUser.Username, expectedUser.Password, expectedUser.Email,
-			expectedUser.FirstName, expectedUser.MiddleName, expectedUser.LastName, expectedUser.Avatar,
-			expectedUser.Gender, expectedUser.DateOfBirth, expectedUser.CreatedAt, expectedUser.UpdatedAt, expectedUser.IsDeleted,
+			expectedUser.FirstName, expectedUser.MiddleName, expectedUser.LastName, expectedUser.PhoneNumber, expectedUser.Avatar,
+			expectedUser.Gender, expectedUser.DateOfBirth, expectedUser.CreatedAt, expectedUser.UpdatedAt, expectedUser.IsDeleted, expectedUser.IsActive, expectedUser.RoleID,
 		))
 
 	user, err := repo.GetUserByID(context.Background(), 1)
@@ -242,14 +245,17 @@ func TestUserRepository_GetAllUsers_Success(t *testing.T) {
 			Password:    "hash1",
 			Email:       "user1@example.com",
 			FirstName:   "John",
-			MiddleName:  "M",
-			LastName:    "Doe",
-			Avatar:      "avatar1.jpg",
-			Gender:      "male",
-			DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+			MiddleName:  domain.NewNullString("M"),
+			LastName:    domain.NewNullString("Doe"),
+			PhoneNumber: domain.NewNullString("+1234567890"),
+			Avatar:      domain.NewNullString("avatar1.jpg"),
+			Gender:      domain.NewNullString("male"),
+			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			IsDeleted:   false,
+			IsActive:    true,
+			RoleID:      1,
 		},
 		{
 			ID:          2,
@@ -257,14 +263,17 @@ func TestUserRepository_GetAllUsers_Success(t *testing.T) {
 			Password:    "hash2",
 			Email:       "user2@example.com",
 			FirstName:   "Jane",
-			MiddleName:  "K",
-			LastName:    "Smith",
-			Avatar:      "avatar2.jpg",
-			Gender:      "female",
-			DateOfBirth: time.Date(1992, 5, 15, 0, 0, 0, 0, time.UTC),
+			MiddleName:  domain.NewNullString("K"),
+			LastName:    domain.NewNullString("Smith"),
+			PhoneNumber: domain.NewNullString("+1234567891"),
+			Avatar:      domain.NewNullString("avatar2.jpg"),
+			Gender:      domain.NewNullString("female"),
+			DateOfBirth: domain.NewNullTime(time.Date(1992, 5, 15, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			IsDeleted:   false,
+			IsActive:    true,
+			RoleID:      1,
 		},
 	}
 
@@ -273,15 +282,15 @@ func TestUserRepository_GetAllUsers_Success(t *testing.T) {
 		WithArgs(10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "username", "password", "email", "first_name", "middle_name",
-			"last_name", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted",
+			"last_name", "phone_number", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted", "is_active", "role_id",
 		}).AddRow(
 			expectedUsers[0].ID, expectedUsers[0].Username, expectedUsers[0].Password, expectedUsers[0].Email,
-			expectedUsers[0].FirstName, expectedUsers[0].MiddleName, expectedUsers[0].LastName, expectedUsers[0].Avatar,
-			expectedUsers[0].Gender, expectedUsers[0].DateOfBirth, expectedUsers[0].CreatedAt, expectedUsers[0].UpdatedAt, expectedUsers[0].IsDeleted,
+			expectedUsers[0].FirstName, expectedUsers[0].MiddleName, expectedUsers[0].LastName, expectedUsers[0].PhoneNumber, expectedUsers[0].Avatar,
+			expectedUsers[0].Gender, expectedUsers[0].DateOfBirth, expectedUsers[0].CreatedAt, expectedUsers[0].UpdatedAt, expectedUsers[0].IsDeleted, expectedUsers[0].IsActive, expectedUsers[0].RoleID,
 		).AddRow(
 			expectedUsers[1].ID, expectedUsers[1].Username, expectedUsers[1].Password, expectedUsers[1].Email,
-			expectedUsers[1].FirstName, expectedUsers[1].MiddleName, expectedUsers[1].LastName, expectedUsers[1].Avatar,
-			expectedUsers[1].Gender, expectedUsers[1].DateOfBirth, expectedUsers[1].CreatedAt, expectedUsers[1].UpdatedAt, expectedUsers[1].IsDeleted,
+			expectedUsers[1].FirstName, expectedUsers[1].MiddleName, expectedUsers[1].LastName, expectedUsers[1].PhoneNumber, expectedUsers[1].Avatar,
+			expectedUsers[1].Gender, expectedUsers[1].DateOfBirth, expectedUsers[1].CreatedAt, expectedUsers[1].UpdatedAt, expectedUsers[1].IsDeleted, expectedUsers[1].IsActive, expectedUsers[1].RoleID,
 		))
 
 	users, err := repo.GetAllUsers(context.Background(), 10, 0)
@@ -305,7 +314,7 @@ func TestUserRepository_GetAllUsers_EmptyResult(t *testing.T) {
 		WithArgs(10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "username", "password", "email", "first_name", "middle_name",
-			"last_name", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted",
+			"last_name", "phone_number", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted", "is_active", "role_id",
 		}))
 
 	users, err := repo.GetAllUsers(context.Background(), 10, 0)
@@ -347,14 +356,17 @@ func TestUserRepository_GetAllUsers_WithPagination(t *testing.T) {
 		Password:    "hash3",
 		Email:       "user3@example.com",
 		FirstName:   "Bob",
-		MiddleName:  "L",
-		LastName:    "Johnson",
-		Avatar:      "avatar3.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1988, 12, 25, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("L"),
+		LastName:    domain.NewNullString("Johnson"),
+		PhoneNumber: domain.NewNullString("+1234567892"),
+		Avatar:      domain.NewNullString("avatar3.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1988, 12, 25, 0, 0, 0, 0, time.UTC)),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		IsDeleted:   false,
+		IsActive:    true,
+		RoleID:      1,
 	}
 
 	// Mock the SELECT query with pagination
@@ -362,11 +374,11 @@ func TestUserRepository_GetAllUsers_WithPagination(t *testing.T) {
 		WithArgs(5, 10).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "username", "password", "email", "first_name", "middle_name",
-			"last_name", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted",
+			"last_name", "phone_number", "avatar", "gender", "date_of_birth", "created_at", "updated_at", "is_deleted", "is_active", "role_id",
 		}).AddRow(
 			expectedUser.ID, expectedUser.Username, expectedUser.Password, expectedUser.Email,
-			expectedUser.FirstName, expectedUser.MiddleName, expectedUser.LastName, expectedUser.Avatar,
-			expectedUser.Gender, expectedUser.DateOfBirth, expectedUser.CreatedAt, expectedUser.UpdatedAt, expectedUser.IsDeleted,
+			expectedUser.FirstName, expectedUser.MiddleName, expectedUser.LastName, expectedUser.PhoneNumber, expectedUser.Avatar,
+			expectedUser.Gender, expectedUser.DateOfBirth, expectedUser.CreatedAt, expectedUser.UpdatedAt, expectedUser.IsDeleted, expectedUser.IsActive, expectedUser.RoleID,
 		))
 
 	users, err := repo.GetAllUsers(context.Background(), 5, 10)
@@ -393,11 +405,11 @@ func TestUserRepository_ContextCancellation(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  "M",
-		LastName:    "Doe",
-		Avatar:      "avatar.jpg",
-		Gender:      "male",
-		DateOfBirth: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		MiddleName:  domain.NewNullString("M"),
+		LastName:    domain.NewNullString("Doe"),
+		Avatar:      domain.NewNullString("avatar.jpg"),
+		Gender:      domain.NewNullString("male"),
+		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Test RegisterNewUser with cancelled context

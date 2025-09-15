@@ -13,6 +13,9 @@ type IUserRepository interface {
 	GetUserByID(ctx context.Context, id int) (*domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
 	GetAllUsers(ctx context.Context, limit int, offset int) ([]domain.User, error)
+	GetAllUsersWithFilters(ctx context.Context, limit int, offset int, search string, isActive *bool, roleID *int) ([]domain.User, error)
+	GetUsersCount(ctx context.Context) (int, error)
+	GetUsersCountWithFilters(ctx context.Context, search string, isActive *bool, roleID *int) (int, error)
 	UpdateUser(ctx context.Context, id int, u *domain.User) error
 	DeleteUser(ctx context.Context, id int) error
 }
@@ -97,6 +100,7 @@ func (r *userRepository) UpdateUser(ctx context.Context, id int, u *domain.User)
 			first_name = :first_name,
 			middle_name = :middle_name,
 			last_name = :last_name,
+			phone_number = :phone_number,
 			avatar = :avatar,
 			gender = :gender,
 			date_of_birth = :date_of_birth,
@@ -147,6 +151,109 @@ func (r *userRepository) GetAllUsers(ctx context.Context, limit int, offset int)
 	}
 
 	return users, nil
+}
+
+func (r *userRepository) GetAllUsersWithFilters(ctx context.Context, limit int, offset int, search string, isActive *bool, roleID *int) ([]domain.User, error) {
+	query := `
+		SELECT * FROM users 
+		WHERE is_deleted = false
+	`
+	args := []interface{}{}
+	argIndex := 1
+
+	// Add search filter
+	if search != "" {
+		query += ` AND (username ILIKE $` + fmt.Sprintf("%d", argIndex) + ` OR email ILIKE $` + fmt.Sprintf("%d", argIndex+1) + ` OR first_name ILIKE $` + fmt.Sprintf("%d", argIndex+2) + ` OR last_name ILIKE $` + fmt.Sprintf("%d", argIndex+3) + `)`
+		searchPattern := "%" + search + "%"
+		args = append(args, searchPattern, searchPattern, searchPattern, searchPattern)
+		argIndex += 4
+	}
+
+	// Add is_active filter
+	if isActive != nil {
+		query += ` AND is_active = $` + fmt.Sprintf("%d", argIndex)
+		args = append(args, *isActive)
+		argIndex++
+	}
+
+	// Add role_id filter
+	if roleID != nil {
+		query += ` AND role_id = $` + fmt.Sprintf("%d", argIndex)
+		args = append(args, *roleID)
+		argIndex++
+	}
+
+	// Add ordering and pagination
+	query += ` ORDER BY created_at DESC LIMIT $` + fmt.Sprintf("%d", argIndex) + ` OFFSET $` + fmt.Sprintf("%d", argIndex+1)
+	args = append(args, limit, offset)
+
+	var users []domain.User
+	if err := r.db.SelectContext(ctx, &users, query, args...); err != nil {
+		return nil, err
+	}
+
+	// Set role names for each user
+	for i := range users {
+		roleName, ok := domain.RoleNames[int(users[i].RoleID)]
+		if !ok {
+			users[i].RoleID, users[i].Role = domain.GetDefaultRole()
+		} else {
+			users[i].Role = roleName
+		}
+	}
+
+	return users, nil
+}
+
+func (r *userRepository) GetUsersCount(ctx context.Context) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM users WHERE is_deleted = false;
+	`
+
+	var count int
+	if err := r.db.GetContext(ctx, &count, query); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (r *userRepository) GetUsersCountWithFilters(ctx context.Context, search string, isActive *bool, roleID *int) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM users 
+		WHERE is_deleted = false
+	`
+	args := []interface{}{}
+	argIndex := 1
+
+	// Add search filter
+	if search != "" {
+		query += ` AND (username ILIKE $` + fmt.Sprintf("%d", argIndex) + ` OR email ILIKE $` + fmt.Sprintf("%d", argIndex+1) + ` OR first_name ILIKE $` + fmt.Sprintf("%d", argIndex+2) + ` OR last_name ILIKE $` + fmt.Sprintf("%d", argIndex+3) + `)`
+		searchPattern := "%" + search + "%"
+		args = append(args, searchPattern, searchPattern, searchPattern, searchPattern)
+		argIndex += 4
+	}
+
+	// Add is_active filter
+	if isActive != nil {
+		query += ` AND is_active = $` + fmt.Sprintf("%d", argIndex)
+		args = append(args, *isActive)
+		argIndex++
+	}
+
+	// Add role_id filter
+	if roleID != nil {
+		query += ` AND role_id = $` + fmt.Sprintf("%d", argIndex)
+		args = append(args, *roleID)
+		argIndex++
+	}
+
+	var count int
+	if err := r.db.GetContext(ctx, &count, query, args...); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (r *userRepository) DeleteUser(ctx context.Context, id int) error {
