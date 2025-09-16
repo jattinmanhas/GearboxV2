@@ -2,6 +2,7 @@ import { BlogRepository } from '../repositories/blog-repository';
 import { CategoryRepository } from '../repositories/category-repository';
 import { BlogPostDomain } from '../domain/blog';
 import { CreateBlogPostRequest, UpdateBlogPostRequest, BlogPostFilters, BlogPostListResponse, BlogPost } from '../types/blog';
+import { createSlug } from '../utils/slug';
 
 export class BlogService {
   private blogRepository: BlogRepository;
@@ -13,12 +14,6 @@ export class BlogService {
   }
 
   async createPost(data: CreateBlogPostRequest): Promise<BlogPost> {
-    // Validate the blog post data
-    const validation = BlogPostDomain.validateBlogPost(data);
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-
     // Check if category exists if provided
     if (data.categoryId) {
       const category = await this.categoryRepository.findById(data.categoryId);
@@ -28,7 +23,7 @@ export class BlogService {
     }
 
     // Check if slug already exists
-    const slug = BlogPostDomain.createSlug(data.title);
+    const slug = createSlug(data.title);
     const existingPost = await this.blogRepository.findBySlug(slug);
     if (existingPost) {
       throw new Error('A blog post with this title already exists');
@@ -70,7 +65,7 @@ export class BlogService {
 
     // Check if new title creates a duplicate slug
     if (data.title && data.title !== existingPost.title) {
-      const newSlug = BlogPostDomain.createSlug(data.title);
+      const newSlug = createSlug(data.title);
       const existingPostWithSlug = await this.blogRepository.findBySlug(newSlug);
       if (existingPostWithSlug && existingPostWithSlug.id !== id) {
         throw new Error('A blog post with this title already exists');

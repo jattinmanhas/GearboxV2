@@ -67,6 +67,7 @@ const navigationSections = [
     title: "Content",
     items: [
       { name: "Blog Posts", href: "/dashboard/blog", icon: FileText },
+      { name: "Categories", href: "/dashboard/blog/categories", icon: FolderTree },
     ]
   },
   {

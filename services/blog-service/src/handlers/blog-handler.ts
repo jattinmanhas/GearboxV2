@@ -5,6 +5,7 @@ import {
   updateBlogPostSchema, 
   blogPostQuerySchema 
 } from '../validation/blog-validation';
+import { ResponseHelper } from '../utils/response';
 
 const blogService = new BlogService();
 
@@ -14,23 +15,13 @@ export class BlogHandler {
       const data = createBlogPostSchema.parse(request.body);
       const post = await blogService.createPost(data);
       
-      return reply.status(201).send({
-        success: true,
-        data: post,
-        message: 'Blog post created successfully'
-      });
+      return ResponseHelper.created(reply, 'Blog post created successfully', post);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -40,24 +31,15 @@ export class BlogHandler {
       const post = await blogService.getPostById(id);
       
       if (!post) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Blog post not found'
-        });
+        return ResponseHelper.notFound(reply, 'Blog post not found');
       }
 
       // Increment view count
       await blogService.incrementViewCount(id);
       
-      return reply.send({
-        success: true,
-        data: post
-      });
+      return ResponseHelper.ok(reply, 'Blog post retrieved successfully', post);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -67,24 +49,15 @@ export class BlogHandler {
       const post = await blogService.getPostBySlug(slug);
       
       if (!post) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Blog post not found'
-        });
+        return ResponseHelper.notFound(reply, 'Blog post not found');
       }
 
       // Increment view count
       await blogService.incrementViewCount(post.id);
       
-      return reply.send({
-        success: true,
-        data: post
-      });
+      return ResponseHelper.ok(reply, 'Blog post retrieved successfully', post);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -93,22 +66,13 @@ export class BlogHandler {
       const filters = blogPostQuerySchema.parse(request.query);
       const result = await blogService.getPosts(filters);
       
-      return reply.send({
-        success: true,
-        data: result
-      });
+      return ResponseHelper.ok(reply, 'Blog posts retrieved successfully', result);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -120,29 +84,16 @@ export class BlogHandler {
       const post = await blogService.updatePost(id, data);
       
       if (!post) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Blog post not found'
-        });
+        return ResponseHelper.notFound(reply, 'Blog post not found');
       }
       
-      return reply.send({
-        success: true,
-        data: post,
-        message: 'Blog post updated successfully'
-      });
+      return ResponseHelper.ok(reply, 'Blog post updated successfully', post);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -152,28 +103,16 @@ export class BlogHandler {
       const deleted = await blogService.deletePost(id);
       
       if (!deleted) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Blog post not found'
-        });
+        return ResponseHelper.notFound(reply, 'Blog post not found');
       }
       
-      return reply.send({
-        success: true,
-        message: 'Blog post deleted successfully'
-      });
+      return ResponseHelper.ok(reply, 'Blog post deleted successfully');
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -187,15 +126,9 @@ export class BlogHandler {
         limit ? parseInt(limit, 10) : 10
       );
       
-      return reply.send({
-        success: true,
-        data: posts
-      });
+      return ResponseHelper.ok(reply, 'Author posts retrieved successfully', posts);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -209,22 +142,13 @@ export class BlogHandler {
         limit ? parseInt(limit, 10) : 5
       );
       
-      return reply.send({
-        success: true,
-        data: posts
-      });
+      return ResponseHelper.ok(reply, 'Related posts retrieved successfully', posts);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -236,15 +160,9 @@ export class BlogHandler {
         limit ? parseInt(limit, 10) : 10
       );
       
-      return reply.send({
-        success: true,
-        data: posts
-      });
+      return ResponseHelper.ok(reply, 'Popular posts retrieved successfully', posts);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -256,15 +174,9 @@ export class BlogHandler {
         limit ? parseInt(limit, 10) : 10
       );
       
-      return reply.send({
-        success: true,
-        data: posts
-      });
+      return ResponseHelper.ok(reply, 'Recent posts retrieved successfully', posts);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -274,30 +186,18 @@ export class BlogHandler {
       const filters = blogPostQuerySchema.parse(request.query);
       
       if (!q) {
-        return reply.status(400).send({
-          success: false,
-          message: 'Search query is required'
-        });
+        return ResponseHelper.badRequest(reply, 'Search query is required');
       }
       
       const result = await blogService.searchPosts(q, filters);
       
-      return reply.send({
-        success: true,
-        data: result
-      });
+      return ResponseHelper.ok(reply, 'Search results retrieved successfully', result);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 }

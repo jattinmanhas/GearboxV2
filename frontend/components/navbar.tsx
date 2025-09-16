@@ -27,8 +27,8 @@ export type NavItems = {
 
 export const navLinks: NavItems[] = [
   {
-    label: 'Blogs',
-    link: '/blogs'
+    label: 'Blog',
+    link: '/blog'
   },
   {
     label: 'Shop',

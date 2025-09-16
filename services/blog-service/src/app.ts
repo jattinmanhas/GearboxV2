@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import cookie from '@fastify/cookie';
 import { blogRoutes } from './routes/blog-routes';
 import { categoryRoutes } from './routes/category-routes';
 import config from './config';
@@ -26,6 +27,11 @@ async function registerPlugins() {
   await fastify.register(cors, {
     origin: config.cors.origin,
     credentials: true
+  });
+
+  // Cookie support
+  await fastify.register(cookie, {
+    secret: process.env.COOKIE_SECRET || 'your-cookie-secret'
   });
 
   // Security headers

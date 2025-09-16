@@ -1,11 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { CategoryHandler } from '../handlers/category-handler';
+import { AuthMiddleware } from '../middleware/auth';
+import { AuthService } from '../services/auth-service';
 
 const categoryHandler = new CategoryHandler();
+const authService = new AuthService();
+const authMiddleware = new AuthMiddleware(authService);
 
 export async function categoryRoutes(fastify: FastifyInstance) {
-  // Create a new category
+  // Create a new category (requires authentication)
   fastify.post('/categories', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Create a new category',
       tags: ['Categories'],
@@ -22,9 +27,11 @@ export async function categoryRoutes(fastify: FastifyInstance) {
         201: {
           type: 'object',
           properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
             success: { type: 'boolean' },
-            data: { type: 'object' },
-            message: { type: 'string' }
+            message: { type: 'string' },
+            data: { type: 'object' }
           }
         }
       }
@@ -85,8 +92,9 @@ export async function categoryRoutes(fastify: FastifyInstance) {
     }
   }, categoryHandler.getCategoryBySlug.bind(categoryHandler));
 
-  // Update category
+  // Update category (requires authentication)
   fastify.put('/categories/:id', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Update a category',
       tags: ['Categories'],
@@ -104,12 +112,25 @@ export async function categoryRoutes(fastify: FastifyInstance) {
           description: { type: 'string', maxLength: 1000 },
           color: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' }
         }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: { type: 'object' }
+          }
+        }
       }
     }
   }, categoryHandler.updateCategory.bind(categoryHandler));
 
-  // Delete category
+  // Delete category (requires authentication)
   fastify.delete('/categories/:id', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Delete a category',
       tags: ['Categories'],
@@ -119,6 +140,17 @@ export async function categoryRoutes(fastify: FastifyInstance) {
           id: { type: 'string', format: 'uuid' }
         },
         required: ['id']
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
       }
     }
   }, categoryHandler.deleteCategory.bind(categoryHandler));

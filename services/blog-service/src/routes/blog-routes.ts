@@ -1,11 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { BlogHandler } from '../handlers/blog-handler';
+import { AuthMiddleware } from '../middleware/auth';
+import { AuthService } from '../services/auth-service';
 
 const blogHandler = new BlogHandler();
+const authService = new AuthService();
+const authMiddleware = new AuthMiddleware(authService);
 
 export async function blogRoutes(fastify: FastifyInstance) {
-  // Create a new blog post
+  // Create a new blog post (requires authentication)
   fastify.post('/posts', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Create a new blog post',
       tags: ['Blog Posts'],
@@ -29,9 +34,11 @@ export async function blogRoutes(fastify: FastifyInstance) {
         201: {
           type: 'object',
           properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
             success: { type: 'boolean' },
-            data: { type: 'object' },
-            message: { type: 'string' }
+            message: { type: 'string' },
+            data: { type: 'object' }
           }
         }
       }
@@ -90,8 +97,9 @@ export async function blogRoutes(fastify: FastifyInstance) {
     }
   }, blogHandler.getPostBySlug.bind(blogHandler));
 
-  // Update blog post
+  // Update blog post (requires authentication)
   fastify.put('/posts/:id', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Update a blog post',
       tags: ['Blog Posts'],
@@ -113,12 +121,25 @@ export async function blogRoutes(fastify: FastifyInstance) {
           tags: { type: 'array', items: { type: 'string' } },
           categoryId: { type: 'string', format: 'uuid' }
         }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: { type: 'object' }
+          }
+        }
       }
     }
   }, blogHandler.updatePost.bind(blogHandler));
 
-  // Delete blog post
+  // Delete blog post (requires authentication)
   fastify.delete('/posts/:id', {
+    preHandler: authMiddleware.requireAuth,
     schema: {
       description: 'Delete a blog post',
       tags: ['Blog Posts'],
@@ -128,6 +149,17 @@ export async function blogRoutes(fastify: FastifyInstance) {
           id: { type: 'string', format: 'uuid' }
         },
         required: ['id']
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            timestamp: { type: 'string' },
+            status: { type: 'number' },
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
       }
     }
   }, blogHandler.deletePost.bind(blogHandler));

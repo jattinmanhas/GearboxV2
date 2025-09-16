@@ -1,4 +1,4 @@
-import { eq, and, or, desc, asc, ilike, sql, count } from 'drizzle-orm';
+import { eq, and, or, desc, asc, ilike, sql, count, ne } from 'drizzle-orm';
 import { db } from '../config/database';
 import { blogPosts, categories, type BlogPost, type Category } from '../config/schema';
 import { BlogPostFilters, BlogPostListResponse } from '../types/blog';
@@ -184,17 +184,25 @@ export class BlogRepository {
     })) as BlogPost[];
   }
 
-  async findRelatedPosts(postId: string, categoryId: string | null, tags: string[], limit: number = 5): Promise<BlogPost[]> {
-    const conditions = [eq(blogPosts.id, postId)]; // Exclude current post
-    
+  async findRelatedPosts(
+    postId: string,
+    categoryId: string | null,
+    tags: string[],
+    limit: number = 5
+  ): Promise<BlogPost[]> {
+    const conditions = [ne(blogPosts.id, postId)]; // exclude current post
+  
     if (categoryId) {
       conditions.push(eq(blogPosts.categoryId, categoryId));
     }
-    
+  
     if (tags.length > 0) {
-      conditions.push(sql`${blogPosts.tags} && ${tags}`);
+      const arrayLiteral = `{${tags.join(",")}}`; // e.g. "{fastify,typescript,nodejs}"
+      conditions.push(
+        sql`${blogPosts.tags} && ${sql.raw(`'${arrayLiteral}'::text[]`)}`
+      );
     }
-
+  
     const posts = await db
       .select()
       .from(blogPosts)
@@ -202,7 +210,7 @@ export class BlogRepository {
       .where(and(...conditions))
       .orderBy(desc(blogPosts.createdAt))
       .limit(limit);
-
+  
     return posts.map(post => ({
       ...post.blog_posts,
       categoryName: post.categories?.name,

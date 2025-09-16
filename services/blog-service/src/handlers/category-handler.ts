@@ -5,6 +5,7 @@ import {
   updateCategorySchema, 
   categoryQuerySchema 
 } from '../validation/blog-validation';
+import { ResponseHelper } from '../utils/response';
 
 const categoryService = new CategoryService();
 
@@ -14,23 +15,13 @@ export class CategoryHandler {
       const data = createCategorySchema.parse(request.body);
       const category = await categoryService.createCategory(data);
       
-      return reply.status(201).send({
-        success: true,
-        data: category,
-        message: 'Category created successfully'
-      });
+      return ResponseHelper.created(reply, 'Category created successfully', category);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -40,21 +31,12 @@ export class CategoryHandler {
       const category = await categoryService.getCategoryById(id);
       
       if (!category) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Category not found'
-        });
+        return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return reply.send({
-        success: true,
-        data: category
-      });
+      return ResponseHelper.ok(reply, 'Category retrieved successfully', category);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -64,21 +46,12 @@ export class CategoryHandler {
       const category = await categoryService.getCategoryBySlug(slug);
       
       if (!category) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Category not found'
-        });
+        return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return reply.send({
-        success: true,
-        data: category
-      });
+      return ResponseHelper.ok(reply, 'Category retrieved successfully', category);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -91,22 +64,13 @@ export class CategoryHandler {
         filters.limit
       );
       
-      return reply.send({
-        success: true,
-        data: result
-      });
+      return ResponseHelper.ok(reply, 'Categories retrieved successfully', result);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -114,15 +78,9 @@ export class CategoryHandler {
     try {
       const categories = await categoryService.getAllCategories();
       
-      return reply.send({
-        success: true,
-        data: categories
-      });
+      return ResponseHelper.ok(reply, 'All categories retrieved successfully', categories);
     } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -134,29 +92,16 @@ export class CategoryHandler {
       const category = await categoryService.updateCategory(id, data);
       
       if (!category) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Category not found'
-        });
+        return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return reply.send({
-        success: true,
-        data: category,
-        message: 'Category updated successfully'
-      });
+      return ResponseHelper.ok(reply, 'Category updated successfully', category);
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 
@@ -166,28 +111,16 @@ export class CategoryHandler {
       const deleted = await categoryService.deleteCategory(id);
       
       if (!deleted) {
-        return reply.status(404).send({
-          success: false,
-          message: 'Category not found'
-        });
+        return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return reply.send({
-        success: true,
-        message: 'Category deleted successfully'
-      });
+      return ResponseHelper.ok(reply, 'Category deleted successfully');
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({
-          success: false,
-          message: error.message
-        });
+        return ResponseHelper.badRequest(reply, error.message);
       }
       
-      return reply.status(500).send({
-        success: false,
-        message: 'Internal server error'
-      });
+      return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
   }
 }

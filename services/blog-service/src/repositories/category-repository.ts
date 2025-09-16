@@ -2,10 +2,11 @@ import { eq, ilike, desc, asc, sql, count } from 'drizzle-orm';
 import { db } from '../config/database';
 import { categories, type Category } from '../config/schema';
 import { CreateCategoryRequest, UpdateCategoryRequest } from '../types/blog';
+import { createSlug } from '../utils/slug';
 
 export class CategoryRepository {
   async create(data: CreateCategoryRequest): Promise<Category> {
-    const slug = this.createSlug(data.name);
+    const slug = createSlug(data.name);
     const [category] = await db.insert(categories).values({
       ...data,
       slug,
@@ -66,7 +67,7 @@ export class CategoryRepository {
     const updateData: any = { ...data };
     
     if (data.name) {
-      updateData.slug = this.createSlug(data.name);
+      updateData.slug = createSlug(data.name);
     }
 
     const [category] = await db
@@ -93,12 +94,4 @@ export class CategoryRepository {
       .orderBy(asc(categories.name));
   }
 
-  private createSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .trim();
-  }
 }
