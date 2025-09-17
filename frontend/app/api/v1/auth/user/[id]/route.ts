@@ -73,7 +73,6 @@ export async function DELETE(
     const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/user/${id}`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
       },
     })

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { BlogPost, Category, BlogPostFilters, CategoryFilters, CreateBlogPostRequest, UpdateBlogPostRequest, CreateCategoryRequest, UpdateCategoryRequest } from '../types/blog';
 import { blogPostAPI, categoryAPI, BlogAPIError } from '../blog-api';
+import { showSuccess, showError, showLoading, updateLoading, NotificationMessages } from '../notifications';
 
 interface BlogState {
   // Blog posts
@@ -50,6 +51,7 @@ interface BlogState {
   
   // Blog post actions
   fetchPosts: (filters?: BlogPostFilters) => Promise<void>;
+  fetchAllPosts: (filters?: BlogPostFilters) => Promise<void>;
   fetchPostById: (id: string) => Promise<void>;
   fetchPostBySlug: (slug: string) => Promise<void>;
   createPost: (data: CreateBlogPostRequest) => Promise<void>;
@@ -120,14 +122,42 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await blogPostAPI.getPosts(filters || get().filters);
+      // Filter out non-published posts for public display
+      const publishedPosts = response.posts.filter(post => post.status === 'published');
       set({
-        posts: response.posts,
+        posts: publishedPosts,
         totalPages: response.totalPages,
-        totalPosts: response.total,
+        totalPosts: publishedPosts.length,
         currentPage: response.page,
         isLoading: false,
       });
     } catch (error) {
+      const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch posts';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  // Dashboard-specific function that shows all posts including drafts
+  fetchAllPosts: async (filters) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await blogPostAPI.getPosts(filters || get().filters);
+      
+      // Ensure we have valid data
+      if (!response || !Array.isArray(response.posts)) {
+        console.error('Invalid response from blog API:', response);
+        throw new Error('Invalid response format from blog service');
+      }
+      
+      set({
+        posts: response.posts, // Show all posts including drafts
+        totalPages: response.totalPages || 1,
+        totalPosts: response.total || response.posts.length,
+        currentPage: response.page || 1,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('Error fetching all posts:', error);
       const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch posts';
       set({ error: message, isLoading: false });
     }
@@ -156,6 +186,8 @@ export const useBlogStore = create<BlogState>((set, get) => ({
   },
 
   createPost: async (data) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isCreating: true, error: null });
       const post = await blogPostAPI.createPost(data);
@@ -163,13 +195,20 @@ export const useBlogStore = create<BlogState>((set, get) => ({
         posts: [post, ...state.posts],
         isCreating: false,
       }));
+      
+      updateLoading(loadingToast, NotificationMessages.blog.postCreated, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to create post';
       set({ error: message, isCreating: false });
+      updateLoading(loadingToast, NotificationMessages.blog.postCreateError, 'error', {
+        description: message
+      });
     }
   },
 
   updatePost: async (id, data) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isUpdating: true, error: null });
       const updatedPost = await blogPostAPI.updatePost(id, data);
@@ -178,13 +217,20 @@ export const useBlogStore = create<BlogState>((set, get) => ({
         currentPost: state.currentPost?.id === id ? updatedPost : state.currentPost,
         isUpdating: false,
       }));
+      
+      updateLoading(loadingToast, NotificationMessages.blog.postUpdated, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to update post';
       set({ error: message, isUpdating: false });
+      updateLoading(loadingToast, NotificationMessages.blog.postUpdateError, 'error', {
+        description: message
+      });
     }
   },
 
   deletePost: async (id) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isDeleting: true, error: null });
       await blogPostAPI.deletePost(id);
@@ -193,9 +239,14 @@ export const useBlogStore = create<BlogState>((set, get) => ({
         currentPost: state.currentPost?.id === id ? null : state.currentPost,
         isDeleting: false,
       }));
+      
+      updateLoading(loadingToast, NotificationMessages.blog.postDeleted, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to delete post';
       set({ error: message, isDeleting: false });
+      updateLoading(loadingToast, NotificationMessages.blog.postDeleteError, 'error', {
+        description: message
+      });
     }
   },
 
@@ -203,7 +254,9 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     try {
       set({ error: null });
       const posts = await blogPostAPI.getPopularPosts(limit);
-      set({ popularPosts: posts });
+      // Filter out non-published posts
+      const publishedPosts = posts.filter(post => post.status === 'published');
+      set({ popularPosts: publishedPosts });
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch popular posts';
       set({ error: message });
@@ -214,7 +267,9 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     try {
       set({ error: null });
       const posts = await blogPostAPI.getRecentPosts(limit);
-      set({ recentPosts: posts });
+      // Filter out non-published posts
+      const publishedPosts = posts.filter(post => post.status === 'published');
+      set({ recentPosts: publishedPosts });
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch recent posts';
       set({ error: message });
@@ -225,7 +280,9 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     try {
       set({ error: null });
       const posts = await blogPostAPI.getRelatedPosts(postId, limit);
-      set({ relatedPosts: posts });
+      // Filter out non-published posts
+      const publishedPosts = posts.filter(post => post.status === 'published');
+      set({ relatedPosts: publishedPosts });
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch related posts';
       set({ error: message });
@@ -236,10 +293,12 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await blogPostAPI.searchPosts(query, filters);
+      // Filter out non-published posts
+      const publishedPosts = response.posts.filter(post => post.status === 'published');
       set({
-        posts: response.posts,
+        posts: publishedPosts,
         totalPages: response.totalPages,
-        totalPosts: response.total,
+        totalPosts: publishedPosts.length,
         currentPage: response.page,
         isLoading: false,
       });
@@ -266,12 +325,12 @@ export const useBlogStore = create<BlogState>((set, get) => ({
 
   fetchAllCategories: async () => {
     try {
-      set({ error: null });
+      set({ isLoading: true, error: null });
       const categories = await categoryAPI.getAllCategories();
-      set({ categories });
+      set({ categories, isLoading: false });
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to fetch categories';
-      set({ error: message });
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -298,35 +357,63 @@ export const useBlogStore = create<BlogState>((set, get) => ({
   },
 
   createCategory: async (data) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isCreating: true, error: null });
       const category = await categoryAPI.createCategory(data);
-      set((state) => ({
-        categories: [...state.categories, category],
+      
+      // Ensure category has an id before adding to store
+      if (!category || !category.id) {
+        console.error('Invalid category response:', category);
+        throw new Error('Category creation failed - invalid response from server');
+      }
+      
+      // Refresh categories list to ensure we have the latest data
+      const categories = await categoryAPI.getAllCategories();
+      set({ 
+        categories,
         isCreating: false,
-      }));
+      });
+      
+      updateLoading(loadingToast, NotificationMessages.blog.categoryCreated, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to create category';
       set({ error: message, isCreating: false });
+      updateLoading(loadingToast, NotificationMessages.blog.categoryCreateError, 'error', {
+        description: message
+      });
     }
   },
 
   updateCategory: async (id, data) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isUpdating: true, error: null });
       const updatedCategory = await categoryAPI.updateCategory(id, data);
-      set((state) => ({
-        categories: state.categories.map(cat => cat.id === id ? updatedCategory : cat),
+      
+      // Refresh categories list to ensure we have the latest data
+      const categories = await categoryAPI.getAllCategories();
+      set((state) => ({ 
+        categories,
         currentCategory: state.currentCategory?.id === id ? updatedCategory : state.currentCategory,
         isUpdating: false,
       }));
+      
+      updateLoading(loadingToast, NotificationMessages.blog.categoryUpdated, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to update category';
       set({ error: message, isUpdating: false });
+      updateLoading(loadingToast, NotificationMessages.blog.categoryUpdateError, 'error', {
+        description: message
+      });
     }
   },
 
   deleteCategory: async (id) => {
+    const loadingToast = showLoading(NotificationMessages.general.loading);
+    
     try {
       set({ isDeleting: true, error: null });
       await categoryAPI.deleteCategory(id);
@@ -335,9 +422,14 @@ export const useBlogStore = create<BlogState>((set, get) => ({
         currentCategory: state.currentCategory?.id === id ? null : state.currentCategory,
         isDeleting: false,
       }));
+      
+      updateLoading(loadingToast, NotificationMessages.blog.categoryDeleted, 'success');
     } catch (error) {
       const message = error instanceof BlogAPIError ? error.message : 'Failed to delete category';
       set({ error: message, isDeleting: false });
+      updateLoading(loadingToast, NotificationMessages.blog.categoryDeleteError, 'error', {
+        description: message
+      });
     }
   },
 }));

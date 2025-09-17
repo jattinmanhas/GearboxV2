@@ -28,81 +28,90 @@ export class AuthMiddleware {
    */
   requireAuth = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      // Extract token from Authorization header or cookie
-      let token = this.extractTokenFromHeader(request);
-      if (!token) {
-        token = this.extractTokenFromCookie(request, 'access_token');
+      // Extract access token from Authorization header or cookie
+      let accessToken = this.extractTokenFromHeader(request);
+      if (!accessToken) {
+        accessToken = this.extractTokenFromCookie(request, "access_token");
       }
-
-      if (!token) {
+  
+      let claims = null;
+  
+      // Try validating access token first
+      if (accessToken) {
+        claims = await this.authService.validateAccessToken(accessToken);
+        if (claims) {
+          (request as any).user = claims;
+          (request as any).claims = claims;
+          return; // ✅ Access token valid → return immediately
+        }
+      }
+  
+      // Access token invalid → try refresh token
+      const refreshToken = this.extractTokenFromCookie(request, "refresh_token");
+      if (!refreshToken) {
         return reply.status(401).send({
           timestamp: new Date().toISOString(),
           status: 401,
           success: false,
-          message: 'Authentication required',
-          error: { message: 'No token provided' }
+          message: "Authentication required",
+          error: { message: "Refresh token required" },
         });
       }
-
-      // Validate access token
-      let claims = await this.authService.validateAccessToken(token);
-      
-      if (!claims) {
-        // Try refresh token if access token is invalid
-        const refreshToken = this.extractTokenFromCookie(request, 'refresh_token');
-        if (!refreshToken) {
-          return reply.status(401).send({
-            timestamp: new Date().toISOString(),
-            status: 401,
-            success: false,
-            message: 'Authentication required',
-            error: { message: 'Invalid access token and no refresh token provided' }
-          });
-        }
-
-        // Validate refresh token and generate new access token
-        const refreshClaims = await this.authService.validateRefreshToken(refreshToken);
-        if (!refreshClaims) {
-          return reply.status(401).send({
-            timestamp: new Date().toISOString(),
-            status: 401,
-            success: false,
-            message: 'Authentication required',
-            error: { message: 'Invalid refresh token' }
-          });
-        }
-
-        // Generate new access token
-        const newAccessToken = await this.authService.generateAccessTokenFromUser(refreshClaims);
-        
-        // Set new access token in cookie
-        reply.cookie('access_token', newAccessToken, {
-          path: '/',
-          httpOnly: true,
-          secure: true,
-          sameSite: 'strict',
-          maxAge: 900 // 15 minutes
+  
+      const refreshClaims = await this.authService.validateRefreshToken(refreshToken);
+      if (!refreshClaims) {
+        return reply.status(401).send({
+          timestamp: new Date().toISOString(),
+          status: 401,
+          success: false,
+          message: "Authentication required",
+          error: { message: "Invalid refresh token" },
         });
-
-        claims = refreshClaims;
       }
-
-      // Add claims to request object for use in handlers
+  
+      // Build minimal user object (like in Go)
+      const minimalUser = {
+        user_id: refreshClaims.user_id,
+        username: refreshClaims.username,
+        email: refreshClaims.email,
+        role: refreshClaims.role,
+      };
+  
+      // Generate a new access token
+      const newAccessToken = await this.authService.generateAccessTokenFromUser(minimalUser);
+  
+      // Set new access token in cookie
+      reply.cookie("access_token", newAccessToken, {
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 900, // 15 minutes
+      });
+  
+      // Build claims object like Go
+      claims = {
+        user_id: minimalUser.user_id,
+        username: minimalUser.username,
+        email: minimalUser.email,
+        role: minimalUser.role,
+      };
+  
+      // Attach claims to request
       (request as any).user = claims;
       (request as any).claims = claims;
-
+  
     } catch (error) {
       return reply.status(401).send({
         timestamp: new Date().toISOString(),
         status: 401,
         success: false,
-        message: 'Authentication failed',
-        error: { message: error instanceof Error ? error.message : 'Unknown error' }
+        message: "Authentication failed",
+        error: { message: error instanceof Error ? error.message : "Unknown error" },
       });
     }
   };
-
-  /**
+    /**
    * Optional authentication middleware - doesn't require auth but adds user if present
    */
   optionalAuth = async (request: FastifyRequest, reply: FastifyReply) => {

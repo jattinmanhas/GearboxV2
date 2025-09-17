@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { wishlistApi } from '../api'
+import { wishlistApi, productApi } from '../api'
 
 export interface WishlistItem {
   id: number
@@ -71,7 +71,66 @@ export const useWishlistStore = create<WishlistStore>()(
           const response = await wishlistApi.getWishlists()
           // Handle different response structures
           const wishlistsData = response.data?.wishlists || response.wishlists || response.data || []
-          set({ wishlists: wishlistsData })
+          
+          // Fetch items for each wishlist
+          const wishlistsWithItems = await Promise.all(
+            wishlistsData.map(async (wishlist: any) => {
+              try {
+                // Fetch items for this wishlist
+                const itemsResponse = await wishlistApi.getWishlistItems(wishlist.id.toString())
+                
+                // Handle different response structures for items
+                const items = itemsResponse.data?.items || itemsResponse.items || itemsResponse.data || []
+                
+                // Fetch product details for each item
+                const itemsWithProductDetails = await Promise.all(
+                  items.map(async (item: any) => {
+                    try {
+                      // Fetch product details
+                      const productResponse = await productApi.getProduct(item.product_id)
+                      const product = productResponse
+                      
+                      return {
+                        id: item.id,
+                        product_id: item.product_id,
+                        product_name: product.name || 'Unknown Product',
+                        product_sku: product.sku || 'N/A',
+                        price: product.price || 0,
+                        image: undefined, // Product images not available in current API
+                        added_at: item.created_at,
+                        notes: item.notes || ''
+                      }
+                    } catch (productError) {
+                      console.error(`Failed to fetch product ${item.product_id}:`, productError)
+                      return {
+                        id: item.id,
+                        product_id: item.product_id,
+                        product_name: 'Unknown Product',
+                        product_sku: 'N/A',
+                        price: 0,
+                        image: undefined,
+                        added_at: item.created_at,
+                        notes: item.notes || ''
+                      }
+                    }
+                  })
+                )
+                
+                return {
+                  ...wishlist,
+                  items: itemsWithProductDetails || []
+                }
+              } catch (itemError) {
+                console.error(`Failed to load items for wishlist ${wishlist.id}:`, itemError)
+                return {
+                  ...wishlist,
+                  items: []
+                }
+              }
+            })
+          )
+          
+          set({ wishlists: wishlistsWithItems })
         } catch (error) {
           console.error('Wishlist load error:', error)
           // If it's a 500 error, it might be because the backend expects user_id
@@ -93,7 +152,10 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           set({ isLoading: true, error: null })
           const response = await wishlistApi.createWishlist(data)
-          const newWishlist = response.data
+          const newWishlist = {
+            ...response.data,
+            items: response.data.items || []
+          }
           set(state => ({ 
             wishlists: [...state.wishlists, newWishlist],
             isLoading: false 

@@ -42,6 +42,7 @@ export default function WishlistPage() {
     loadWishlists()
   }, [loadWishlists])
 
+
   const handleCreateWishlist = async () => {
     if (!newWishlistName.trim()) return
     
@@ -207,7 +208,7 @@ export default function WishlistPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">
-                        {wishlist.items.length} items
+                        {wishlist.items?.length || 0} items
                       </Badge>
                       <Button
                         variant="outline"
@@ -221,14 +222,14 @@ export default function WishlistPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {wishlist.items.length === 0 ? (
+                  {(!wishlist.items || wishlist.items.length === 0) ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Package className="h-8 w-8 mx-auto mb-2" />
                       <p>No items in this wishlist</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {wishlist.items.map((item) => (
+                      {wishlist.items?.map((item) => (
                         <Card key={item.id} className="group">
                           <CardContent className="p-4">
                             {/* Product Image */}

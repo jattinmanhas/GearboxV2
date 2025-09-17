@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3001/api/v1';
+const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/api/v1';
 
 // GET /api/v1/blog/categories/slug/[slug] - Get category by slug
 export async function GET(

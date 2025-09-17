@@ -31,7 +31,19 @@ export async function categoryRoutes(fastify: FastifyInstance) {
             status: { type: 'number' },
             success: { type: 'boolean' },
             message: { type: 'string' },
-            data: { type: 'object' }
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                slug: { type: 'string' },
+                description: { type: 'string' },
+                color: { type: 'string' },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              },
+              additionalProperties: false
+            }
           }
         }
       }
@@ -137,7 +149,7 @@ export async function categoryRoutes(fastify: FastifyInstance) {
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string', format: 'uuid' }
+          id: { type: 'string' }
         },
         required: ['id']
       },

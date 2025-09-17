@@ -44,7 +44,7 @@ export default function BlogManagementPage() {
     filters,
     isLoading,
     error,
-    fetchPosts,
+    fetchAllPosts,
     deletePost,
     setFilters,
     setCurrentPage,
@@ -55,8 +55,8 @@ export default function BlogManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchAllPosts();
+  }, [fetchAllPosts]);
 
   useEffect(() => {
     const newFilters = {
@@ -66,8 +66,8 @@ export default function BlogManagementPage() {
       page: 1,
     };
     setFilters(newFilters);
-    fetchPosts(newFilters);
-  }, [searchQuery, statusFilter, fetchPosts, filters, setFilters]);
+    fetchAllPosts(newFilters);
+  }, [searchQuery, statusFilter, fetchAllPosts]);
 
   const handleDeletePost = async (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
@@ -83,7 +83,7 @@ export default function BlogManagementPage() {
     setCurrentPage(page);
     const newFilters = { ...filters, page };
     setFilters(newFilters);
-    fetchPosts(newFilters);
+    fetchAllPosts(newFilters);
   };
 
   const formatDate = (dateString: string) => {
@@ -109,7 +109,7 @@ export default function BlogManagementPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Posts</h1>
           <p className="text-gray-600 mb-4">{error}</p>
@@ -120,7 +120,7 @@ export default function BlogManagementPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-full px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Blog Management</h1>
@@ -188,7 +188,7 @@ export default function BlogManagementPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {posts.reduce((sum, post) => sum + post.viewCount, 0)}
+              {posts.reduce((sum, post) => sum + (post.viewCount || 0), 0)}
             </div>
             <p className="text-sm text-gray-600">Total Views</p>
           </CardContent>
@@ -225,24 +225,26 @@ export default function BlogManagementPage() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Post</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Author</TableHead>
-                  <TableHead>Views</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="overflow-x-auto">
+              <div className="min-w-[500px]">
+                {/* Header */}
+                <div className="grid grid-cols-12 gap-2 py-2 px-3 text-sm font-medium text-gray-500 border-b">
+                  <div className="col-span-4">Post</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-2 hidden sm:block">Author</div>
+                  <div className="col-span-1 hidden md:block">Views</div>
+                  <div className="col-span-2 hidden lg:block">Created</div>
+                  <div className="col-span-1">Actions</div>
+                </div>
+                
+                {/* Rows */}
                 {posts.map((post) => (
-                  <TableRow key={post.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-4">
+                  <div key={post.id} className="grid grid-cols-12 gap-2 py-3 px-3 text-sm border-b hover:bg-muted/50">
+                    {/* Post Column */}
+                    <div className="col-span-4 min-w-0">
+                      <div className="flex items-center space-x-2">
                         {post.featuredImage && (
-                          <div className="relative h-12 w-12 rounded overflow-hidden">
+                          <div className="relative h-6 w-6 rounded overflow-hidden flex-shrink-0">
                             <Image
                               src={post.featuredImage}
                               alt={post.title}
@@ -252,49 +254,59 @@ export default function BlogManagementPage() {
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-medium truncate">{post.title}</h3>
-                          <p className="text-sm text-gray-500 truncate">
+                          <h3 className="font-medium text-xs truncate leading-tight">{post.title}</h3>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">
                             {post.excerpt || 'No excerpt'}
                           </p>
                           {post.tags && post.tags.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Tag className="h-3 w-3 text-gray-400" />
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Tag className="h-2 w-2 text-gray-400" />
                               <span className="text-xs text-gray-500">
-                                {post.tags.slice(0, 2).join(', ')}
-                                {post.tags.length > 2 && ` +${post.tags.length - 2} more`}
+                                {post.tags.slice(0, 1).join(', ')}
+                                {post.tags.length > 1 && ` +${post.tags.length - 1}`}
                               </span>
                             </div>
                           )}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(post.status)}>
+                    </div>
+                    
+                    {/* Status Column */}
+                    <div className="col-span-2 flex items-center">
+                      <Badge className={`${getStatusColor(post.status)} text-xs px-1.5 py-0.5`}>
                         {post.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
-                        {post.authorName}
+                    </div>
+                    
+                    {/* Author Column */}
+                    <div className="col-span-2 hidden sm:flex items-center">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs truncate">{post.authorName}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-gray-400" />
-                        {post.viewCount}
+                    </div>
+                    
+                    {/* Views Column */}
+                    <div className="col-span-1 hidden md:flex items-center">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs">{post.viewCount || 0}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        {formatDate(post.createdAt)}
+                    </div>
+                    
+                    {/* Created Column */}
+                    <div className="col-span-2 hidden lg:flex items-center">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs">{formatDate(post.createdAt)}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    
+                    {/* Actions Column */}
+                    <div className="col-span-1 flex items-center justify-end">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -320,11 +332,11 @@ export default function BlogManagementPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -62,10 +62,12 @@ export default function CategoryManagementPage() {
     description: '',
     color: '#3B82F6',
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchAllCategories();
   }, [fetchAllCategories]);
+
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +121,13 @@ export default function CategoryManagementPage() {
       day: 'numeric',
     });
   };
+
+  // Filter categories based on search query
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    category.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    category.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (error) {
     return (
@@ -214,6 +223,16 @@ export default function CategoryManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Search Input */}
+          <div className="mb-6">
+            <Input
+              placeholder="Search categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+          
           {isLoading ? (
             <div className="space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -226,13 +245,22 @@ export default function CategoryManagementPage() {
                 </div>
               ))}
             </div>
-          ) : categories.length === 0 ? (
+          ) : filteredCategories.length === 0 ? (
             <div className="text-center py-8">
-              <h3 className="text-lg font-semibold mb-2">No categories found</h3>
-              <p className="text-gray-600 mb-4">Get started by creating your first category</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                Create Category
-              </Button>
+              <h3 className="text-lg font-semibold mb-2">
+                {searchQuery ? 'No categories found' : 'No categories found'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {searchQuery 
+                  ? `No categories match "${searchQuery}". Try a different search term.`
+                  : 'Get started by creating your first category'
+                }
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                  Create Category
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -245,8 +273,8 @@ export default function CategoryManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
+                {filteredCategories.map((category, index) => (
+                  <TableRow key={category.id || `category-${index}`}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <div

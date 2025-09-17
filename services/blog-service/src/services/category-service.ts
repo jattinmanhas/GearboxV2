@@ -64,6 +64,7 @@ export class CategoryService {
 
   async deleteCategory(id: string): Promise<boolean> {
     const category = await this.categoryRepository.findById(id);
+    
     if (!category) {
       throw new Error('Category not found');
     }

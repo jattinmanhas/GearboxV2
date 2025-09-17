@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/handlers"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
@@ -15,6 +16,7 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 	// Global CORS middleware
 	router.Use(sharedMiddleware.CORSMiddleware([]string{"*"}))
+	router.Use(middleware.Logger)
 
 	// Health check endpoint
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {

@@ -26,24 +26,58 @@ class BlogAPIError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  const data: APIResponse<T> = await response.json();
+  // Check if response has content before trying to parse JSON
+  const contentType = response.headers.get('content-type');
+  const hasJsonContent = contentType && contentType.includes('application/json');
+  
+  let data: APIResponse<T> | null = null;
+  
+  if (hasJsonContent) {
+    try {
+      const responseText = await response.text();
+      if (responseText.trim()) {
+        data = JSON.parse(responseText);
+      }
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error);
+      console.error('Response text:', await response.text());
+      data = null;
+    }
+  }
   
   if (!response.ok) {
-    throw new BlogAPIError(
-      data.message || 'An error occurred',
-      response.status,
+    console.error('API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      contentType,
       data
+    });
+    
+    const errorMessage = data?.message || `HTTP ${response.status}: ${response.statusText}`;
+    throw new BlogAPIError(
+      errorMessage,
+      response.status,
+      data || undefined
     );
   }
   
-  return data.data as T;
+  // For successful responses with no content (like DELETE operations)
+  if (!data) {
+    return undefined as T;
+  }
+  
+  // Handle both wrapped responses and direct data
+  if (data.data !== undefined) {
+    return data.data as T;
+  }
+  
+  // If no data field, return the entire response (for cases where data is returned directly)
+  return data as T;
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = localStorage.getItem('access_token');
   return {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
   };
 }
 
@@ -54,6 +88,7 @@ export const blogPostAPI = {
     const response = await fetch(`${BLOG_API_BASE}/posts`, {
       method: 'POST',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
       body: JSON.stringify(data),
     });
     
@@ -95,6 +130,7 @@ export const blogPostAPI = {
     const response = await fetch(`${BLOG_API_BASE}/posts/${id}`, {
       method: 'PUT',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
       body: JSON.stringify(data),
     });
     
@@ -106,6 +142,7 @@ export const blogPostAPI = {
     const response = await fetch(`${BLOG_API_BASE}/posts/${id}`, {
       method: 'DELETE',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
     });
     
     await handleResponse<void>(response);
@@ -161,6 +198,7 @@ export const categoryAPI = {
     const response = await fetch(`${BLOG_API_BASE}/categories`, {
       method: 'POST',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
       body: JSON.stringify(data),
     });
     
@@ -204,6 +242,7 @@ export const categoryAPI = {
     const response = await fetch(`${BLOG_API_BASE}/categories/${id}`, {
       method: 'PUT',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
       body: JSON.stringify(data),
     });
     
@@ -215,6 +254,7 @@ export const categoryAPI = {
     const response = await fetch(`${BLOG_API_BASE}/categories/${id}`, {
       method: 'DELETE',
       headers: await getAuthHeaders(),
+      credentials: 'include', // Include cookies in the request
     });
     
     await handleResponse<void>(response);

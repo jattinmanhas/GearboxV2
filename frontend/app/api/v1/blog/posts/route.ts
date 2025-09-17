@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3001/api/v1';
+const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/api/v1';
 
 // Helper function to get auth headers
-function getAuthHeaders(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cookieToken = request.cookies.get('access_token')?.value;
-  
+function getAuthHeaders(request: NextRequest, includeContentType: boolean = true) {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    'Cookie': request.headers.get('cookie') || '',
   };
 
-  if (authHeader) {
-    headers['Authorization'] = authHeader;
-  } else if (cookieToken) {
-    headers['Authorization'] = `Bearer ${cookieToken}`;
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
   }
 
   return headers;
@@ -32,6 +27,33 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
       },
     });
+
+    // Check if response is ok and has content
+    if (!response.ok) {
+      console.error('Blog service error:', response.status, response.statusText);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: `Blog service error: ${response.status} ${response.statusText}`,
+          error: 'Service unavailable'
+        },
+        { status: response.status }
+      );
+    }
+
+    // Check if response has JSON content
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Non-JSON response from blog service:', contentType);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Invalid response format from blog service',
+          error: 'Service returned non-JSON response'
+        },
+        { status: 502 }
+      );
+    }
 
     const data = await response.json();
     

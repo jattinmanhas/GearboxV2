@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3001/api/v1';
+const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/api/v1';
 
 // Helper function to get auth headers
-function getAuthHeaders(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cookieToken = request.cookies.get('access_token')?.value;
-  
+function getAuthHeaders(request: NextRequest) {  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Cookie': request.headers.get('cookie') || '',
   };
 
-  if (authHeader) {
-    headers['Authorization'] = authHeader;
-  } else if (cookieToken) {
-    headers['Authorization'] = `Bearer ${cookieToken}`;
-  }
 
   return headers;
 }
@@ -28,9 +21,7 @@ export async function GET(request: NextRequest) {
     
     const response = await fetch(`${BLOG_SERVICE_URL}/categories?${queryString}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(request),
     });
 
     const data = await response.json();

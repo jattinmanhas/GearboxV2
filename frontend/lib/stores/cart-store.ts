@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { cartApi, productApi } from '../api'
 import { useEffect } from 'react'
+import { showSuccess, showError, showLoading, updateLoading, NotificationMessages } from '../notifications'
 
 export interface CartItem {
   id: number
@@ -195,6 +196,8 @@ export const useCartStore = create<CartStore>()(
       },
 
       clearCart: async () => {
+        const loadingToast = showLoading(NotificationMessages.general.loading);
+        
         try {
           set({ isLoading: true, error: null })
           const state = get()
@@ -203,12 +206,17 @@ export const useCartStore = create<CartStore>()(
             await cartApi.clearCartItems(state.cart.id)
           }
           
-          set({ cart: null, items: [], isLoading: false })
+          set({ cart: null, items: [], isLoading: false });
+          updateLoading(loadingToast, NotificationMessages.cart.cartCleared, 'success');
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to clear cart',
-            isLoading: false 
-          })
+          const message = error instanceof Error ? error.message : 'Failed to clear cart';
+          set({
+            error: message,
+            isLoading: false
+          });
+          updateLoading(loadingToast, 'Failed to clear cart', 'error', {
+            description: message
+          });
         }
       },
 

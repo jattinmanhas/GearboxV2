@@ -77,7 +77,6 @@ export async function DELETE(
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
       },
     })

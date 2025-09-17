@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useBlogStore } from '@/lib/stores/blog-store';
-import { CreateBlogPostRequest } from '@/lib/types/blog';
+import { UpdateBlogPostRequest, BlogPost } from '@/lib/types/blog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,58 +14,103 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MarkdownEditor } from '@/components/ui/markdown-editor';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
-import { X, Plus, Save, Eye, Settings, ArrowLeft, Image as ImageIcon, Tag, User, Calendar } from 'lucide-react';
+import { 
+  Save, 
+  Eye, 
+  ArrowLeft, 
+  Plus, 
+  X, 
+  Calendar,
+  User,
+  Tag,
+  Globe,
+  FileText
+} from 'lucide-react';
 
-export default function CreateBlogPostPage() {
+export default function EditBlogPostPage() {
   const router = useRouter();
+  const params = useParams();
+  const postId = params.id as string;
+  
   const {
+    currentPost,
     categories,
-    isCreating,
+    isLoading,
+    isUpdating,
     error,
+    fetchPostById,
     fetchAllCategories,
-    createPost,
+    updatePost,
     clearError,
   } = useBlogStore();
 
-  const [formData, setFormData] = useState<CreateBlogPostRequest>({
+  const [formData, setFormData] = useState<UpdateBlogPostRequest>({
     title: '',
     content: '',
     excerpt: '',
-    authorId: '',
-    authorName: '',
-    authorEmail: '',
     status: 'draft',
     featuredImage: '',
     tags: [],
     categoryId: '',
   });
 
+  const [originalPost, setOriginalPost] = useState<BlogPost | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    fetchAllCategories();
-  }, [fetchAllCategories]);
+    if (postId) {
+      fetchPostById(postId);
+      fetchAllCategories();
+    }
+  }, [postId, fetchPostById, fetchAllCategories]);
 
-  const handleInputChange = (field: keyof CreateBlogPostRequest, value: string) => {
+  // Populate form when post data is loaded
+  useEffect(() => {
+    if (currentPost) {
+      setOriginalPost(currentPost);
+      setFormData({
+        title: currentPost.title || '',
+        content: currentPost.content || '',
+        excerpt: currentPost.excerpt || '',
+        status: currentPost.status || 'draft',
+        featuredImage: currentPost.featuredImage || '',
+        tags: currentPost.tags || [],
+        categoryId: currentPost.categoryId || '',
+      });
+    }
+  }, [currentPost]);
+
+  // Track changes
+  useEffect(() => {
+    if (originalPost) {
+      const hasFormChanges = 
+        formData.title !== (originalPost.title || '') ||
+        formData.content !== (originalPost.content || '') ||
+        formData.excerpt !== (originalPost.excerpt || '') ||
+        formData.status !== (originalPost.status || 'draft') ||
+        formData.featuredImage !== (originalPost.featuredImage || '') ||
+        formData.categoryId !== (originalPost.categoryId || '') ||
+        JSON.stringify(formData.tags || []) !== JSON.stringify(originalPost.tags || []);
+      
+      setHasChanges(hasFormChanges);
+    }
+  }, [formData, originalPost]);
+
+  const handleInputChange = (field: keyof UpdateBlogPostRequest, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAddTag = () => {
     const trimmedTag = tagInput.trim();
-    console.log('Adding tag:', trimmedTag, 'Current tags:', formData.tags);
     if (trimmedTag && !formData.tags?.includes(trimmedTag)) {
       setFormData(prev => ({
         ...prev,
         tags: [...(prev.tags || []), trimmedTag]
       }));
       setTagInput('');
-    } else if (trimmedTag && formData.tags?.includes(trimmedTag)) {
-      console.log('Tag already exists:', trimmedTag);
-    } else {
-      console.log('Empty tag input');
     }
   };
 
@@ -86,46 +131,74 @@ export default function CreateBlogPostPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Form submitted with data:', formData);
-    
-    if (!formData.title || !formData.content || !formData.authorId || !formData.authorName || !formData.authorEmail) {
-      console.log('Missing required fields:', {
-        title: !!formData.title,
-        content: !!formData.content,
-        authorId: !!formData.authorId,
-        authorName: !!formData.authorName,
-        authorEmail: !!formData.authorEmail
-      });
-      alert('Please fill in all required fields (Title, Content, Author ID, Author Name, Author Email)');
+    if (!formData.title || !formData.content) {
+      alert('Please fill in all required fields (Title, Content)');
       return;
     }
 
     try {
-      console.log('Creating post...');
-      const result = await createPost(formData);
-      console.log('Post created successfully:', result);
-      
-      // Only redirect on successful creation
+      await updatePost(postId, formData);
       router.push('/dashboard/blog');
     } catch (error) {
-      console.error('Error creating post:', error);
-      
-      // Don't redirect on error - stay on the form
+      console.error('Error updating post:', error);
       if (error && typeof error === 'object' && 'message' in error) {
-        alert(`Failed to create post: ${error.message}`);
+        alert(`Failed to update post: ${error.message}`);
       } else {
-        alert('Failed to create post. Please check your connection and try again.');
+        alert('Failed to update post. Please try again.');
+      }
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!formData.title || !formData.content) {
+      alert('Please fill in all required fields before publishing');
+      return;
+    }
+
+    try {
+      await updatePost(postId, { ...formData, status: 'published' });
+      router.push('/dashboard/blog');
+    } catch (error) {
+      console.error('Error publishing post:', error);
+      if (error && typeof error === 'object' && 'message' in error) {
+        alert(`Failed to publish post: ${error.message}`);
+      } else {
+        alert('Failed to publish post. Please try again.');
       }
     }
   };
 
   const generateExcerpt = () => {
-    const plainText = formData.content.replace(/<[^>]*>/g, '');
+    const content = formData.content || '';
+    const plainText = content.replace(/<[^>]*>/g, '');
     const excerpt = plainText.length > 160 
       ? plainText.substring(0, 160).replace(/\s+\S*$/, '') + '...'
       : plainText;
     setFormData(prev => ({ ...prev, excerpt }));
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="h-64 bg-gray-200 rounded"></div>
+                <div className="h-32 bg-gray-200 rounded"></div>
+              </div>
+              <div className="space-y-6">
+                <div className="h-32 bg-gray-200 rounded"></div>
+                <div className="h-24 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -138,15 +211,44 @@ export default function CreateBlogPostPage() {
     );
   }
 
+  if (!currentPost) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Alert className="mb-4">
+          <AlertDescription>Post not found</AlertDescription>
+        </Alert>
+        <Button onClick={() => router.push('/dashboard/blog')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Blog
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-neutral-900 p-4' : 'container mx-auto px-4 py-8'}`}>
       <div className={`${isFullscreen ? 'h-full overflow-auto' : 'max-w-6xl mx-auto'}`}>
-        {/* Header with modern styling but consistent with app design */}
+        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Create New Blog Post</h1>
-              <p className="text-gray-600">Write and publish a new blog post</p>
+              <h1 className="text-3xl font-bold mb-2">Edit Blog Post</h1>
+              <p className="text-gray-600">Update your blog post content and settings</p>
+              {originalPost && (
+                <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Created: {new Date(originalPost.createdAt).toLocaleDateString()}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <User className="h-4 w-4" />
+                    {originalPost.authorName}
+                  </span>
+                  <Badge variant={originalPost.status === 'published' ? 'default' : 'secondary'}>
+                    {originalPost.status === 'published' ? 'Published' : 'Draft'}
+                  </Badge>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -177,7 +279,7 @@ export default function CreateBlogPostPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className={`grid grid-cols-1 gap-6 ${showPreview ? 'lg:grid-cols-3' : 'lg:grid-cols-3'}`}>
-            {/* Main Content - More space when preview is off */}
+            {/* Main Content */}
             <div className={`${showPreview ? 'lg:col-span-2' : 'lg:col-span-2'} space-y-6`}>
               {/* Post Details Card */}
               <Card>
@@ -246,7 +348,7 @@ export default function CreateBlogPostPage() {
                 </CardHeader>
                 <CardContent>
                   <MarkdownEditor
-                    value={formData.content}
+                    value={formData.content || ''}
                     onChange={(value) => handleInputChange('content', value)}
                     height={500}
                   />
@@ -268,8 +370,8 @@ export default function CreateBlogPostPage() {
                       placeholder="Enter a tag"
                       className="flex-1"
                     />
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -281,14 +383,14 @@ export default function CreateBlogPostPage() {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   {formData.tags && formData.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {formData.tags.map((tag) => (
                         <Badge key={tag} variant="secondary" className="flex items-center gap-1">
                           {tag}
-                          <X 
-                            className="h-3 w-3 cursor-pointer hover:text-red-500" 
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-red-500"
                             onClick={() => handleRemoveTag(tag)}
                           />
                         </Badge>
@@ -304,106 +406,100 @@ export default function CreateBlogPostPage() {
             {/* Sidebar - Only visible when preview is off */}
             {!showPreview && (
               <div className="space-y-6">
-              {/* Publish Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Publish Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) => handleInputChange('status', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Publish Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Publish Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => handleInputChange('status', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="category">Category</Label>
-                    <Select
-                      value={formData.categoryId}
-                      onValueChange={(value) => handleInputChange('categoryId', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div>
+                      <Label htmlFor="category">Category</Label>
+                      <Select
+                        value={formData.categoryId}
+                        onValueChange={(value) => handleInputChange('categoryId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Author Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Author Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="authorId">Author ID *</Label>
-                    <Input
-                      id="authorId"
-                      value={formData.authorId}
-                      onChange={(e) => handleInputChange('authorId', e.target.value)}
-                      placeholder="Author ID"
-                      required
-                    />
-                  </div>
+                {/* Author Information - Read Only */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Author Information</CardTitle>
+                    <CardDescription>Author details cannot be changed after post creation</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Author Name</Label>
+                      <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md text-sm">
+                        {originalPost?.authorName || 'Unknown'}
+                      </div>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="authorName">Author Name *</Label>
-                    <Input
-                      id="authorName"
-                      value={formData.authorName}
-                      onChange={(e) => handleInputChange('authorName', e.target.value)}
-                      placeholder="Author Name"
-                      required
-                    />
-                  </div>
+                    <div>
+                      <Label>Author Email</Label>
+                      <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md text-sm">
+                        {originalPost?.authorEmail || 'Unknown'}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                  <div>
-                    <Label htmlFor="authorEmail">Author Email *</Label>
-                    <Input
-                      id="authorEmail"
-                      type="email"
-                      value={formData.authorEmail}
-                      onChange={(e) => handleInputChange('authorEmail', e.target.value)}
-                      placeholder="author@example.com"
-                      required
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Actions */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-2">
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isCreating}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {isCreating ? 'Creating...' : 'Create Post'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Actions */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isUpdating || !hasChanges}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {isUpdating ? 'Updating...' : 'Update Post'}
+                      </Button>
+                      
+                      {originalPost?.status === 'draft' && (
+                        <Button
+                          type="button"
+                          onClick={handlePublish}
+                          className="w-full"
+                          disabled={isUpdating}
+                          variant="default"
+                        >
+                          <Globe className="h-4 w-4 mr-2" />
+                          {isUpdating ? 'Publishing...' : 'Publish Now'}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -454,58 +550,54 @@ export default function CreateBlogPostPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Author Information in Preview Mode */}
+                  {/* Author Information in Preview Mode - Read Only */}
                   <Card>
                     <CardHeader>
                       <CardTitle>Author Information</CardTitle>
+                      <CardDescription>Author details cannot be changed after post creation</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <Label htmlFor="authorId-preview">Author ID *</Label>
-                        <Input
-                          id="authorId-preview"
-                          value={formData.authorId}
-                          onChange={(e) => handleInputChange('authorId', e.target.value)}
-                          placeholder="Author ID"
-                          required
-                        />
+                        <Label>Author Name</Label>
+                        <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md text-sm">
+                          {originalPost?.authorName || 'Unknown'}
+                        </div>
                       </div>
 
                       <div>
-                        <Label htmlFor="authorName-preview">Author Name *</Label>
-                        <Input
-                          id="authorName-preview"
-                          value={formData.authorName}
-                          onChange={(e) => handleInputChange('authorName', e.target.value)}
-                          placeholder="Author Name"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="authorEmail-preview">Author Email *</Label>
-                        <Input
-                          id="authorEmail-preview"
-                          type="email"
-                          value={formData.authorEmail}
-                          onChange={(e) => handleInputChange('authorEmail', e.target.value)}
-                          placeholder="author@example.com"
-                          required
-                        />
+                        <Label>Author Email</Label>
+                        <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md text-sm">
+                          {originalPost?.authorEmail || 'Unknown'}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardContent className="pt-6">
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={isCreating}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        {isCreating ? 'Creating...' : 'Create Post'}
-                      </Button>
+                      <div className="space-y-2">
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isUpdating || !hasChanges}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {isUpdating ? 'Updating...' : 'Update Post'}
+                        </Button>
+                        
+                        {originalPost?.status === 'draft' && (
+                          <Button
+                            type="button"
+                            onClick={handlePublish}
+                            className="w-full"
+                            disabled={isUpdating}
+                            variant="default"
+                          >
+                            <Globe className="h-4 w-4 mr-2" />
+                            {isUpdating ? 'Publishing...' : 'Publish Now'}
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -527,9 +619,9 @@ export default function CreateBlogPostPage() {
                               </Badge>
                             </div>
                           )}
-                          
+
                           <h1 className="text-4xl font-bold mb-4">{formData.title || 'Untitled'}</h1>
-                          
+
                           {formData.excerpt && (
                             <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">{formData.excerpt}</p>
                           )}

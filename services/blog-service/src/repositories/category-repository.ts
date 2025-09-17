@@ -80,11 +80,19 @@ export class CategoryRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await db
+    // First check if the category exists
+    const existingCategory = await this.findById(id);
+    
+    if (!existingCategory) {
+      return false;
+    }
+    
+    // Perform the delete operation
+    await db
       .delete(categories)
       .where(eq(categories.id, id));
     
-    return result.length > 0;
+    return true;
   }
 
   async getAll(): Promise<Category[]> {

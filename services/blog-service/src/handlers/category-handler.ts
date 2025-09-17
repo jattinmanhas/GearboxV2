@@ -15,7 +15,22 @@ export class CategoryHandler {
       const data = createCategorySchema.parse(request.body);
       const category = await categoryService.createCategory(data);
       
-      return ResponseHelper.created(reply, 'Category created successfully', category);
+      if (!category) {
+        return ResponseHelper.internalServerError(reply, 'Failed to create category - no data returned');
+      }
+      
+      // Serialize dates to strings for JSON response
+      const serializedCategory = {
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        color: category.color,
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
+      };
+      
+      return ResponseHelper.created(reply, 'Category created successfully', serializedCategory);
     } catch (error) {
       if (error instanceof Error) {
         return ResponseHelper.badRequest(reply, error.message);
@@ -34,7 +49,14 @@ export class CategoryHandler {
         return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return ResponseHelper.ok(reply, 'Category retrieved successfully', category);
+      // Serialize dates to strings for JSON response
+      const serializedCategory = {
+        ...category,
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
+      };
+      
+      return ResponseHelper.ok(reply, 'Category retrieved successfully', serializedCategory);
     } catch (error) {
       return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
@@ -49,7 +71,14 @@ export class CategoryHandler {
         return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return ResponseHelper.ok(reply, 'Category retrieved successfully', category);
+      // Serialize dates to strings for JSON response
+      const serializedCategory = {
+        ...category,
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
+      };
+      
+      return ResponseHelper.ok(reply, 'Category retrieved successfully', serializedCategory);
     } catch (error) {
       return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
@@ -64,7 +93,17 @@ export class CategoryHandler {
         filters.limit
       );
       
-      return ResponseHelper.ok(reply, 'Categories retrieved successfully', result);
+      // Serialize dates to strings for JSON response
+      const serializedResult = {
+        ...result,
+        categories: result.categories.map(category => ({
+          ...category,
+          createdAt: category.createdAt.toISOString(),
+          updatedAt: category.updatedAt.toISOString(),
+        })),
+      };
+      
+      return ResponseHelper.ok(reply, 'Categories retrieved successfully', serializedResult);
     } catch (error) {
       if (error instanceof Error) {
         return ResponseHelper.badRequest(reply, error.message);
@@ -78,7 +117,14 @@ export class CategoryHandler {
     try {
       const categories = await categoryService.getAllCategories();
       
-      return ResponseHelper.ok(reply, 'All categories retrieved successfully', categories);
+      // Serialize dates to strings for JSON response
+      const serializedCategories = categories.map(category => ({
+        ...category,
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
+      }));
+      
+      return ResponseHelper.ok(reply, 'All categories retrieved successfully', serializedCategories);
     } catch (error) {
       return ResponseHelper.internalServerError(reply, 'Internal server error');
     }
@@ -95,7 +141,14 @@ export class CategoryHandler {
         return ResponseHelper.notFound(reply, 'Category not found');
       }
       
-      return ResponseHelper.ok(reply, 'Category updated successfully', category);
+      // Serialize dates to strings for JSON response
+      const serializedCategory = {
+        ...category,
+        createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
+      };
+      
+      return ResponseHelper.ok(reply, 'Category updated successfully', serializedCategory);
     } catch (error) {
       if (error instanceof Error) {
         return ResponseHelper.badRequest(reply, error.message);

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Calendar, User, Eye, Clock, Tag, ArrowLeft, Share2, Bookmark } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -120,16 +121,13 @@ export default function BlogPostPage() {
         {/* Article Header */}
         <article className="mb-8">
           <header className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Badge className={getStatusColor(currentPost.status)}>
-                {currentPost.status}
-              </Badge>
-              {currentPost.categoryName && (
-                <Badge variant="outline">
+            {currentPost.categoryName && (
+              <div className="mb-4">
+                <Badge variant="outline" className="text-sm px-3 py-1">
                   {currentPost.categoryName}
                 </Badge>
-              )}
-            </div>
+              </div>
+            )}
             
             <h1 className="text-4xl font-bold mb-4">{currentPost.title}</h1>
             
@@ -177,10 +175,7 @@ export default function BlogPostPage() {
           )}
 
           {/* Article Content */}
-          <div 
-            className="prose prose-lg max-w-none"
-            dangerouslySetInnerHTML={{ __html: currentPost.content }}
-          />
+          <MarkdownRenderer content={currentPost.content} />
 
           {/* Tags */}
           {currentPost.tags && currentPost.tags.length > 0 && (
@@ -200,51 +195,81 @@ export default function BlogPostPage() {
 
         {/* Related Posts */}
         {relatedPosts.length > 0 && (
-          <section className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Related Posts</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <section className="mt-16 pt-8 border-t border-slate-200 dark:border-slate-700">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+                You might also like
+              </h2>
+              <p className="text-slate-600 dark:text-slate-400">
+                Discover more articles that might interest you
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {relatedPosts.map((post) => (
-                <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={post.id} className="group overflow-hidden border-0 shadow-lg hover:shadow-2xl bg-card/80 dark:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1">
                   {post.featuredImage && (
-                    <div className="relative h-48 w-full">
+                    <div className="relative h-48 w-full overflow-hidden">
                       <Image
                         src={post.featuredImage}
                         alt={post.title}
                         fill
-                        className="object-cover"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
                       />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                     </div>
                   )}
-                  <CardHeader>
-                    <CardTitle className="line-clamp-2">
-                      <Link 
-                        href={`/blog/${post.slug}`}
-                        className="hover:text-blue-600 transition-colors"
-                      >
-                        {post.title}
-                      </Link>
-                    </CardTitle>
-                    <CardDescription className="line-clamp-3">
-                      {post.excerpt}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          {post.authorName}
-                        </div>
+                  <CardHeader className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {formatDate(post.publishedAt || post.createdAt)}
+                      </span>
+                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                         <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4" />
                           {post.viewCount}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {post.readTime} min
-                        </div>
                       </div>
                     </div>
+                    <CardTitle className="line-clamp-2 text-xl group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      <Link 
+                        href={`/blog/${post.slug}`}
+                        className="hover:no-underline"
+                      >
+                        {post.title}
+                      </Link>
+                    </CardTitle>
+                    <CardDescription className="line-clamp-3 text-slate-600 dark:text-slate-300 mt-2">
+                      {post.excerpt}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 pt-0">
+                    <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-4">
+                      <div className="flex items-center gap-1">
+                        <User className="h-4 w-4" />
+                        {post.authorName}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {post.readTime} min read
+                      </div>
+                    </div>
+                    
+                    {post.tags && post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {post.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                            <Tag className="h-3 w-3 mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                        {post.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            +{post.tags.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

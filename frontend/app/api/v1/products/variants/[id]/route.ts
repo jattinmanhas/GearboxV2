@@ -70,9 +70,7 @@ export async function DELETE(
     // Forward the request to the product service
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/variants/${variantId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {},
     })
 
     const data = await response.json()

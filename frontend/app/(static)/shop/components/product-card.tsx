@@ -39,7 +39,8 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
     isProductInWishlist,
     wishlists,
     loadWishlists,
-    createWishlist
+    createWishlist,
+    getWishlistItemCount
   } = useWishlistStore()
 
   // Load variants for this product
@@ -122,9 +123,12 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               description: "Default wishlist",
               is_public: false
             })
-            // After creating, try to add the item
-            if (wishlists.length > 0) {
-              await addItemToWishlist(wishlists[0].id, product.id)
+            // After creating, reload wishlists and then add the item
+            await loadWishlists()
+            // Get the updated wishlists from the store
+            const store = useWishlistStore.getState()
+            if (store.wishlists.length > 0) {
+              await addItemToWishlist(store.wishlists[0].id, product.id)
             }
           } catch (createError) {
             console.error("Failed to create default wishlist:", createError)
@@ -147,10 +151,12 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="flex">
-            {/* Product Image */}
-            <div className="w-48 h-48 bg-muted flex items-center justify-center">
-              <Package className="h-12 w-12 text-muted-foreground" />
-            </div>
+            {/* Product Image - Clickable */}
+            <Link href={`/shop/products/${product.id}`} className="block">
+              <div className="w-48 h-48 bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
+                <Package className="h-12 w-12 text-muted-foreground" />
+              </div>
+            </Link>
             
             {/* Product Info */}
             <div className="flex-1 p-6">
@@ -208,7 +214,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleWishlist}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleWishlist()
+                      }}
                       disabled={isWishlisting}
                       className={isWishlisted ? "text-red-500" : ""}
                     >
@@ -216,13 +226,25 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     </Button>
                     <Button
                       size="sm"
-                      onClick={handleAddToCart}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleAddToCart()
+                      }}
                       disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {isAddingToCart ? "Adding..." : "Add to Cart"}
                     </Button>
-                    <Button variant="outline" size="sm" asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      asChild
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                      }}
+                    >
                       <Link href={`/shop/products/${product.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
@@ -239,34 +261,40 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
 
   // Grid view
   return (
-    <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
-      <CardContent className="p-0">
-        {/* Product Image */}
-        <div className="relative aspect-square bg-muted flex items-center justify-center">
-          <Package className="h-16 w-16 text-muted-foreground" />
-          {!product.is_active && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-              <Badge variant="secondary">Out of Stock</Badge>
+    <Card className="group overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
+      <CardContent className="p-0 h-full flex flex-col">
+        {/* Product Image - Clickable */}
+        <Link href={`/shop/products/${product.id}`} className="block">
+          <div className="relative aspect-square bg-muted flex items-center justify-center cursor-pointer">
+            <Package className="h-16 w-16 text-muted-foreground" />
+            {!product.is_active && (
+              <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                <Badge variant="secondary">Out of Stock</Badge>
+              </div>
+            )}
+            
+            {/* Quick Actions */}
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleWishlist()
+                }}
+                disabled={isWishlisting}
+                className={`h-8 w-8 p-0 ${isWishlisted ? "text-red-500" : ""}`}
+              >
+                <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
+              </Button>
             </div>
-          )}
-          
-          {/* Quick Actions */}
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleWishlist}
-              disabled={isWishlisting}
-              className={`h-8 w-8 p-0 ${isWishlisted ? "text-red-500" : ""}`}
-            >
-              <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
-            </Button>
           </div>
-        </div>
+        </Link>
         
-        {/* Product Info */}
-        <div className="p-4">
-          <div className="mb-2">
+        {/* Product Info - Flex grow to push buttons to bottom */}
+        <div className="p-4 flex flex-col flex-grow">
+          <div className="mb-2 flex-grow">
             <h3 className="font-semibold line-clamp-2 mb-1">
               {product.name}
             </h3>
@@ -308,17 +336,29 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
             )}
           </div>
           
-          {/* Actions */}
-          <div className="flex gap-2">
+          {/* Actions - Always at bottom */}
+          <div className="flex gap-2 mt-auto">
             <Button
               className="flex-1"
-              onClick={handleAddToCart}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleAddToCart()
+              }}
               disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
               {isAddingToCart ? "Adding..." : "Add to Cart"}
             </Button>
-            <Button variant="outline" size="sm" asChild>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              asChild
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+            >
               <Link href={`/shop/products/${product.id}`}>
                 <Eye className="h-4 w-4" />
               </Link>
