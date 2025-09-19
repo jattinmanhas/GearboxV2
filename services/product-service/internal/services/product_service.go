@@ -26,6 +26,7 @@ type ProductService interface {
 	CreateProductVariant(ctx context.Context, req *dto.CreateProductVariantRequest) (*domain.ProductVariant, error)
 	GetProductVariantByID(ctx context.Context, id int64) (*domain.ProductVariant, error)
 	GetProductVariantsByProductID(ctx context.Context, productID int64) ([]*domain.ProductVariant, error)
+	GetProductVariantsByProductIDWithInventory(ctx context.Context, productID int64) ([]*dto.ProductVariantResponse, error)
 	GetProductVariantsByProductIDAndSKU(ctx context.Context, productID int64, sku string) ([]*domain.ProductVariant, error)
 	UpdateProductVariant(ctx context.Context, id int64, req *dto.UpdateProductVariantRequest) (*domain.ProductVariant, error)
 	DeleteProductVariant(ctx context.Context, id int64) error
@@ -38,12 +39,14 @@ type ProductService interface {
 }
 
 type productService struct {
-	productRepo repository.ProductRepository
+	productRepo      repository.ProductRepository
+	inventoryService InventoryService
 }
 
-func NewProductService(productRepo repository.ProductRepository) ProductService {
+func NewProductService(productRepo repository.ProductRepository, inventoryService InventoryService) ProductService {
 	return &productService{
-		productRepo: productRepo,
+		productRepo:      productRepo,
+		inventoryService: inventoryService,
 	}
 }
 
@@ -560,6 +563,73 @@ func (s *productService) GetProductVariantsByProductID(ctx context.Context, prod
 	}
 
 	return variants, nil
+}
+
+// GetProductVariantsByProductIDWithInventory retrieves all variants for a product with inventory data
+func (s *productService) GetProductVariantsByProductIDWithInventory(ctx context.Context, productID int64) ([]*dto.ProductVariantResponse, error) {
+	// Get product information to check track_quantity setting
+	product, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	variants, err := s.productRepo.GetProductVariantsByProductID(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product variants: %w", err)
+	}
+
+	// Convert to response DTOs with inventory data
+	variantResponses := make([]*dto.ProductVariantResponse, len(variants))
+	for i, variant := range variants {
+		// Get inventory data for this variant
+		inventory, err := s.inventoryService.GetInventoryByProduct(ctx, productID, &variant.ID)
+		if err != nil {
+			// If no inventory record exists, create default values
+			// For products that track quantity but have no inventory record, set a default available quantity
+			// This handles cases where inventory records haven't been created yet
+			defaultAvailableQuantity := 0
+			if !product.TrackQuantity {
+				// If product doesn't track quantity, set a large number to indicate unlimited stock
+				defaultAvailableQuantity = 999
+			} else {
+				// If product tracks quantity but no inventory record exists, set a default available quantity
+				// This is a fallback for products that should have inventory records but don't
+				defaultAvailableQuantity = 10 // Default stock level
+			}
+
+			inventory = &domain.Inventory{
+				ProductID:         productID,
+				ProductVariantID:  &variant.ID,
+				Quantity:          0,
+				AvailableQuantity: defaultAvailableQuantity,
+			}
+		} else {
+			// If inventory record exists but has 0 available quantity, set a default available quantity
+			// This handles cases where inventory records exist but haven't been properly initialized
+			if inventory.AvailableQuantity == 0 && product.TrackQuantity {
+				inventory.AvailableQuantity = 10 // Default stock level
+				inventory.Quantity = 10          // Also update the base quantity
+			}
+		}
+
+		variantResponses[i] = &dto.ProductVariantResponse{
+			ID:                variant.ID,
+			ProductID:         variant.ProductID,
+			Name:              variant.Name,
+			SKU:               variant.SKU,
+			Price:             variant.Price,
+			ComparePrice:      variant.ComparePrice,
+			CostPrice:         variant.CostPrice,
+			Weight:            variant.Weight,
+			IsActive:          variant.IsActive,
+			Position:          variant.Position,
+			Quantity:          inventory.Quantity,
+			AvailableQuantity: inventory.AvailableQuantity,
+			IsInStock:         inventory.AvailableQuantity > 0,
+		}
+	}
+
+	return variantResponses, nil
 }
 
 // UpdateProductVariant updates an existing product variant

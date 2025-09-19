@@ -969,7 +969,7 @@ func (s *cartService) GetWishlistItemByID(ctx context.Context, id int64) (*domai
 	return item, nil
 }
 
-// GetWishlistItems retrieves items in a wishlist
+// GetWishlistItems retrieves items in a wishlist with product details
 func (s *cartService) GetWishlistItems(ctx context.Context, wishlistID int64, page, limit int) (*dto.ListWishlistItemsResponse, error) {
 	// Set default values
 	if page <= 0 {
@@ -989,9 +989,49 @@ func (s *cartService) GetWishlistItems(ctx context.Context, wishlistID int64, pa
 		return nil, fmt.Errorf("failed to get wishlist items: %w", err)
 	}
 
-	// Convert to response DTOs
+	// Convert to response DTOs with product details
 	itemResponses := make([]dto.WishlistItemResponse, len(items))
 	for i, item := range items {
+		// Get product details for each item
+		product, err := s.productRepo.GetProductByID(ctx, item.ProductID)
+		if err != nil {
+			// If product not found, create a minimal product response
+			product = &domain.Product{
+				ID:    item.ProductID,
+				Name:  "Product Not Found",
+				SKU:   "N/A",
+				Price: 0,
+			}
+		}
+
+		// Convert product to ProductResponse
+		productResponse := dto.ProductResponse{
+			ID:               product.ID,
+			Name:             product.Name,
+			Description:      product.Description,
+			ShortDesc:        product.ShortDesc,
+			SKU:              product.SKU,
+			Price:            product.Price,
+			ComparePrice:     product.ComparePrice,
+			CostPrice:        product.CostPrice,
+			Weight:           product.Weight,
+			Dimensions:       product.Dimensions,
+			IsActive:         product.IsActive,
+			IsDigital:        product.IsDigital,
+			RequiresShipping: product.RequiresShipping,
+			Taxable:          product.Taxable,
+			TrackQuantity:    product.TrackQuantity,
+			MinQuantity:      product.MinQuantity,
+			MaxQuantity:      product.MaxQuantity,
+			MetaTitle:        product.MetaTitle,
+			MetaDescription:  product.MetaDesc,
+			Tags:             product.Tags,
+			CategoryIDs:      product.CategoryIDs,
+			CategoryNames:    product.CategoryNames,
+			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+		}
+
 		itemResponses[i] = dto.WishlistItemResponse{
 			ID:               item.ID,
 			WishlistID:       item.WishlistID,
@@ -999,6 +1039,7 @@ func (s *cartService) GetWishlistItems(ctx context.Context, wishlistID int64, pa
 			ProductVariantID: item.ProductVariantID,
 			Notes:            item.Notes,
 			CreatedAt:        item.CreatedAt.Format(time.RFC3339),
+			Product:          productResponse,
 		}
 	}
 

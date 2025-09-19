@@ -48,12 +48,16 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
     const loadVariants = async () => {
       try {
         setVariantsLoading(true)
-        const variantsData = await productApi.getProductVariants(product.id)
+        const variantsData = await productApi.getProductVariantsWithInventory(product.id)
         setVariants(variantsData)
         
-        // Set the first active variant as selected, or the first variant if none are active
+        // Set the first in-stock and active variant as selected, or the first active variant, or the first variant
+        const inStockActiveVariants = variantsData.filter(v => v.is_active && v.is_in_stock)
         const activeVariants = variantsData.filter(v => v.is_active)
-        if (activeVariants.length > 0) {
+        
+        if (inStockActiveVariants.length > 0) {
+          setSelectedVariant(inStockActiveVariants[0])
+        } else if (activeVariants.length > 0) {
           setSelectedVariant(activeVariants[0])
         } else if (variantsData.length > 0) {
           setSelectedVariant(variantsData[0])
@@ -74,7 +78,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   )
 
   const handleAddToCart = async () => {
-    if (!product.is_active) return
+    if (!product.is_active || !selectedVariant?.is_in_stock) return
     
     setIsAddingToCart(true)
     try {
@@ -231,10 +235,10 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                         e.stopPropagation()
                         handleAddToCart()
                       }}
-                      disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
+                      disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
-                      {isAddingToCart ? "Adding..." : "Add to Cart"}
+                      {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -345,10 +349,10 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 e.stopPropagation()
                 handleAddToCart()
               }}
-              disabled={!product.is_active || isAddingToCart || cartLoading || variantsLoading}
+              disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
-              {isAddingToCart ? "Adding..." : "Add to Cart"}
+              {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
             </Button>
             <Button 
               variant="outline" 

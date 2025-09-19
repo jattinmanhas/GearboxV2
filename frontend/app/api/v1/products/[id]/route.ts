@@ -6,10 +6,10 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 // GET /api/v1/products/[id] - Get a specific product by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id
+    const { id: productId } = await params
 
     if (!productId || isNaN(Number(productId))) {
       return NextResponse.json(
@@ -42,10 +42,10 @@ export async function GET(
 // PUT /api/v1/products/[id] - Update a specific product by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id
+    const { id: productId } = await params
 
     if (!productId || isNaN(Number(productId))) {
       return NextResponse.json(
@@ -89,10 +89,10 @@ export async function PUT(
 // DELETE /api/v1/products/[id] - Delete a specific product by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id
+    const { id: productId } = await params
 
     if (!productId || isNaN(Number(productId))) {
       return NextResponse.json(

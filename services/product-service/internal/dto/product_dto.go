@@ -138,4 +138,8 @@ type ProductVariantResponse struct {
 	Weight       float64 `json:"weight"`
 	IsActive     bool    `json:"is_active"`
 	Position     int     `json:"position"`
+	// Inventory information
+	Quantity          int  `json:"quantity"`
+	AvailableQuantity int  `json:"available_quantity"`
+	IsInStock         bool `json:"is_in_stock"`
 }

@@ -32,6 +32,15 @@ export default function ProductDetailPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  
+  // Debug: Log selectedVariant changes
+  useEffect(() => {
+    console.log('Selected variant changed:', selectedVariant)
+    if (selectedVariant) {
+      console.log('Selected variant is_in_stock:', selectedVariant.is_in_stock)
+      console.log('Selected variant is_active:', selectedVariant.is_active)
+    }
+  }, [selectedVariant])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
@@ -63,17 +72,31 @@ export default function ProductDetailPage() {
             page: 1,
             limit: 10
           }),
-          productApi.getProductVariants(parseInt(productId))
+          productApi.getProductVariantsWithInventory(parseInt(productId))
         ])
         setProduct(productData)
         setCategories(categoriesData.data.categories)
         setVariants(variantsData)
         
-        // Set the first active variant as selected, or the first variant if none are active
+        // Debug: Log the variants data
+        console.log('Variants data:', variantsData)
+        console.log('Product data:', productData)
+        
+        // Set the first in-stock and active variant as selected, or the first active variant, or the first variant
+        const inStockActiveVariants = variantsData.filter(v => v.is_active && v.is_in_stock)
         const activeVariants = variantsData.filter(v => v.is_active)
-        if (activeVariants.length > 0) {
+        
+        console.log('In stock active variants:', inStockActiveVariants)
+        console.log('Active variants:', activeVariants)
+        
+        if (inStockActiveVariants.length > 0) {
+          console.log('Setting selected variant to in-stock variant:', inStockActiveVariants[0])
+          setSelectedVariant(inStockActiveVariants[0])
+        } else if (activeVariants.length > 0) {
+          console.log('Setting selected variant to active variant:', activeVariants[0])
           setSelectedVariant(activeVariants[0])
         } else if (variantsData.length > 0) {
+          console.log('Setting selected variant to first variant:', variantsData[0])
           setSelectedVariant(variantsData[0])
         }
       } catch (err) {
@@ -245,6 +268,22 @@ export default function ProductDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Stock Information */}
+              {selectedVariant && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={selectedVariant.is_in_stock ? "default" : "destructive"}>
+                      {selectedVariant.is_in_stock ? "In Stock" : "Out of Stock"}
+                    </Badge>
+                    {selectedVariant.is_in_stock && (
+                      <span className="text-sm text-muted-foreground">
+                        {selectedVariant.available_quantity} available
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Categories */}
@@ -276,11 +315,15 @@ export default function ProductDetailPage() {
                       size="sm"
                       onClick={() => setSelectedVariant(variant)}
                       className="flex items-center gap-2"
+                      disabled={!variant.is_in_stock}
                     >
                       {variant.name}
                       <span className="text-xs text-muted-foreground">
                         ({formatPrice(variant.price)})
                       </span>
+                      {!variant.is_in_stock && (
+                        <span className="text-xs text-red-500 ml-1">(Out of Stock)</span>
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -334,10 +377,10 @@ export default function ProductDetailPage() {
                   className="flex-1"
                   size="lg"
                   onClick={handleAddToCart}
-                  disabled={!product.is_active || isAddingToCart || cartLoading}
+                  disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading}
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                  {isAddingToCart ? "Adding..." : "Add to Cart"}
+                  {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
                 </Button>
                 <Button
                   variant="outline"

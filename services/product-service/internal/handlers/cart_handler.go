@@ -1110,7 +1110,7 @@ func (h *cartHandler) GetWishlistItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.OK(w, "Wishlist items retrieved successfully", response)
+	httpx.OK(w, "Wishlist items with product details retrieved successfully", response)
 }
 
 func (h *cartHandler) UpdateWishlistItem(w http.ResponseWriter, r *http.Request) {

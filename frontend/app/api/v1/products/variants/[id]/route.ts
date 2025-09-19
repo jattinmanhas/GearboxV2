@@ -4,10 +4,10 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const variantId = params.id
+    const { id: variantId } = await params
 
     // Forward the request to the product service
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/variants/${variantId}`, {
@@ -32,10 +32,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const variantId = params.id
+    const { id: variantId } = await params
     const body = await request.json()
 
     // Forward the request to the product service
@@ -62,10 +62,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const variantId = params.id
+    const { id: variantId } = await params
 
     // Forward the request to the product service
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/variants/${variantId}`, {

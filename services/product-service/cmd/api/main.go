@@ -47,8 +47,8 @@ func main() {
 
 	// Initialize services
 	categoryService := services.NewCategoryService(categoryRepo, productRepo)
-	productService := services.NewProductService(productRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo, productRepo)
+	productService := services.NewProductService(productRepo, inventoryService)
 	couponService := services.NewCouponService(couponRepo, cartRepo)
 	cartService := services.NewCartService(cartRepo, productRepo, inventoryService, couponService)
 

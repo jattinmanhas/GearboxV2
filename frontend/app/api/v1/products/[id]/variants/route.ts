@@ -4,10 +4,10 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id
+    const { id: productId } = await params
 
     // Forward the request to the product service
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/${productId}/variants`, {
@@ -32,10 +32,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id
+    const { id: productId } = await params
     const body = await request.json()
 
     // Forward the request to the product service

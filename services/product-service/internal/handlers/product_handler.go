@@ -29,6 +29,7 @@ type IProductHandler interface {
 	CreateProductVariant(w http.ResponseWriter, r *http.Request)
 	GetProductVariant(w http.ResponseWriter, r *http.Request)
 	GetProductVariants(w http.ResponseWriter, r *http.Request)
+	GetProductVariantsWithInventory(w http.ResponseWriter, r *http.Request)
 	UpdateProductVariant(w http.ResponseWriter, r *http.Request)
 	DeleteProductVariant(w http.ResponseWriter, r *http.Request)
 
@@ -464,6 +465,25 @@ func (h *productHandler) GetProductVariants(w http.ResponseWriter, r *http.Reque
 	}
 
 	httpx.OK(w, "product variants retrieved", variants)
+}
+
+// GetProductVariantsWithInventory handles GET /api/v1/products/{id}/variants-with-inventory
+func (h *productHandler) GetProductVariantsWithInventory(w http.ResponseWriter, r *http.Request) {
+	productIDStr := chi.URLParam(r, "id")
+
+	productID, err := strconv.ParseInt(productIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid product ID", err)
+		return
+	}
+
+	variants, err := h.productService.GetProductVariantsByProductIDWithInventory(r.Context(), productID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get product variants with inventory", err)
+		return
+	}
+
+	httpx.OK(w, "product variants with inventory retrieved", variants)
 }
 
 // UpdateProductVariant handles PUT /api/v1/products/variants/{id}

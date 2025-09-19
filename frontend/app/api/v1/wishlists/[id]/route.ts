@@ -4,10 +4,11 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}`, {
+    const { id } = await params
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -36,12 +37,13 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}`, {
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -71,10 +73,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}`, {
+    const { id } = await params
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}`, {
       method: 'DELETE',
       headers: {
         'Cookie': request.headers.get('cookie') || '',

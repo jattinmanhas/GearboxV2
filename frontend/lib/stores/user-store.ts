@@ -30,6 +30,9 @@ interface UserState {
   login: (userData: User) => void
   logout: () => void
   updateProfile: (profileData: Partial<User>) => void
+  validateToken: () => Promise<boolean>
+  checkAuthStatus: () => Promise<boolean>
+  initializeAuth: () => Promise<void>
 }
 
 export const useUserStore = create<UserState>()(
@@ -130,6 +133,61 @@ export const useUserStore = create<UserState>()(
           set({
             user: { ...currentUser, ...profileData }
           })
+        }
+      },
+
+      validateToken: async () => {
+        try {
+          // Try to refresh the token to validate if it's still valid
+          const response = await authApi.refreshToken()
+          return response.success || false
+        } catch (error) {
+          console.log('Token validation failed:', error)
+          return false
+        }
+      },
+
+      checkAuthStatus: async () => {
+        const state = get()
+        
+        // If not authenticated, return false immediately
+        if (!state.isAuthenticated || !state.user) {
+          return false
+        }
+        
+        // Validate the token
+        const isValid = await state.validateToken()
+        
+        // If token is invalid, clear user state
+        if (!isValid) {
+          state.clearUser()
+          return false
+        }
+        
+        return true
+      },
+
+      initializeAuth: async () => {
+        const state = get()
+        
+        // Only validate if user appears to be authenticated
+        if (state.isAuthenticated && state.user) {
+          console.log('Validating persisted authentication state...')
+          
+          try {
+            const isValid = await state.validateToken()
+            
+            if (!isValid) {
+              console.log('Persisted authentication is invalid, clearing user state')
+              state.clearUser()
+            } else {
+              console.log('Authentication state is valid')
+            }
+          } catch (error) {
+            console.error('Error validating authentication:', error)
+            // Clear user state on any error during validation
+            state.clearUser()
+          }
         }
       },
     }),

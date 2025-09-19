@@ -4,10 +4,11 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${params.id}/move-to-cart`, {
+    const { id } = await params
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}/move-to-cart`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

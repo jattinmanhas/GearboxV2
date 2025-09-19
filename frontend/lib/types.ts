@@ -124,6 +124,10 @@ export interface ProductVariant {
   position: number
   created_at: string
   updated_at: string
+  // Inventory information
+  quantity: number
+  available_quantity: number
+  is_in_stock: boolean
 }
 
 export interface CreateProductVariantRequest {

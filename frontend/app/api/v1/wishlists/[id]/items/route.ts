@@ -4,10 +4,11 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}/items`, {
+    const { id } = await params
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -36,12 +37,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${params.id}/items`, {
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

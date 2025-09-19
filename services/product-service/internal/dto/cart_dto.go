@@ -145,14 +145,15 @@ type UpdateWishlistItemRequest struct {
 	Notes *string `json:"notes" validate:"omitempty,max=500"`
 }
 
-// WishlistItemResponse represents the response for wishlist item data
+// WishlistItemResponse represents the response for wishlist item data with product details
 type WishlistItemResponse struct {
-	ID               int64  `json:"id"`
-	WishlistID       int64  `json:"wishlist_id"`
-	ProductID        int64  `json:"product_id"`
-	ProductVariantID *int64 `json:"product_variant_id"`
-	Notes            string `json:"notes"`
-	CreatedAt        string `json:"created_at"`
+	ID               int64           `json:"id"`
+	WishlistID       int64           `json:"wishlist_id"`
+	ProductID        int64           `json:"product_id"`
+	ProductVariantID *int64          `json:"product_variant_id"`
+	Notes            string          `json:"notes"`
+	CreatedAt        string          `json:"created_at"`
+	Product          ProductResponse `json:"product"`
 }
 
 // ListWishlistsResponse represents the response for listing wishlists

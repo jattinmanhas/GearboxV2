@@ -43,6 +43,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const { 
     cart, 
     items, 
+    appliedCoupons,
+    availableCoupons,
     isLoading, 
     error, 
     loadCart, 
@@ -52,12 +54,14 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     getItemCount,
     getTotalPrice,
     applyCoupon,
-    removeCoupon
+    removeCoupon,
+    loadAvailableCoupons
   } = useCartStore()
   
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [couponMessage, setCouponMessage] = useState("")
+  const [showAvailableCoupons, setShowAvailableCoupons] = useState(false)
 
   // Prevent hydration mismatch by only rendering on client
   useEffect(() => {
@@ -69,6 +73,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
       loadCart()
     }
   }, [open, cart, loadCart])
+
+  useEffect(() => {
+    if (open && availableCoupons.length === 0) {
+      loadAvailableCoupons()
+    }
+  }, [open, availableCoupons.length, loadAvailableCoupons])
+
 
   const handleQuantityChange = async (itemId: number, newQuantity: number) => {
     await updateQuantity(itemId, newQuantity)
@@ -96,6 +107,27 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
       setCouponMessage(error instanceof Error ? error.message : "Failed to apply coupon")
     } finally {
       setIsApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = async (couponCode: string) => {
+    try {
+      await removeCoupon(couponCode)
+      setCouponMessage("Coupon removed successfully!")
+    } catch (error) {
+      console.error("Failed to remove coupon:", error)
+      setCouponMessage(error instanceof Error ? error.message : "Failed to remove coupon")
+    }
+  }
+
+  const handleSelectCoupon = async (coupon: any) => {
+    try {
+      await applyCoupon(coupon.code)
+      setCouponMessage("Coupon applied successfully!")
+      setShowAvailableCoupons(false)
+    } catch (error) {
+      console.error("Failed to apply coupon:", error)
+      setCouponMessage(error instanceof Error ? error.message : "Failed to apply coupon")
     }
   }
 
@@ -264,30 +296,106 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               </div>
 
               {/* Coupon Section */}
-              <div className="py-4 border-t">
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Coupon Code</h4>
+              <div className="py-3 border-t">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Coupons</h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
+                    >
+                      {showAvailableCoupons ? "Hide" : "Browse"}
+                    </Button>
+                  </div>
+
+                  {/* Applied Coupons - Compact */}
+                  {appliedCoupons.length > 0 && (
+                    <div className="space-y-1">
+                      {appliedCoupons.map((coupon) => (
+                        <div key={coupon.id} className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-green-700 dark:text-green-300">
+                              {coupon.coupon_code}
+                            </span>
+                            <span className="text-green-600 dark:text-green-400">
+                              -{formatCurrency(coupon.discount_amount)}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCoupon(coupon.coupon_code)}
+                            className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Available Coupons - Compact */}
+                  {showAvailableCoupons && (
+                    <div className="space-y-1">
+                      <div className="max-h-20 overflow-y-auto space-y-1">
+                        {availableCoupons.map((coupon) => (
+                          <div key={coupon.id} className="flex items-center justify-between px-2 py-1 border rounded text-xs hover:bg-muted/50">
+                            <div className="flex-1">
+                              <div className="font-medium">{coupon.code}</div>
+                              <div className="text-muted-foreground">
+                                {(() => {
+                                  const discountValue = coupon.discount_value || coupon.discount_amount || 0;
+                                  const discountType = coupon.discount_type || 'fixed';
+                                  
+                                  if (isNaN(discountValue) || discountValue === null || discountValue === undefined) {
+                                    return 'Discount available';
+                                  }
+                                  
+                                  return discountType === 'percentage' 
+                                    ? `${discountValue}% off`
+                                    : `${formatCurrency(discountValue)} off`;
+                                })()}
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSelectCoupon(coupon)}
+                              disabled={appliedCoupons.some(ac => ac.coupon_code === coupon.code)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" : "Apply"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual Coupon Entry - Compact */}
                   <div className="flex gap-2">
                     <Input
                       placeholder="Enter coupon code"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 h-8 text-sm"
                     />
                     <Button
                       onClick={handleApplyCoupon}
                       disabled={!couponCode.trim() || isApplyingCoupon}
                       size="sm"
+                      className="h-8 px-3"
                     >
                       {isApplyingCoupon ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         "Apply"
                       )}
                     </Button>
                   </div>
                   {couponMessage && (
-                    <div className={`text-sm ${couponMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className={`text-xs ${couponMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
                       {couponMessage}
                     </div>
                   )}
@@ -295,8 +403,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               </div>
 
               {/* Cart Summary */}
-              <div className="py-4 border-t space-y-4">
-                <div className="space-y-2">
+              <div className="py-3 border-t space-y-2">
+                <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
                     <span>{formatCurrency(cart?.subtotal || totalPrice)}</span>
@@ -327,10 +435,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <Button 
                     className="w-full" 
-                    size="lg"
+                    size="sm"
                     asChild
                   >
                     <Link href="/checkout">
@@ -344,6 +452,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     <Button 
                       variant="outline" 
                       className="flex-1"
+                      size="sm"
                       asChild
                     >
                       <Link href="/shop" onClick={() => onOpenChange(false)}>

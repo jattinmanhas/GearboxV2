@@ -76,45 +76,23 @@ export const useWishlistStore = create<WishlistStore>()(
           const wishlistsWithItems = await Promise.all(
             wishlistsData.map(async (wishlist: any) => {
               try {
-                // Fetch items for this wishlist
+                // Fetch items for this wishlist with product details
                 const itemsResponse = await wishlistApi.getWishlistItems(wishlist.id.toString())
                 
                 // Handle different response structures for items
                 const items = itemsResponse.data?.items || itemsResponse.items || itemsResponse.data || []
                 
-                // Fetch product details for each item
-                const itemsWithProductDetails = await Promise.all(
-                  items.map(async (item: any) => {
-                    try {
-                      // Fetch product details
-                      const productResponse = await productApi.getProduct(item.product_id)
-                      const product = productResponse
-                      
-                      return {
-                        id: item.id,
-                        product_id: item.product_id,
-                        product_name: product.name || 'Unknown Product',
-                        product_sku: product.sku || 'N/A',
-                        price: product.price || 0,
-                        image: undefined, // Product images not available in current API
-                        added_at: item.created_at,
-                        notes: item.notes || ''
-                      }
-                    } catch (productError) {
-                      console.error(`Failed to fetch product ${item.product_id}:`, productError)
-                      return {
-                        id: item.id,
-                        product_id: item.product_id,
-                        product_name: 'Unknown Product',
-                        product_sku: 'N/A',
-                        price: 0,
-                        image: undefined,
-                        added_at: item.created_at,
-                        notes: item.notes || ''
-                      }
-                    }
-                  })
-                )
+                // Map items with product details (no need for additional API calls)
+                const itemsWithProductDetails = items.map((item: any) => ({
+                  id: item.id,
+                  product_id: item.product_id,
+                  product_name: item.product?.name || 'Unknown Product',
+                  product_sku: item.product?.sku || 'N/A',
+                  price: item.product?.price || 0,
+                  image: undefined, // Product images not available in current API
+                  added_at: item.created_at,
+                  notes: item.notes || ''
+                }))
                 
                 return {
                   ...wishlist,

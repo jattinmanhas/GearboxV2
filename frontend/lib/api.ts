@@ -49,6 +49,25 @@ export async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json()
   
   if (!response.ok) {
+    // Handle 401 Unauthorized responses by clearing user state
+    if (response.status === 401) {
+      // Import user store dynamically to avoid circular dependencies
+      const { useUserStore } = await import('./stores/user-store')
+      const userStore = useUserStore.getState()
+      
+      // Clear user state if user is currently authenticated
+      if (userStore.isAuthenticated) {
+        console.log('Token expired or invalid, clearing user state')
+        userStore.clearUser()
+        
+        // Optional: Redirect to login page if not already there
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          console.log('Redirecting to login page due to expired token')
+          window.location.href = '/login'
+        }
+      }
+    }
+    
     // Extract detailed error message from backend response
     let errorMessage = data.message || 'Request failed'
     
@@ -114,6 +133,7 @@ export const authApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Important: include cookies for authentication
     })
     
     return handleResponse<ApiResponse>(response)
@@ -276,6 +296,20 @@ export const productApi = {
     })
     
     const result = await handleResponse<{data: ProductVariant[]}>(response)
+    return result.data
+  },
+
+  async getProductVariantsWithInventory(productId: number): Promise<ProductVariant[]> {
+    const response = await fetch(`${API_BASE_URL}/products/${productId}/variants-with-inventory`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    const result = await handleResponse<{data: ProductVariant[]}>(response)
+    console.log('API response for variants:', result)
+    console.log('Extracted data:', result.data)
     return result.data
   },
 
@@ -691,6 +725,7 @@ export const wishlistApi = {
     
     return handleResponse<any>(response)
   },
+
 
   async addItemToWishlist(wishlistId: string, itemData: any): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/wishlists/${wishlistId}/items`, {

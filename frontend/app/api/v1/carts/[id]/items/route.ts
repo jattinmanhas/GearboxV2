@@ -5,12 +5,13 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 // GET /api/v1/carts/[id]/items - Get cart items
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const queryString = searchParams.toString()
-    const url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${params.id}/items${queryString ? `?${queryString}` : ''}`
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items${queryString ? `?${queryString}` : ''}`
 
     const response = await fetch(url, {
       method: 'GET',
@@ -42,12 +43,13 @@ export async function GET(
 // POST /api/v1/carts/[id]/items - Add item to cart
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${params.id}/items`, {
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,10 +80,11 @@ export async function POST(
 // DELETE /api/v1/carts/[id]/items - Clear cart items
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${params.id}/items`, {
+    const { id } = await params
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`, {
       method: 'DELETE',
       headers: {
         'Cookie': request.headers.get('cookie') || '',

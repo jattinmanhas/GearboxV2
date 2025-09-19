@@ -60,6 +60,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			// Product variants
 			r.Post("/{id}/variants", productHandler.CreateProductVariant)
 			r.Get("/{id}/variants", productHandler.GetProductVariants)
+			r.Get("/{id}/variants-with-inventory", productHandler.GetProductVariantsWithInventory)
 			r.Put("/variants/{id}", productHandler.UpdateProductVariant)
 			r.Delete("/variants/{id}", productHandler.DeleteProductVariant)
 			r.Get("/variants/{id}", productHandler.GetProductVariant)
