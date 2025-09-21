@@ -26,9 +26,11 @@ type ProductRepository interface {
 	CreateProductVariant(ctx context.Context, variant *domain.ProductVariant) error
 	GetProductVariantByID(ctx context.Context, id int64) (*domain.ProductVariant, error)
 	GetProductVariantsByProductID(ctx context.Context, productID int64) ([]*domain.ProductVariant, error)
+	GetProductVariants(ctx context.Context, productID int64) ([]*domain.ProductVariant, error)
 	UpdateProductVariant(ctx context.Context, id int64, variant *domain.ProductVariant) error
 	DeleteProductVariant(ctx context.Context, id int64) error
 	GetProductVariantsByProductIDAndSKU(ctx context.Context, productID int64, sku string) ([]*domain.ProductVariant, error)
+	HasVariants(ctx context.Context, productID int64) (bool, error)
 
 	// Product Categories
 	AddProductToCategory(ctx context.Context, productID, categoryID int64, isPrimary bool) error
@@ -663,6 +665,56 @@ func (r *productRepository) buildWhereClause(filter *domain.ProductFilter) (stri
 		conditions = append(conditions, "("+strings.Join(tagConditions, " OR ")+")")
 	}
 
+	if filter.InStock != nil {
+		if *filter.InStock {
+			// Filter for products that are in stock:
+			// 1. Products with variants that have at least one in-stock variant
+			// 2. Products without variants that have inventory with available_quantity > 0
+			conditions = append(conditions, `(
+				id IN (
+					SELECT DISTINCT pv.product_id FROM product_variants pv
+					INNER JOIN inventory i ON pv.id = i.product_variant_id
+					WHERE pv.is_active = true AND i.available_quantity > 0
+				) OR (
+					id NOT IN (SELECT DISTINCT product_id FROM product_variants) 
+					AND id IN (
+						SELECT product_id FROM inventory 
+						WHERE product_variant_id IS NULL 
+						AND available_quantity > 0
+					)
+				)
+			)`)
+		} else {
+			// Filter for products that are out of stock:
+			// 1. Products with variants that have no in-stock variants
+			// 2. Products without variants that have no inventory or available_quantity = 0
+			conditions = append(conditions, `(
+				id NOT IN (
+					SELECT DISTINCT pv.product_id FROM product_variants pv
+					INNER JOIN inventory i ON pv.id = i.product_variant_id
+					WHERE pv.is_active = true AND i.available_quantity > 0
+				) AND (
+					id IN (SELECT DISTINCT product_id FROM product_variants) OR
+					id NOT IN (
+						SELECT product_id FROM inventory 
+						WHERE product_variant_id IS NULL 
+						AND available_quantity > 0
+					)
+				)
+			)`)
+		}
+	}
+
+	if filter.OnSale != nil {
+		if *filter.OnSale {
+			// Filter for products that are on sale (compare_price > price)
+			conditions = append(conditions, "compare_price > price AND compare_price > 0")
+		} else {
+			// Filter for products that are not on sale
+			conditions = append(conditions, "(compare_price <= price OR compare_price = 0 OR compare_price IS NULL)")
+		}
+	}
+
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
@@ -709,6 +761,22 @@ func (r *productRepository) GetProductVariantsByProductIDAndSKU(ctx context.Cont
 	}
 
 	return variants, nil
+}
+
+// GetProductVariants is an alias for GetProductVariantsByProductID for consistency
+func (r *productRepository) GetProductVariants(ctx context.Context, productID int64) ([]*domain.ProductVariant, error) {
+	return r.GetProductVariantsByProductID(ctx, productID)
+}
+
+// HasVariants checks if a product has any variants
+func (r *productRepository) HasVariants(ctx context.Context, productID int64) (bool, error) {
+	query := `SELECT COUNT(*) FROM product_variants WHERE product_id = $1`
+	var count int
+	err := r.db.GetContext(ctx, &count, query, productID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if product has variants: %w", err)
+	}
+	return count > 0, nil
 }
 
 func (r *productRepository) CheckCategoryHasProducts(ctx context.Context, categoryID int64) (bool, error) {

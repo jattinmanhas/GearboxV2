@@ -109,6 +109,10 @@ export interface Product {
   category_names?: string[]
   created_at: string
   updated_at: string
+  // Stock information for products without variants
+  quantity: number
+  available_quantity: number
+  is_in_stock: boolean
 }
 
 export interface ProductVariant {
@@ -240,6 +244,7 @@ export interface ProductFilters {
   min_price?: number
   max_price?: number
   in_stock?: boolean
+  on_sale?: boolean
   tags?: string[]
   sort_by?: string
   sort_order?: 'asc' | 'desc'

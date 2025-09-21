@@ -182,11 +182,17 @@ export const useCartStore = create<CartStore>()(
           if (currentState.appliedCoupons.length > 0) {
             await get().recalculatePercentageDiscounts()
           }
+          
+          // Show success notification
+          showSuccess(NotificationMessages.cart.itemAdded)
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to add item to cart'
           set({ 
-            error: error instanceof Error ? error.message : 'Failed to add item to cart',
+            error: errorMessage,
             isLoading: false 
           })
+          // Show error notification
+          showError(NotificationMessages.cart.addError)
         }
       },
 
@@ -204,11 +210,17 @@ export const useCartStore = create<CartStore>()(
             } : null,
             isLoading: false
           }))
+          
+          // Show success notification
+          showSuccess(NotificationMessages.cart.itemRemoved)
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to remove item from cart'
           set({ 
-            error: error instanceof Error ? error.message : 'Failed to remove item from cart',
+            error: errorMessage,
             isLoading: false 
           })
+          // Show error notification
+          showError(NotificationMessages.cart.removeError)
         }
       },
 
@@ -349,6 +361,17 @@ export const useCartStore = create<CartStore>()(
           
           if (!state.cart) {
             throw new Error('No cart available')
+          }
+          
+          // If there's already a coupon applied, remove it first
+          if (state.appliedCoupons.length > 0) {
+            const existingCoupon = state.appliedCoupons[0]
+            try {
+              await cartApi.removeCouponFromCart(state.cart.id, existingCoupon.coupon_code)
+            } catch (removeError) {
+              console.warn('Failed to remove existing coupon:', removeError)
+              // Continue with applying new coupon even if removal fails
+            }
           }
           
           await cartApi.applyCouponToCart(state.cart.id, couponCode)

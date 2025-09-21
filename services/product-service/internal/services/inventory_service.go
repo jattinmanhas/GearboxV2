@@ -613,6 +613,17 @@ func (s *inventoryService) GetProductAvailableQuantity(ctx context.Context, prod
 
 // IsProductInStock checks if a product/variant is in stock
 func (s *inventoryService) IsProductInStock(ctx context.Context, productID int64, variantID *int64) (bool, error) {
+	// First check if this is a digital product
+	product, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	// Digital products are always in stock
+	if product.IsDigital {
+		return true, nil
+	}
+
 	availableQuantity, err := s.GetProductAvailableQuantity(ctx, productID, variantID)
 	if err != nil {
 		return false, err
@@ -622,6 +633,17 @@ func (s *inventoryService) IsProductInStock(ctx context.Context, productID int64
 
 // CheckStockAvailability checks if there's enough stock for the requested quantity
 func (s *inventoryService) CheckStockAvailability(ctx context.Context, productID int64, variantID *int64, requestedQuantity int) (bool, error) {
+	// First check if this is a digital product
+	product, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	// Digital products are always available in unlimited quantities
+	if product.IsDigital {
+		return true, nil
+	}
+
 	availableQuantity, err := s.GetProductAvailableQuantity(ctx, productID, variantID)
 	if err != nil {
 		return false, err

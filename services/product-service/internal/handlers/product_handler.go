@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
@@ -97,32 +96,11 @@ func (h *productHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert domain Product to ProductResponse
-	productResponse := dto.ProductResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		Description:      product.Description,
-		ShortDesc:        product.ShortDesc,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		ComparePrice:     product.ComparePrice,
-		CostPrice:        product.CostPrice,
-		Weight:           product.Weight,
-		Dimensions:       product.Dimensions,
-		IsActive:         product.IsActive,
-		IsDigital:        product.IsDigital,
-		RequiresShipping: product.RequiresShipping,
-		Taxable:          product.Taxable,
-		TrackQuantity:    product.TrackQuantity,
-		MinQuantity:      product.MinQuantity,
-		MaxQuantity:      product.MaxQuantity,
-		MetaTitle:        product.MetaTitle,
-		MetaDescription:  product.MetaDesc,
-		Tags:             product.Tags,
-		CategoryIDs:      product.CategoryIDs,
-		CategoryNames:    product.CategoryNames,
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+	// Get product with stock information
+	productResponse, err := h.productService.GetProductWithStockInfo(r.Context(), product)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get product stock info", err)
+		return
 	}
 
 	httpx.OK(w, "product retrieved", productResponse)
@@ -249,6 +227,12 @@ func (h *productHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	if inStockStr := r.URL.Query().Get("in_stock"); inStockStr != "" {
 		if inStock, err := strconv.ParseBool(inStockStr); err == nil {
 			req.InStock = &inStock
+		}
+	}
+
+	if onSaleStr := r.URL.Query().Get("on_sale"); onSaleStr != "" {
+		if onSale, err := strconv.ParseBool(onSaleStr); err == nil {
+			req.OnSale = &onSale
 		}
 	}
 

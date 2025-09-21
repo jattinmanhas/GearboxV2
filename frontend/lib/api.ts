@@ -226,6 +226,7 @@ export const productApi = {
     if (filters.min_price !== undefined) params.append('min_price', filters.min_price.toString())
     if (filters.max_price !== undefined) params.append('max_price', filters.max_price.toString())
     if (filters.in_stock !== undefined) params.append('in_stock', filters.in_stock.toString())
+    if (filters.on_sale !== undefined) params.append('on_sale', filters.on_sale.toString())
     if (filters.tags && filters.tags.length > 0) params.append('tags', filters.tags.join(','))
     if (filters.sort_by) params.append('sort_by', filters.sort_by)
     if (filters.sort_order) params.append('sort_order', filters.sort_order)
@@ -248,7 +249,8 @@ export const productApi = {
       },
     })
     
-    return handleResponse<Product>(response)
+    const data = await handleResponse<{data: Product}>(response)
+    return data.data
   },
 
   async createProduct(productData: CreateProductRequest): Promise<Product> {

@@ -44,6 +44,31 @@ export const navLinks: NavItems[] = [
   },
 ]
 
+// Client-side only component to prevent hydration mismatch
+function WishlistBadge() {
+  const { getWishlistItemCount } = useWishlistStore()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
+  const count = getWishlistItemCount()
+  if (count === 0) {
+    return null
+  }
+
+  return (
+    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+      {count}
+    </span>
+  )
+}
+
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNavbarVisible, setIsNavbarVisible] = useState(true)
@@ -153,11 +178,7 @@ export function Navbar() {
               <Button variant="ghost" size="sm" asChild className="relative">
                 <Link href="/wishlist">
                   <Heart className="h-4 w-4" />
-                  {getWishlistItemCount() > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {getWishlistItemCount()}
-                    </span>
-                  )}
+                  <WishlistBadge />
                   <span className="sr-only">Wishlist</span>
                 </Link>
               </Button>

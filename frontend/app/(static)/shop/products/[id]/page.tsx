@@ -241,8 +241,8 @@ export default function ProductDetailPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h1 className="text-3xl font-bold">{product.name}</h1>
-                {!product.is_active && (
-                  <Badge variant="secondary">Out of Stock</Badge>
+                {!product.is_in_stock && (
+                  <Badge variant="destructive">Out of Stock</Badge>
                 )}
               </div>
               
@@ -270,20 +270,33 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Stock Information */}
-              {selectedVariant && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={selectedVariant.is_in_stock ? "default" : "destructive"}>
-                      {selectedVariant.is_in_stock ? "In Stock" : "Out of Stock"}
-                    </Badge>
-                    {selectedVariant.is_in_stock && (
-                      <span className="text-sm text-muted-foreground">
-                        {selectedVariant.available_quantity} available
-                      </span>
-                    )}
-                  </div>
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  {selectedVariant ? (
+                    <>
+                      <Badge variant={selectedVariant.is_in_stock ? "default" : "destructive"}>
+                        {selectedVariant.is_in_stock ? "In Stock" : "Out of Stock"}
+                      </Badge>
+                      {selectedVariant.is_in_stock && (
+                        <span className="text-sm text-muted-foreground">
+                          {selectedVariant.available_quantity} available
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant={product.is_in_stock ? "default" : "destructive"}>
+                        {product.is_in_stock ? "In Stock" : "Out of Stock"}
+                      </Badge>
+                      {product.is_in_stock && (
+                        <span className="text-sm text-muted-foreground">
+                          {product.available_quantity} available
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Categories */}
@@ -314,7 +327,9 @@ export default function ProductDetailPage() {
                       variant={selectedVariant?.id === variant.id ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedVariant(variant)}
-                      className="flex items-center gap-2"
+                      className={`flex items-center gap-2 ${
+                        !variant.is_in_stock ? 'opacity-60 cursor-not-allowed' : ''
+                      }`}
                       disabled={!variant.is_in_stock}
                     >
                       {variant.name}
@@ -332,6 +347,9 @@ export default function ProductDetailPage() {
                     Selected: <span className="font-medium">{selectedVariant.name}</span>
                     <span className="ml-2">•</span>
                     <span className="ml-2">SKU: {selectedVariant.sku}</span>
+                    {!selectedVariant.is_in_stock && (
+                      <span className="ml-2 text-red-500">• Out of Stock</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -345,53 +363,106 @@ export default function ProductDetailPage() {
               </p>
             </div>
 
+            {/* Stock Status */}
+            <div className="space-y-2">
+              {(() => {
+                const isInStock = variants.length > 0 
+                  ? (selectedVariant?.is_in_stock ?? false)
+                  : product.is_in_stock
+                
+                return (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg ${
+                    isInStock 
+                      ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' 
+                      : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full ${
+                      isInStock ? 'bg-green-500' : 'bg-red-500'
+                    }`} />
+                    <span className={`text-sm font-medium ${
+                      isInStock ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
+                    }`}>
+                      {isInStock ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                    {isInStock && product.available_quantity > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        ({product.available_quantity} available)
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium mb-2">Quantity</h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="h-10 w-10 p-0"
-                  >
-                    -
-                  </Button>
-                  <span className="text-lg font-medium min-w-[3rem] text-center">
-                    {quantity}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="h-10 w-10 p-0"
-                  >
-                    +
-                  </Button>
-                </div>
-              </div>
+              {(() => {
+                const isInStock = variants.length > 0 
+                  ? (selectedVariant?.is_in_stock ?? false)
+                  : product.is_in_stock
+                
+                if (!isInStock) {
+                  return (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground mb-4">This product is currently out of stock.</p>
+                      <Button variant="outline" disabled>
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Out of Stock
+                      </Button>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Quantity</h3>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="h-10 w-10 p-0"
+                        >
+                          -
+                        </Button>
+                        <span className="text-lg font-medium min-w-[3rem] text-center">
+                          {quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setQuantity(quantity + 1)}
+                          className="h-10 w-10 p-0"
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
 
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1"
-                  size="lg"
-                  onClick={handleAddToCart}
-                  disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleWishlist}
-                  disabled={isWishlisting}
-                  className={isWishlisted ? "text-red-500" : ""}
-                >
-                  <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
-                </Button>
-              </div>
+                    <div className="flex gap-3">
+                      <Button
+                        className="flex-1"
+                        size="lg"
+                        onClick={handleAddToCart}
+                        disabled={!isInStock || !product.is_active || isAddingToCart || cartLoading}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        {isAddingToCart ? "Adding..." : "Add to Cart"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={handleWishlist}
+                        disabled={isWishlisting}
+                        className={isWishlisted ? "text-red-500" : ""}
+                      >
+                        <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
+                      </Button>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             {/* Features */}

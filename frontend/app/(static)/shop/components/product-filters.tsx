@@ -20,6 +20,12 @@ interface ProductFiltersProps {
   onCategoryChange: (categoryId: number | undefined) => void
   priceRange: [number, number]
   onPriceChange: (range: [number, number]) => void
+  inStock?: boolean | undefined
+  onInStockChange: (value: boolean | undefined) => void
+  onSale?: boolean | undefined
+  onOnSaleChange: (value: boolean | undefined) => void
+  isDigital?: boolean | undefined
+  onIsDigitalChange: (value: boolean | undefined) => void
 }
 
 export function ProductFilters({
@@ -27,7 +33,13 @@ export function ProductFilters({
   selectedCategory,
   onCategoryChange,
   priceRange,
-  onPriceChange
+  onPriceChange,
+  inStock,
+  onInStockChange,
+  onSale,
+  onOnSaleChange,
+  isDigital,
+  onIsDigitalChange
 }: ProductFiltersProps) {
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
@@ -54,9 +66,12 @@ export function ProductFilters({
   const clearFilters = () => {
     onCategoryChange(undefined)
     onPriceChange([0, 1000])
+    onInStockChange(undefined)
+    onOnSaleChange(undefined)
+    onIsDigitalChange(undefined)
   }
 
-  const hasActiveFilters = selectedCategory !== undefined || priceRange[0] > 0 || priceRange[1] < 1000
+  const hasActiveFilters = selectedCategory !== undefined || priceRange[0] > 0 || priceRange[1] < 1000 || inStock !== undefined || onSale !== undefined || isDigital !== undefined
 
   return (
     <div className="space-y-4">
@@ -203,27 +218,33 @@ export function ProductFilters({
           <CardContent className="pt-0">
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Checkbox id="on-sale" />
-                <Label htmlFor="on-sale" className="text-sm">
-                  On Sale
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="in-stock" />
+                <Checkbox 
+                  id="in-stock" 
+                  checked={inStock === true}
+                  onCheckedChange={(checked) => onInStockChange(checked ? true : undefined)}
+                />
                 <Label htmlFor="in-stock" className="text-sm">
                   In Stock
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="digital" />
-                <Label htmlFor="digital" className="text-sm">
-                  Digital Products
+                <Checkbox 
+                  id="on-sale" 
+                  checked={onSale === true}
+                  onCheckedChange={(checked) => onOnSaleChange(checked ? true : undefined)}
+                />
+                <Label htmlFor="on-sale" className="text-sm">
+                  On Sale
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="free-shipping" />
-                <Label htmlFor="free-shipping" className="text-sm">
-                  Free Shipping
+                <Checkbox 
+                  id="digital" 
+                  checked={isDigital === true}
+                  onCheckedChange={(checked) => onIsDigitalChange(checked ? true : undefined)}
+                />
+                <Label htmlFor="digital" className="text-sm">
+                  Digital Products
                 </Label>
               </div>
             </div>
@@ -254,6 +275,33 @@ export function ProductFilters({
                   <X 
                     className="h-3 w-3 cursor-pointer" 
                     onClick={() => onPriceChange([0, 1000])}
+                  />
+                </Badge>
+              )}
+              {inStock === true && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  In Stock
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => onInStockChange(undefined)}
+                  />
+                </Badge>
+              )}
+              {onSale === true && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  On Sale
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => onOnSaleChange(undefined)}
+                  />
+                </Badge>
+              )}
+              {isDigital === true && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Digital
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => onIsDigitalChange(undefined)}
                   />
                 </Badge>
               )}

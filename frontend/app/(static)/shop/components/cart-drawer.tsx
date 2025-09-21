@@ -338,6 +338,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                   {/* Available Coupons - Compact */}
                   {showAvailableCoupons && (
                     <div className="space-y-1">
+                      {appliedCoupons.length > 0 && (
+                        <div className="text-xs text-muted-foreground px-2 py-1 bg-blue-50 dark:bg-blue-950/20 rounded">
+                          Only one coupon can be applied per cart. Remove the current coupon to apply a different one.
+                        </div>
+                      )}
                       <div className="max-h-20 overflow-y-auto space-y-1">
                         {availableCoupons.map((coupon) => (
                           <div key={coupon.id} className="flex items-center justify-between px-2 py-1 border rounded text-xs hover:bg-muted/50">
@@ -345,15 +350,17 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                               <div className="font-medium">{coupon.code}</div>
                               <div className="text-muted-foreground">
                                 {(() => {
-                                  const discountValue = coupon.discount_value || coupon.discount_amount || 0;
-                                  const discountType = coupon.discount_type || 'fixed';
+                                  const discountValue = coupon.value || 0;
+                                  const discountType = coupon.type || 'fixed_amount';
                                   
-                                  if (isNaN(discountValue) || discountValue === null || discountValue === undefined) {
+                                  if (isNaN(discountValue) || discountValue === null || discountValue === undefined || discountValue === 0) {
                                     return 'Discount available';
                                   }
                                   
                                   return discountType === 'percentage' 
                                     ? `${discountValue}% off`
+                                    : discountType === 'free_shipping'
+                                    ? 'Free shipping'
                                     : `${formatCurrency(discountValue)} off`;
                                 })()}
                               </div>
@@ -362,10 +369,11 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => handleSelectCoupon(coupon)}
-                              disabled={appliedCoupons.some(ac => ac.coupon_code === coupon.code)}
+                              disabled={appliedCoupons.length > 0}
                               className="h-6 px-2 text-xs"
                             >
-                              {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" : "Apply"}
+                              {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" : 
+                               appliedCoupons.length > 0 ? "Remove existing first" : "Apply"}
                             </Button>
                           </div>
                         ))}

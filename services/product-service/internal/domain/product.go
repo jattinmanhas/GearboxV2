@@ -93,6 +93,7 @@ type ProductFilter struct {
 	MinPrice   *float64 `json:"min_price"`
 	MaxPrice   *float64 `json:"max_price"`
 	InStock    *bool    `json:"in_stock"`
+	OnSale     *bool    `json:"on_sale"`
 	Search     string   `json:"search"`
 	Tags       []string `json:"tags"`
 	SortBy     string   `json:"sort_by"`    // name, price, created_at, etc.

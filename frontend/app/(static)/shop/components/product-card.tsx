@@ -78,7 +78,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   )
 
   const handleAddToCart = async () => {
-    if (!product.is_active || !selectedVariant?.is_in_stock) return
+    if (!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock)) return
     
     setIsAddingToCart(true)
     try {
@@ -170,8 +170,8 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     <h3 className="text-lg font-semibold line-clamp-1">
                       {product.name}
                     </h3>
-                    {!product.is_active && (
-                      <Badge variant="secondary">Out of Stock</Badge>
+                    {!product.is_in_stock && (
+                      <Badge variant="destructive">Out of Stock</Badge>
                     )}
                   </div>
                   
@@ -235,7 +235,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                         e.stopPropagation()
                         handleAddToCart()
                       }}
-                      disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading || variantsLoading}
+                      disabled={!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
@@ -271,9 +271,9 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
         <Link href={`/shop/products/${product.id}`} className="block">
           <div className="relative aspect-square bg-muted flex items-center justify-center cursor-pointer">
             <Package className="h-16 w-16 text-muted-foreground" />
-            {!product.is_active && (
+            {!product.is_in_stock && (
               <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                <Badge variant="secondary">Out of Stock</Badge>
+                <Badge variant="destructive">Out of Stock</Badge>
               </div>
             )}
             
@@ -349,7 +349,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 e.stopPropagation()
                 handleAddToCart()
               }}
-              disabled={!product.is_active || !selectedVariant?.is_in_stock || isAddingToCart || cartLoading || variantsLoading}
+              disabled={!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
               {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}

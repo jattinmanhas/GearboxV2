@@ -390,6 +390,15 @@ func (s *couponService) ApplyCouponToCart(ctx context.Context, cartID int64, cou
 		return nil, 0, fmt.Errorf("coupon %s is already applied to this cart", couponCode)
 	}
 
+	// Check if any coupon is already applied to cart (enforce single coupon)
+	existingCoupons, err := s.cartRepo.GetCartCoupons(ctx, cartID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to check existing coupons: %w", err)
+	}
+	if len(existingCoupons) > 0 {
+		return nil, 0, fmt.Errorf("only one coupon can be applied per cart. Please remove the existing coupon first")
+	}
+
 	// Apply coupon to cart
 	cartCoupon := &domain.CartCoupon{
 		CartID:         cartID,

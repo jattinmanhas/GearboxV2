@@ -74,6 +74,10 @@ type ProductResponse struct {
 	CategoryNames    []string `json:"category_names"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
+	// Stock information for products without variants
+	Quantity          int  `json:"quantity"`
+	AvailableQuantity int  `json:"available_quantity"`
+	IsInStock         bool `json:"is_in_stock"`
 }
 
 // ListProductsRequest represents the request to list products with filters
@@ -84,6 +88,7 @@ type ListProductsRequest struct {
 	MinPrice   *float64 `json:"min_price"`
 	MaxPrice   *float64 `json:"max_price"`
 	InStock    *bool    `json:"in_stock"`
+	OnSale     *bool    `json:"on_sale"`
 	Search     string   `json:"search"`
 	Tags       []string `json:"tags"`
 	SortBy     string   `json:"sort_by"`

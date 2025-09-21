@@ -108,7 +108,10 @@ export const useWishlistStore = create<WishlistStore>()(
             })
           )
           
-          set({ wishlists: wishlistsWithItems })
+          set({ 
+            wishlists: wishlistsWithItems,
+            currentWishlist: wishlistsWithItems.length > 0 ? wishlistsWithItems[0] : null
+          })
         } catch (error) {
           console.error('Wishlist load error:', error)
           // If it's a 500 error, it might be because the backend expects user_id
@@ -247,11 +250,15 @@ export const useWishlistStore = create<WishlistStore>()(
 
       getWishlistItemCount: (wishlistId) => {
         const state = get()
-        const targetWishlist = wishlistId 
-          ? state.wishlists.find(w => w.id === wishlistId)
-          : state.currentWishlist
         
-        return targetWishlist?.items.length || 0
+        if (wishlistId) {
+          // Count items in a specific wishlist
+          const targetWishlist = state.wishlists.find(w => w.id === wishlistId)
+          return targetWishlist?.items.length || 0
+        } else {
+          // Count items across all wishlists
+          return state.wishlists.reduce((total, wishlist) => total + (wishlist.items?.length || 0), 0)
+        }
       },
     }),
     {

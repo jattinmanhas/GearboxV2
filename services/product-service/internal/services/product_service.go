@@ -21,6 +21,7 @@ type ProductService interface {
 	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (*dto.ListProductsResponse, error)
 	SearchProducts(ctx context.Context, query string, page, limit int) (*dto.ListProductsResponse, error)
 	GetProductsByTags(ctx context.Context, tags []string, page, limit int) (*dto.ListProductsResponse, error)
+	GetProductWithStockInfo(ctx context.Context, product *domain.Product) (*dto.ProductResponse, error)
 
 	// Product Variants
 	CreateProductVariant(ctx context.Context, req *dto.CreateProductVariantRequest) (*domain.ProductVariant, error)
@@ -258,6 +259,7 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 		MinPrice:   req.MinPrice,
 		MaxPrice:   req.MaxPrice,
 		InStock:    req.InStock,
+		OnSale:     req.OnSale,
 		Search:     req.Search,
 		Tags:       req.Tags,
 		SortBy:     req.SortBy,
@@ -273,31 +275,94 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 	// Convert to response DTOs
 	productResponses := make([]dto.ProductResponse, len(products))
 	for i, product := range products {
+		// Calculate stock information for products without variants
+		quantity := 0
+		availableQuantity := 0
+		isInStock := false
+
+		// Check if product has variants
+		hasVariants, err := s.productRepo.HasVariants(ctx, product.ID)
+		if err != nil {
+			// If we can't determine if product has variants, assume it doesn't
+			hasVariants = false
+		}
+
+		if !hasVariants {
+			// Product has no variants, check inventory directly
+			if product.IsDigital {
+				// Digital products are always in stock and don't need inventory tracking
+				quantity = 999
+				availableQuantity = 999
+				isInStock = true
+			} else {
+				inventory, err := s.inventoryService.GetInventoryByProduct(ctx, product.ID, nil)
+				if err == nil {
+					quantity = inventory.Quantity
+					availableQuantity = inventory.AvailableQuantity
+					isInStock = inventory.AvailableQuantity > 0
+				} else if !product.TrackQuantity {
+					// If product doesn't track quantity, consider it in stock
+					quantity = 999
+					availableQuantity = 999
+					isInStock = true
+				} else {
+					// If product tracks quantity but no inventory record exists, it's out of stock
+					quantity = 0
+					availableQuantity = 0
+					isInStock = false
+				}
+			}
+		} else {
+			// Product has variants, check if any variant is in stock
+			if product.IsDigital {
+				// Digital products with variants are always in stock
+				quantity = 999
+				availableQuantity = 999
+				isInStock = true
+			} else {
+				variants, err := s.productRepo.GetProductVariants(ctx, product.ID)
+				if err == nil {
+					for _, variant := range variants {
+						if variant.IsActive {
+							inventory, err := s.inventoryService.GetInventoryByProduct(ctx, product.ID, &variant.ID)
+							if err == nil && inventory.AvailableQuantity > 0 {
+								isInStock = true
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
 		productResponses[i] = dto.ProductResponse{
-			ID:               product.ID,
-			Name:             product.Name,
-			Description:      product.Description,
-			ShortDesc:        product.ShortDesc,
-			SKU:              product.SKU,
-			Price:            product.Price,
-			ComparePrice:     product.ComparePrice,
-			CostPrice:        product.CostPrice,
-			Weight:           product.Weight,
-			Dimensions:       product.Dimensions,
-			IsActive:         product.IsActive,
-			IsDigital:        product.IsDigital,
-			RequiresShipping: product.RequiresShipping,
-			Taxable:          product.Taxable,
-			TrackQuantity:    product.TrackQuantity,
-			MinQuantity:      product.MinQuantity,
-			MaxQuantity:      product.MaxQuantity,
-			MetaTitle:        product.MetaTitle,
-			MetaDescription:  product.MetaDesc,
-			Tags:             product.Tags,
-			CategoryIDs:      product.CategoryIDs,
-			CategoryNames:    product.CategoryNames,
-			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+			ID:                product.ID,
+			Name:              product.Name,
+			Description:       product.Description,
+			ShortDesc:         product.ShortDesc,
+			SKU:               product.SKU,
+			Price:             product.Price,
+			ComparePrice:      product.ComparePrice,
+			CostPrice:         product.CostPrice,
+			Weight:            product.Weight,
+			Dimensions:        product.Dimensions,
+			IsActive:          product.IsActive,
+			IsDigital:         product.IsDigital,
+			RequiresShipping:  product.RequiresShipping,
+			Taxable:           product.Taxable,
+			TrackQuantity:     product.TrackQuantity,
+			MinQuantity:       product.MinQuantity,
+			MaxQuantity:       product.MaxQuantity,
+			MetaTitle:         product.MetaTitle,
+			MetaDescription:   product.MetaDesc,
+			Tags:              product.Tags,
+			CategoryIDs:       product.CategoryIDs,
+			CategoryNames:     product.CategoryNames,
+			CreatedAt:         product.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:         product.UpdatedAt.Format(time.RFC3339),
+			Quantity:          quantity,
+			AvailableQuantity: availableQuantity,
+			IsInStock:         isInStock,
 		}
 	}
 
@@ -310,6 +375,99 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 		Page:       req.Page,
 		Limit:      req.Limit,
 		TotalPages: totalPages,
+	}, nil
+}
+
+// GetProductWithStockInfo gets a product with stock information calculated
+func (s *productService) GetProductWithStockInfo(ctx context.Context, product *domain.Product) (*dto.ProductResponse, error) {
+	// Calculate stock information for products without variants
+	quantity := 0
+	availableQuantity := 0
+	isInStock := false
+
+	// Check if product has variants
+	hasVariants, err := s.productRepo.HasVariants(ctx, product.ID)
+	if err != nil {
+		// If we can't determine if product has variants, assume it doesn't
+		hasVariants = false
+	}
+
+	if !hasVariants {
+		// Product has no variants, check inventory directly
+		if product.IsDigital {
+			// Digital products are always in stock and don't need inventory tracking
+			quantity = 999
+			availableQuantity = 999
+			isInStock = true
+		} else {
+			inventory, err := s.inventoryService.GetInventoryByProduct(ctx, product.ID, nil)
+			if err == nil {
+				quantity = inventory.Quantity
+				availableQuantity = inventory.AvailableQuantity
+				isInStock = inventory.AvailableQuantity > 0
+			} else if !product.TrackQuantity {
+				// If product doesn't track quantity, consider it in stock
+				quantity = 999
+				availableQuantity = 999
+				isInStock = true
+			} else {
+				// If product tracks quantity but no inventory record exists, it's out of stock
+				quantity = 0
+				availableQuantity = 0
+				isInStock = false
+			}
+		}
+	} else {
+		// Product has variants, check if any variant is in stock
+		if product.IsDigital {
+			// Digital products with variants are always in stock
+			quantity = 999
+			availableQuantity = 999
+			isInStock = true
+		} else {
+			variants, err := s.productRepo.GetProductVariants(ctx, product.ID)
+			if err == nil {
+				for _, variant := range variants {
+					if variant.IsActive {
+						inventory, err := s.inventoryService.GetInventoryByProduct(ctx, product.ID, &variant.ID)
+						if err == nil && inventory.AvailableQuantity > 0 {
+							isInStock = true
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return &dto.ProductResponse{
+		ID:                product.ID,
+		Name:              product.Name,
+		Description:       product.Description,
+		ShortDesc:         product.ShortDesc,
+		SKU:               product.SKU,
+		Price:             product.Price,
+		ComparePrice:      product.ComparePrice,
+		CostPrice:         product.CostPrice,
+		Weight:            product.Weight,
+		Dimensions:        product.Dimensions,
+		IsActive:          product.IsActive,
+		IsDigital:         product.IsDigital,
+		RequiresShipping:  product.RequiresShipping,
+		Taxable:           product.Taxable,
+		TrackQuantity:     product.TrackQuantity,
+		MinQuantity:       product.MinQuantity,
+		MaxQuantity:       product.MaxQuantity,
+		MetaTitle:         product.MetaTitle,
+		MetaDescription:   product.MetaDesc,
+		Tags:              product.Tags,
+		CategoryIDs:       product.CategoryIDs,
+		CategoryNames:     product.CategoryNames,
+		CreatedAt:         product.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         product.UpdatedAt.Format(time.RFC3339),
+		Quantity:          quantity,
+		AvailableQuantity: availableQuantity,
+		IsInStock:         isInStock,
 	}, nil
 }
 
@@ -581,34 +739,36 @@ func (s *productService) GetProductVariantsByProductIDWithInventory(ctx context.
 	// Convert to response DTOs with inventory data
 	variantResponses := make([]*dto.ProductVariantResponse, len(variants))
 	for i, variant := range variants {
-		// Get inventory data for this variant
-		inventory, err := s.inventoryService.GetInventoryByProduct(ctx, productID, &variant.ID)
-		if err != nil {
-			// If no inventory record exists, create default values
-			// For products that track quantity but have no inventory record, set a default available quantity
-			// This handles cases where inventory records haven't been created yet
-			defaultAvailableQuantity := 0
-			if !product.TrackQuantity {
-				// If product doesn't track quantity, set a large number to indicate unlimited stock
-				defaultAvailableQuantity = 999
-			} else {
-				// If product tracks quantity but no inventory record exists, set a default available quantity
-				// This is a fallback for products that should have inventory records but don't
-				defaultAvailableQuantity = 10 // Default stock level
-			}
+		var quantity int
+		var availableQuantity int
+		var isInStock bool
 
-			inventory = &domain.Inventory{
-				ProductID:         productID,
-				ProductVariantID:  &variant.ID,
-				Quantity:          0,
-				AvailableQuantity: defaultAvailableQuantity,
-			}
+		// Handle digital products - they are always in stock
+		if product.IsDigital {
+			quantity = 999
+			availableQuantity = 999
+			isInStock = true
 		} else {
-			// If inventory record exists but has 0 available quantity, set a default available quantity
-			// This handles cases where inventory records exist but haven't been properly initialized
-			if inventory.AvailableQuantity == 0 && product.TrackQuantity {
-				inventory.AvailableQuantity = 10 // Default stock level
-				inventory.Quantity = 10          // Also update the base quantity
+			// For physical products, check inventory
+			inventory, err := s.inventoryService.GetInventoryByProduct(ctx, productID, &variant.ID)
+			if err != nil {
+				// If no inventory record exists, check if product tracks quantity
+				if !product.TrackQuantity {
+					// If product doesn't track quantity, consider it in stock
+					quantity = 999
+					availableQuantity = 999
+					isInStock = true
+				} else {
+					// If product tracks quantity but no inventory record exists, it's out of stock
+					quantity = 0
+					availableQuantity = 0
+					isInStock = false
+				}
+			} else {
+				// Use actual inventory data
+				quantity = inventory.Quantity
+				availableQuantity = inventory.AvailableQuantity
+				isInStock = inventory.AvailableQuantity > 0
 			}
 		}
 
@@ -623,9 +783,9 @@ func (s *productService) GetProductVariantsByProductIDWithInventory(ctx context.
 			Weight:            variant.Weight,
 			IsActive:          variant.IsActive,
 			Position:          variant.Position,
-			Quantity:          inventory.Quantity,
-			AvailableQuantity: inventory.AvailableQuantity,
-			IsInStock:         inventory.AvailableQuantity > 0,
+			Quantity:          quantity,
+			AvailableQuantity: availableQuantity,
+			IsInStock:         isInStock,
 		}
 	}
 
