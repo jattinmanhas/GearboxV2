@@ -56,7 +56,7 @@ export default function ShopPage() {
   
   // Feature filters
   const [inStock, setInStock] = useState<boolean | undefined>(undefined)
-  const [onSale, setOnSale] = useState<boolean | undefined>(true)
+  const [onSale, setOnSale] = useState<boolean | undefined>(undefined)
   const [isDigital, setIsDigital] = useState<boolean | undefined>(undefined)
 
   // Cart store
@@ -117,7 +117,7 @@ export default function ShopPage() {
   }
 
   useEffect(() => {
-    loadProducts()
+    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital})
     loadCategories()
     // Load cart to show correct item count
     loadCart().catch(error => {

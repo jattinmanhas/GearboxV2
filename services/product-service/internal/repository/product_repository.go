@@ -668,9 +668,11 @@ func (r *productRepository) buildWhereClause(filter *domain.ProductFilter) (stri
 	if filter.InStock != nil {
 		if *filter.InStock {
 			// Filter for products that are in stock:
-			// 1. Products with variants that have at least one in-stock variant
-			// 2. Products without variants that have inventory with available_quantity > 0
+			// 1. Digital products (always in stock)
+			// 2. Products with variants that have at least one in-stock variant
+			// 3. Products without variants that have inventory with available_quantity > 0
 			conditions = append(conditions, `(
+				is_digital = true OR
 				id IN (
 					SELECT DISTINCT pv.product_id FROM product_variants pv
 					INNER JOIN inventory i ON pv.id = i.product_variant_id
@@ -686,19 +688,21 @@ func (r *productRepository) buildWhereClause(filter *domain.ProductFilter) (stri
 			)`)
 		} else {
 			// Filter for products that are out of stock:
-			// 1. Products with variants that have no in-stock variants
-			// 2. Products without variants that have no inventory or available_quantity = 0
+			// 1. Non-digital products with variants that have no in-stock variants
+			// 2. Non-digital products without variants that have no inventory or available_quantity = 0
 			conditions = append(conditions, `(
-				id NOT IN (
-					SELECT DISTINCT pv.product_id FROM product_variants pv
-					INNER JOIN inventory i ON pv.id = i.product_variant_id
-					WHERE pv.is_active = true AND i.available_quantity > 0
-				) AND (
-					id IN (SELECT DISTINCT product_id FROM product_variants) OR
+				is_digital = false AND (
 					id NOT IN (
-						SELECT product_id FROM inventory 
-						WHERE product_variant_id IS NULL 
-						AND available_quantity > 0
+						SELECT DISTINCT pv.product_id FROM product_variants pv
+						INNER JOIN inventory i ON pv.id = i.product_variant_id
+						WHERE pv.is_active = true AND i.available_quantity > 0
+					) AND (
+						id IN (SELECT DISTINCT product_id FROM product_variants) OR
+						id NOT IN (
+							SELECT product_id FROM inventory 
+							WHERE product_variant_id IS NULL 
+							AND available_quantity > 0
+						)
 					)
 				)
 			)`)

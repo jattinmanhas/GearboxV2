@@ -366,9 +366,9 @@ export default function ProductDetailPage() {
             {/* Stock Status */}
             <div className="space-y-2">
               {(() => {
-                const isInStock = variants.length > 0 
+                const isInStock = product.is_digital || (variants.length > 0 
                   ? (selectedVariant?.is_in_stock ?? false)
-                  : product.is_in_stock
+                  : product.is_in_stock)
                 
                 return (
                   <div className={`flex items-center gap-2 p-3 rounded-lg ${
@@ -397,9 +397,9 @@ export default function ProductDetailPage() {
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
               {(() => {
-                const isInStock = variants.length > 0 
+                const isInStock = product.is_digital || (variants.length > 0 
                   ? (selectedVariant?.is_in_stock ?? false)
-                  : product.is_in_stock
+                  : product.is_in_stock)
                 
                 if (!isInStock) {
                   return (

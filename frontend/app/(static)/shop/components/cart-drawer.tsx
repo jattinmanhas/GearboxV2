@@ -23,7 +23,10 @@ import {
   Package,
   CreditCard,
   ArrowRight,
-  Loader2
+  Loader2,
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import { useCartStore, useHydrateCartStore } from "@/lib/stores/cart-store"
 import { formatCurrency } from "@/lib/currency"
@@ -36,6 +39,8 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [isMounted, setIsMounted] = useState(false)
+  const [showAllItems, setShowAllItems] = useState(false)
+  const [maxVisibleItems] = useState(3) // Show max 3 items initially
   
   // Hydrate the store on client side
   useHydrateCartStore()
@@ -63,6 +68,9 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [couponMessage, setCouponMessage] = useState("")
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false)
 
+  const itemCount = getItemCount()
+  const totalPrice = getTotalPrice()
+
   // Prevent hydration mismatch by only rendering on client
   useEffect(() => {
     setIsMounted(true)
@@ -79,7 +87,6 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
       loadAvailableCoupons()
     }
   }, [open, availableCoupons.length, loadAvailableCoupons])
-
 
   const handleQuantityChange = async (itemId: number, newQuantity: number) => {
     await updateQuantity(itemId, newQuantity)
@@ -111,56 +118,25 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   }
 
   const handleRemoveCoupon = async (couponCode: string) => {
-    try {
-      await removeCoupon(couponCode)
-      setCouponMessage("Coupon removed successfully!")
-    } catch (error) {
-      console.error("Failed to remove coupon:", error)
-      setCouponMessage(error instanceof Error ? error.message : "Failed to remove coupon")
-    }
+    await removeCoupon(couponCode)
   }
 
   const handleSelectCoupon = async (coupon: any) => {
-    try {
-      await applyCoupon(coupon.code)
-      setCouponMessage("Coupon applied successfully!")
-      setShowAvailableCoupons(false)
-    } catch (error) {
-      console.error("Failed to apply coupon:", error)
-      setCouponMessage(error instanceof Error ? error.message : "Failed to apply coupon")
-    }
+    setCouponCode(coupon.code)
+    await handleApplyCoupon()
   }
 
-  const itemCount = getItemCount()
-  const totalPrice = getTotalPrice()
-  
-  // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Shopping Cart
-            </SheetTitle>
-            <SheetDescription>
-              Loading...
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Loading cart...</span>
-          </div>
-        </SheetContent>
-      </Sheet>
-    )
+    return null
   }
+
+  const visibleItems = showAllItems ? items : items.slice(0, maxVisibleItems)
+  const hasMoreItems = items.length > maxVisibleItems
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-lg h-full flex flex-col">
+        <SheetHeader className="flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             Shopping Cart
@@ -178,21 +154,25 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col h-full max-h-[calc(100vh-8rem)]">
+        <div className="flex-1 flex flex-col min-h-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2">Loading cart...</span>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading cart...
+              </div>
             </div>
           ) : error ? (
-            <div className="text-center py-8">
-              <div className="text-destructive mb-4">{error}</div>
-              <Button onClick={loadCart} variant="outline">
-                Try Again
-              </Button>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-destructive mb-2">Failed to load cart</div>
+                <Button variant="outline" size="sm" onClick={loadCart}>
+                  Try Again
+                </Button>
+              </div>
             </div>
           ) : itemCount === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
               <p className="text-muted-foreground mb-4">
@@ -206,96 +186,118 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             </div>
           ) : (
             <>
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto py-4 min-h-0">
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <Card key={item.id} className="p-4">
-                      <div className="flex gap-3">
-                        {/* Product Image */}
-                        <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
-                          {item.image ? (
-                            <img 
-                              src={item.image} 
-                              alt={item.name || 'Product'} 
-                              className="w-full h-full object-cover rounded-md"
-                            />
-                          ) : (
-                            <Package className="h-6 w-6 text-muted-foreground" />
+              {/* Cart Items - Compact List */}
+              <div className="flex-1 py-4 min-h-0">
+                <div className="space-y-2">
+                  {visibleItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group">
+                      {/* Product Image - Smaller */}
+                      <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.name || 'Product'} 
+                            className="w-full h-full object-cover rounded-md"
+                          />
+                        ) : (
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      {/* Product Info - More Compact */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm line-clamp-1 mb-1">
+                          {item.name || `Product ${item.product_id}`}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>SKU: {item.sku || `SKU-${item.product_id}`}</span>
+                          {item.variant_name && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-600">{item.variant_name}</span>
+                            </>
                           )}
                         </div>
-                        
-                        {/* Product Info */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm line-clamp-2 mb-1">
-                            {item.name || `Product ${item.product_id}`}
-                          </h4>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            SKU: {item.sku || `SKU-${item.product_id}`}
-                          </p>
-                          
-                          {/* Variant Info */}
-                          {item.variant_name && (
-                            <p className="text-xs text-blue-600 mb-2">
-                              Variant: {item.variant_name}
-                              {item.variant_sku && ` (${item.variant_sku})`}
-                            </p>
-                          )}
-                          
-                          {/* Quantity Controls */}
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center border rounded-md">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                                disabled={isLoading}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="px-3 py-1 text-sm min-w-[2rem] text-center">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                                disabled={isLoading || (item.maxQuantity ? item.quantity >= item.maxQuantity : false)}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveItem(item.id)}
-                              disabled={isLoading}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                      </div>
+                      
+                      {/* Quantity and Price - Horizontal Layout */}
+                      <div className="flex items-center gap-3">
+                        {/* Quantity Controls - Compact */}
+                        <div className="flex items-center border rounded-md">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                            disabled={isLoading}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="px-2 py-1 text-xs min-w-[1.5rem] text-center">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                            disabled={isLoading || (item.maxQuantity ? item.quantity >= item.maxQuantity : false)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
                         </div>
                         
                         {/* Price */}
-                        <div className="text-right">
+                        <div className="text-right min-w-[4rem]">
                           <div className="font-medium text-sm">
                             {formatCurrency(item.total_price)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatCurrency(item.unit_price)} each
+                            {formatCurrency(item.unit_price)} ea
                           </div>
                         </div>
+                        
+                        {/* Remove Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemoveItem(item.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    </Card>
+                    </div>
                   ))}
+
+                  {/* Show More/Less Button */}
+                  {hasMoreItems && (
+                    <div className="pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowAllItems(!showAllItems)}
+                      >
+                        {showAllItems ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-2" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-2" />
+                            Show {items.length - maxVisibleItems} More Items
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Coupon Section */}
+              {/* Coupon Section - Compact */}
               <div className="py-3 border-t">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -410,8 +412,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 </div>
               </div>
 
-              {/* Cart Summary */}
-              <div className="py-3 border-t space-y-2">
+              {/* Cart Summary - Fixed at Bottom */}
+              <div className="py-3 border-t space-y-2 bg-background">
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
@@ -443,7 +445,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Button 
                     className="w-full" 
                     size="sm"

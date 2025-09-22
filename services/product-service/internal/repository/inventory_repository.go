@@ -541,7 +541,7 @@ func (r *inventoryRepository) ResolveInventoryAlert(ctx context.Context, alertID
 	now := time.Now()
 	query := `
 		UPDATE inventory_alerts 
-		SET is_resolved = true, resolved_at = $1, updated_at = $1
+		SET is_resolved = true, resolved_at = $1
 		WHERE id = $2`
 
 	result, err := r.db.ExecContext(ctx, query, now, alertID)

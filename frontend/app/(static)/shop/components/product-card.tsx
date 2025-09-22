@@ -78,7 +78,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   )
 
   const handleAddToCart = async () => {
-    if (!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock)) return
+    if (!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock)) return
     
     setIsAddingToCart(true)
     try {
@@ -235,10 +235,10 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                         e.stopPropagation()
                         handleAddToCart()
                       }}
-                      disabled={!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
+                      disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
-                      {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
+                      {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -349,10 +349,10 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 e.stopPropagation()
                 handleAddToCart()
               }}
-              disabled={!product.is_active || (!product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
+              disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
-              {isAddingToCart ? "Adding..." : selectedVariant?.is_in_stock ? "Add to Cart" : "Out of Stock"}
+              {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}
             </Button>
             <Button 
               variant="outline" 

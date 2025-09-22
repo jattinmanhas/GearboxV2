@@ -37,6 +37,14 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 		w.Write([]byte(`{"status":"ok","service":"product-service"}`))
 	})
 
+	// Test endpoint for inventory alerts (no auth required for testing)
+	router.Get("/test/alerts", func(w http.ResponseWriter, r *http.Request) {
+		// This is a test endpoint - in production, this should be removed
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"This is a test endpoint for inventory alerts"}`))
+	})
+
 	// Product service routes
 	router.Route("/api/v1", func(r chi.Router) {
 		// Service health endpoint
