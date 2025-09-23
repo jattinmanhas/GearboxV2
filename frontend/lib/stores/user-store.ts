@@ -33,6 +33,7 @@ interface UserState {
   validateToken: () => Promise<boolean>
   checkAuthStatus: () => Promise<boolean>
   initializeAuth: () => Promise<void>
+  debugAuthState: () => UserState
 }
 
 export const useUserStore = create<UserState>()(
@@ -138,9 +139,64 @@ export const useUserStore = create<UserState>()(
 
       validateToken: async () => {
         try {
-          // Try to refresh the token to validate if it's still valid
-          const response = await authApi.refreshToken()
-          return response.success || false
+          // Try to get user profile to validate if token is still valid
+          const response = await fetch('/api/v1/auth/profile', {
+            method: 'GET',
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            return true
+          }
+          
+          // If 401, check if it's a genuine auth failure
+          if (response.status === 401) {
+            const data = await response.json()
+            const errorMessage = data.message || data.error?.message || ''
+            const lowerErrorMessage = errorMessage.toLowerCase()
+            
+            // Check for patterns that indicate genuine auth failure
+            // Based on actual backend error messages from auth service and JWT library
+            const authFailurePatterns = [
+              // From auth service login failures
+              'invalid credentials',
+              
+              // From JWT validation errors (golang-jwt/jwt v5)
+              'invalid token',
+              'failed to parse token',
+              'token is expired',
+              'token is malformed',
+              'signature is invalid',
+              'unexpected signing method',
+              'token is not valid yet',
+              'token used before issued',
+              'token is unverifiable',
+              'key is of invalid type',
+              'claims are invalid',
+              'token is blacklisted',
+              'token is not active',
+              'token is not valid',
+              'token validation failed',
+              'token parse error',
+              'token verification failed',
+              
+              // From middleware auth failures
+              'refresh token required',
+              'invalid refresh token',
+              
+              // Generic auth failure patterns
+              'unauthorized',
+              'authentication failed',
+              'session expired',
+              'jwt expired',
+              'jwt invalid',
+              'token not found'
+            ]
+            
+            return !authFailurePatterns.some(pattern => lowerErrorMessage.includes(pattern))
+          }
+          
+          return false
         } catch (error) {
           console.log('Token validation failed:', error)
           return false
@@ -185,10 +241,26 @@ export const useUserStore = create<UserState>()(
             }
           } catch (error) {
             console.error('Error validating authentication:', error)
-            // Clear user state on any error during validation
-            state.clearUser()
+            // Only clear user state if it's a genuine authentication error
+            // Don't clear on network errors or other issues
+            if (error instanceof Error && error.message.toLowerCase().includes('unauthorized')) {
+              state.clearUser()
+            }
           }
         }
+      },
+
+      // Debug function to help troubleshoot auth issues
+      debugAuthState: () => {
+        const state = get()
+        console.log('=== AUTH DEBUG INFO ===')
+        console.log('isAuthenticated:', state.isAuthenticated)
+        console.log('user:', state.user)
+        console.log('isLoading:', state.isLoading)
+        console.log('error:', state.error)
+        console.log('localStorage user-storage:', typeof window !== 'undefined' ? localStorage.getItem('user-storage') : 'N/A')
+        console.log('========================')
+        return state
       },
     }),
     {

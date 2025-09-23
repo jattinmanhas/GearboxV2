@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Category, CreateCategoryRequest, UpdateCategoryRequest } from "@/lib/types"
+import { EnhancedImageUpload } from "@/components/ui/enhanced-image-upload"
+import { UploadedImage } from "@/lib/image-upload"
 
 interface CategoryFormProps {
   category?: Category | null
@@ -37,6 +39,7 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([])
 
   useEffect(() => {
     if (category) {
@@ -105,6 +108,16 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  const handleImageSelect = (image: UploadedImage) => {
+    setSelectedImages([image]) // Only allow one image for categories
+    setFormData(prev => ({ ...prev, image_url: image.url }))
+  }
+
+  const handleImageRemove = (imageId: string) => {
+    setSelectedImages([])
+    setFormData(prev => ({ ...prev, image_url: "" }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -202,15 +215,32 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
               )}
             </div>
 
-            {/* Image URL */}
+            {/* Category Image */}
             <div className="space-y-2">
-              <Label htmlFor="image_url">Image URL</Label>
-              <Input
-                id="image_url"
-                value={formData.image_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
-                placeholder="https://example.com/image.jpg"
+              <Label>Category Image</Label>
+              <EnhancedImageUpload
+                onImageSelect={handleImageSelect}
+                onImageRemove={handleImageRemove}
+                selectedImages={selectedImages}
+                multiple={false}
+                maxImages={1}
+                showPreview={true}
+                showThumbnails={false}
+                config={{
+                  maxFileSize: 2 * 1024 * 1024, // 2MB for categories
+                  allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+                  maxWidth: 800,
+                  maxHeight: 600,
+                  quality: 85,
+                  generateThumbnails: false,
+                  thumbnailSizes: []
+                }}
               />
+              {formData.image_url && (
+                <div className="text-sm text-muted-foreground">
+                  Current image: {formData.image_url}
+                </div>
+              )}
             </div>
           </div>
 

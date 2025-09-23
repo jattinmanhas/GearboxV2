@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Product, Category, CreateProductRequest, UpdateProductRequest } from "@/lib/types"
+import { EnhancedImageUpload } from "@/components/ui/enhanced-image-upload"
+import { UploadedImage } from "@/lib/image-upload"
 
 interface ProductFormProps {
   product?: Product | null
@@ -50,6 +52,7 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([])
 
   useEffect(() => {
     if (product) {
@@ -113,6 +116,14 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
     return Object.keys(newErrors).length === 0
   }
 
+  const handleImageSelect = (image: UploadedImage) => {
+    setSelectedImages(prev => [...prev, image])
+  }
+
+  const handleImageRemove = (imageId: string) => {
+    setSelectedImages(prev => prev.filter(img => img.id !== imageId))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -120,7 +131,16 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
 
     setIsSubmitting(true)
     try {
-      await onSave(formData)
+      // Add image URLs to form data
+      const formDataWithImages = {
+        ...formData,
+        images: selectedImages.map(img => ({
+          url: img.url,
+          alt: img.alt,
+          is_primary: false
+        }))
+      }
+      await onSave(formDataWithImages)
     } catch (error) {
       console.error("Error saving product:", error)
     } finally {
@@ -209,6 +229,34 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 rows={4}
               />
             </div>
+          </div>
+
+          {/* Product Images */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Product Images</h3>
+            <EnhancedImageUpload
+              onImageSelect={handleImageSelect}
+              onImageRemove={handleImageRemove}
+              selectedImages={selectedImages}
+              multiple={true}
+              maxImages={10}
+              showPreview={true}
+              showThumbnails={true}
+              config={{
+                maxFileSize: 5 * 1024 * 1024, // 5MB for products
+                allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+                maxWidth: 2048,
+                maxHeight: 2048,
+                quality: 85,
+                generateThumbnails: true,
+                thumbnailSizes: [
+                  { width: 150, height: 150, name: 'thumbnail' },
+                  { width: 300, height: 300, name: 'small' },
+                  { width: 600, height: 600, name: 'medium' },
+                  { width: 1200, height: 1200, name: 'large' }
+                ]
+              }}
+            />
           </div>
 
           {/* Pricing */}

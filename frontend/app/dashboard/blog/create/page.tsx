@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MarkdownEditor } from '@/components/ui/markdown-editor';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { EnhancedImageUpload } from '@/components/ui/enhanced-image-upload';
+import { UploadedImage } from '@/lib/image-upload';
 import { X, Plus, Save, Eye, Settings, ArrowLeft, Image as ImageIcon, Tag, User, Calendar } from 'lucide-react';
 
 export default function CreateBlogPostPage() {
@@ -44,6 +46,7 @@ export default function CreateBlogPostPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([]);
 
   useEffect(() => {
     fetchAllCategories();
@@ -82,6 +85,28 @@ export default function CreateBlogPostPage() {
       handleAddTag();
     }
   };
+
+  const handleImageSelect = (image: UploadedImage) => {
+    setSelectedImages(prev => [...prev, image])
+    // Set the first image as featured image
+    if (selectedImages.length === 0) {
+      setFormData(prev => ({ ...prev, featuredImage: image.url }))
+    }
+  }
+
+  const handleImageRemove = (imageId: string) => {
+    setSelectedImages(prev => {
+      const newImages = prev.filter(img => img.id !== imageId)
+      // Update featured image if the removed image was featured
+      if (formData.featuredImage && prev.find(img => img.id === imageId)?.url === formData.featuredImage) {
+        setFormData(prevForm => ({ 
+          ...prevForm, 
+          featuredImage: newImages.length > 0 ? newImages[0].url : '' 
+        }))
+      }
+      return newImages
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,20 +243,33 @@ export default function CreateBlogPostPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="featuredImage">Featured Image URL</Label>
-                    <Input
-                      id="featuredImage"
-                      value={formData.featuredImage}
-                      onChange={(e) => handleInputChange('featuredImage', e.target.value)}
-                      placeholder="https://example.com/image.jpg"
+                    <Label>Featured Image & Media</Label>
+                    <EnhancedImageUpload
+                      onImageSelect={handleImageSelect}
+                      onImageRemove={handleImageRemove}
+                      selectedImages={selectedImages}
+                      multiple={true}
+                      maxImages={5}
+                      showPreview={true}
+                      showThumbnails={true}
+                      config={{
+                        maxFileSize: 5 * 1024 * 1024, // 5MB for blog images
+                        allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+                        maxWidth: 1920,
+                        maxHeight: 1080,
+                        quality: 90,
+                        generateThumbnails: true,
+                        thumbnailSizes: [
+                          { width: 150, height: 150, name: 'thumbnail' },
+                          { width: 300, height: 300, name: 'small' },
+                          { width: 600, height: 600, name: 'medium' },
+                          { width: 1200, height: 1200, name: 'large' }
+                        ]
+                      }}
                     />
                     {formData.featuredImage && (
-                      <div className="relative h-48 w-full mt-2 rounded-lg overflow-hidden">
-                        <img
-                          src={formData.featuredImage}
-                          alt="Featured image preview"
-                          className="object-cover w-full h-full"
-                        />
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Featured image: {formData.featuredImage}
                       </div>
                     )}
                   </div>

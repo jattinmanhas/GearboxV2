@@ -48,12 +48,8 @@ export default function UsersPage() {
     } catch (err: unknown) {
       const error = err as Error
       console.error('Error loading users:', error)
-      // Check if it's an authentication error
-      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        setError("Authentication required. Please log in to view users.")
-      } else {
-        setError(error.message || "Failed to load users")
-      }
+      // The improved error handling in api.ts will handle 401s appropriately
+      setError(error.message || "Failed to load users")
       setUsers([]) // Set empty array on error
     } finally {
       setLoading(false)

@@ -49,21 +49,34 @@ export async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json()
   
   if (!response.ok) {
-    // Handle 401 Unauthorized responses by clearing user state
+    // Handle 401 Unauthorized responses more intelligently
     if (response.status === 401) {
       // Import user store dynamically to avoid circular dependencies
       const { useUserStore } = await import('./stores/user-store')
       const userStore = useUserStore.getState()
       
-      // Clear user state if user is currently authenticated
-      if (userStore.isAuthenticated) {
-        console.log('Token expired or invalid, clearing user state')
-        userStore.clearUser()
+      // Only clear user state if we have a user and the error indicates actual auth failure
+      if (userStore.isAuthenticated && userStore.user) {
+        // Check if this is a genuine authentication failure vs other 401 scenarios
+        const isAuthFailure = await isGenuineAuthFailure(response, data)
         
-        // Optional: Redirect to login page if not already there
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          console.log('Redirecting to login page due to expired token')
-          window.location.href = '/login'
+        if (isAuthFailure) {
+          console.log('Genuine authentication failure detected, clearing user state')
+          userStore.clearUser()
+          
+          // Only redirect to login if not already there and not on a public page
+          if (typeof window !== 'undefined' && 
+              !window.location.pathname.startsWith('/login') && 
+              !window.location.pathname.startsWith('/register') &&
+              !window.location.pathname.startsWith('/about') &&
+              !window.location.pathname.startsWith('/contact') &&
+              !window.location.pathname.startsWith('/blog') &&
+              !window.location.pathname.startsWith('/shop')) {
+            console.log('Redirecting to login page due to authentication failure')
+            window.location.href = '/login'
+          }
+        } else {
+          console.log('401 error not related to authentication, keeping user state')
         }
       }
     }
@@ -88,6 +101,91 @@ export async function handleResponse<T>(response: Response): Promise<T> {
   }
   
   return data
+}
+
+/**
+ * Determines if a 401 error represents a genuine authentication failure
+ * vs other scenarios like insufficient permissions or missing tokens
+ */
+async function isGenuineAuthFailure(response: Response, data: any): Promise<boolean> {
+  try {
+    // Check if the error message indicates token expiration or invalid token
+    const errorMessage = data.message || data.error?.message || ''
+    const lowerErrorMessage = errorMessage.toLowerCase()
+    
+    // Common patterns that indicate genuine auth failure
+    // Based on actual backend error messages from auth service and JWT library
+    const authFailurePatterns = [
+      // From auth service login failures
+      'invalid credentials',
+      
+      // From JWT validation errors (golang-jwt/jwt v5)
+      'invalid token',
+      'failed to parse token',
+      'token is expired',
+      'token is malformed',
+      'signature is invalid',
+      'unexpected signing method',
+      'token is not valid yet',
+      'token used before issued',
+      'token is unverifiable',
+      'key is of invalid type',
+      'claims are invalid',
+      'token is blacklisted',
+      'token is not active',
+      'token is not valid',
+      'token validation failed',
+      'token parse error',
+      'token verification failed',
+      
+      // From middleware auth failures
+      'refresh token required',
+      'invalid refresh token',
+      
+      // Generic auth failure patterns
+      'unauthorized',
+      'authentication failed',
+      'session expired',
+      'jwt expired',
+      'jwt invalid',
+      'token not found'
+    ]
+    
+    // If error message contains auth failure patterns, it's likely genuine
+    if (authFailurePatterns.some(pattern => lowerErrorMessage.includes(pattern))) {
+      return true
+    }
+    
+    // If no specific error message, try to validate the current token
+    const { useUserStore } = await import('./stores/user-store')
+    const userStore = useUserStore.getState()
+    
+    if (userStore.isAuthenticated && userStore.user) {
+      // Try to validate the token by making a simple auth request
+      try {
+        const validationResponse = await fetch('/api/v1/auth/profile', {
+          method: 'GET',
+          credentials: 'include'
+        })
+        
+        // If profile request also fails with 401, it's likely a genuine auth failure
+        if (validationResponse.status === 401) {
+          return true
+        }
+      } catch (error) {
+        // If validation request fails entirely, assume it's not an auth issue
+        console.log('Token validation request failed, assuming not auth failure:', error)
+        return false
+      }
+    }
+    
+    // Default to not clearing user state for ambiguous 401 errors
+    return false
+  } catch (error) {
+    console.error('Error determining auth failure type:', error)
+    // On error, be conservative and don't clear user state
+    return false
+  }
 }
 
 export const authApi = {
