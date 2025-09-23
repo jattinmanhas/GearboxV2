@@ -1,79 +1,84 @@
 package dto
 
+import "time"
+
 // CreateProductRequest represents the request to create a new product
 type CreateProductRequest struct {
-	Name             string  `json:"name" validate:"required,min=1,max=255"`
-	Description      string  `json:"description" validate:"required,min=1,max=5000"`
-	ShortDesc        string  `json:"short_description" validate:"omitempty,max=500"`
-	SKU              string  `json:"sku" validate:"required,sku"`
-	Price            float64 `json:"price" validate:"required,price"`
-	ComparePrice     float64 `json:"compare_price" validate:"omitempty,min=0"`
-	CostPrice        float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight           float64 `json:"weight" validate:"omitempty,weight"`
-	Dimensions       string  `json:"dimensions" validate:"omitempty,dimensions"`
-	IsActive         bool    `json:"is_active"`
-	IsDigital        bool    `json:"is_digital"`
-	RequiresShipping bool    `json:"requires_shipping"`
-	Taxable          bool    `json:"taxable"`
-	TrackQuantity    bool    `json:"track_quantity"`
-	MinQuantity      int     `json:"min_quantity" validate:"omitempty,min=0"`
-	MaxQuantity      int     `json:"max_quantity" validate:"omitempty,min=0"`
-	MetaTitle        string  `json:"meta_title" validate:"omitempty,meta_title"`
-	MetaDescription  string  `json:"meta_description" validate:"omitempty,meta_description"`
-	Tags             string  `json:"tags" validate:"omitempty,tags"`
-	CategoryIDs      []int64 `json:"category_ids" validate:"omitempty"`
+	Name             string                `json:"name" validate:"required,min=1,max=255"`
+	Description      string                `json:"description" validate:"required,min=1,max=5000"`
+	ShortDesc        string                `json:"short_description" validate:"omitempty,max=500"`
+	SKU              string                `json:"sku" validate:"required,sku"`
+	Price            float64               `json:"price" validate:"required,price"`
+	ComparePrice     float64               `json:"compare_price" validate:"omitempty,min=0"`
+	CostPrice        float64               `json:"cost_price" validate:"omitempty,min=0"`
+	Weight           float64               `json:"weight" validate:"omitempty,weight"`
+	Dimensions       string                `json:"dimensions" validate:"omitempty,dimensions"`
+	IsActive         bool                  `json:"is_active"`
+	IsDigital        bool                  `json:"is_digital"`
+	RequiresShipping bool                  `json:"requires_shipping"`
+	Taxable          bool                  `json:"taxable"`
+	TrackQuantity    bool                  `json:"track_quantity"`
+	MinQuantity      int                   `json:"min_quantity" validate:"omitempty,min=0"`
+	MaxQuantity      int                   `json:"max_quantity" validate:"omitempty,min=0"`
+	MetaTitle        string                `json:"meta_title" validate:"omitempty,meta_title"`
+	MetaDescription  string                `json:"meta_description" validate:"omitempty,meta_description"`
+	Tags             string                `json:"tags" validate:"omitempty,tags"`
+	CategoryIDs      []int64               `json:"category_ids" validate:"omitempty"`
+	Images           []ProductImageRequest `json:"images" validate:"omitempty"`
 }
 
 // UpdateProductRequest represents the request to update an existing product
 type UpdateProductRequest struct {
-	Name             *string  `json:"name" validate:"omitempty,min=1,max=255"`
-	Description      *string  `json:"description" validate:"omitempty,min=1,max=5000"`
-	ShortDesc        *string  `json:"short_description" validate:"omitempty,max=500"`
-	SKU              *string  `json:"sku" validate:"omitempty,sku"`
-	Price            *float64 `json:"price" validate:"omitempty,price"`
-	ComparePrice     *float64 `json:"compare_price" validate:"omitempty,min=0"`
-	CostPrice        *float64 `json:"cost_price" validate:"omitempty,min=0"`
-	Weight           *float64 `json:"weight" validate:"omitempty,weight"`
-	Dimensions       *string  `json:"dimensions" validate:"omitempty,dimensions"`
-	IsActive         *bool    `json:"is_active"`
-	IsDigital        *bool    `json:"is_digital"`
-	RequiresShipping *bool    `json:"requires_shipping"`
-	Taxable          *bool    `json:"taxable"`
-	TrackQuantity    *bool    `json:"track_quantity"`
-	MinQuantity      *int     `json:"min_quantity" validate:"omitempty,min=0"`
-	MaxQuantity      *int     `json:"max_quantity" validate:"omitempty,min=0"`
-	MetaTitle        *string  `json:"meta_title" validate:"omitempty,meta_title"`
-	MetaDescription  *string  `json:"meta_description" validate:"omitempty,meta_description"`
-	Tags             *string  `json:"tags" validate:"omitempty,tags"`
-	CategoryIDs      []int64  `json:"category_ids" validate:"omitempty"`
+	Name             *string               `json:"name" validate:"omitempty,min=1,max=255"`
+	Description      *string               `json:"description" validate:"omitempty,min=1,max=5000"`
+	ShortDesc        *string               `json:"short_description" validate:"omitempty,max=500"`
+	SKU              *string               `json:"sku" validate:"omitempty,sku"`
+	Price            *float64              `json:"price" validate:"omitempty,price"`
+	ComparePrice     *float64              `json:"compare_price" validate:"omitempty,min=0"`
+	CostPrice        *float64              `json:"cost_price" validate:"omitempty,min=0"`
+	Weight           *float64              `json:"weight" validate:"omitempty,weight"`
+	Dimensions       *string               `json:"dimensions" validate:"omitempty,dimensions"`
+	IsActive         *bool                 `json:"is_active"`
+	IsDigital        *bool                 `json:"is_digital"`
+	RequiresShipping *bool                 `json:"requires_shipping"`
+	Taxable          *bool                 `json:"taxable"`
+	TrackQuantity    *bool                 `json:"track_quantity"`
+	MinQuantity      *int                  `json:"min_quantity" validate:"omitempty,min=0"`
+	MaxQuantity      *int                  `json:"max_quantity" validate:"omitempty,min=0"`
+	MetaTitle        *string               `json:"meta_title" validate:"omitempty,meta_title"`
+	MetaDescription  *string               `json:"meta_description" validate:"omitempty,meta_description"`
+	Tags             *string               `json:"tags" validate:"omitempty,tags"`
+	CategoryIDs      []int64               `json:"category_ids" validate:"omitempty"`
+	Images           []ProductImageRequest `json:"images" validate:"omitempty"`
 }
 
 // ProductResponse represents the response for product data
 type ProductResponse struct {
-	ID               int64    `json:"id"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	ShortDesc        string   `json:"short_description"`
-	SKU              string   `json:"sku"`
-	Price            float64  `json:"price"`
-	ComparePrice     float64  `json:"compare_price"`
-	CostPrice        float64  `json:"cost_price"`
-	Weight           float64  `json:"weight"`
-	Dimensions       string   `json:"dimensions"`
-	IsActive         bool     `json:"is_active"`
-	IsDigital        bool     `json:"is_digital"`
-	RequiresShipping bool     `json:"requires_shipping"`
-	Taxable          bool     `json:"taxable"`
-	TrackQuantity    bool     `json:"track_quantity"`
-	MinQuantity      int      `json:"min_quantity"`
-	MaxQuantity      int      `json:"max_quantity"`
-	MetaTitle        string   `json:"meta_title"`
-	MetaDescription  string   `json:"meta_description"`
-	Tags             string   `json:"tags"`
-	CategoryIDs      []int64  `json:"category_ids"`
-	CategoryNames    []string `json:"category_names"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        string   `json:"updated_at"`
+	ID               int64                  `json:"id"`
+	Name             string                 `json:"name"`
+	Description      string                 `json:"description"`
+	ShortDesc        string                 `json:"short_description"`
+	SKU              string                 `json:"sku"`
+	Price            float64                `json:"price"`
+	ComparePrice     float64                `json:"compare_price"`
+	CostPrice        float64                `json:"cost_price"`
+	Weight           float64                `json:"weight"`
+	Dimensions       string                 `json:"dimensions"`
+	IsActive         bool                   `json:"is_active"`
+	IsDigital        bool                   `json:"is_digital"`
+	RequiresShipping bool                   `json:"requires_shipping"`
+	Taxable          bool                   `json:"taxable"`
+	TrackQuantity    bool                   `json:"track_quantity"`
+	MinQuantity      int                    `json:"min_quantity"`
+	MaxQuantity      int                    `json:"max_quantity"`
+	MetaTitle        string                 `json:"meta_title"`
+	MetaDescription  string                 `json:"meta_description"`
+	Tags             string                 `json:"tags"`
+	CategoryIDs      []int64                `json:"category_ids"`
+	CategoryNames    []string               `json:"category_names"`
+	Images           []ProductImageResponse `json:"images"`
+	CreatedAt        string                 `json:"created_at"`
+	UpdatedAt        string                 `json:"updated_at"`
 	// Stock information for products without variants
 	Quantity          int  `json:"quantity"`
 	AvailableQuantity int  `json:"available_quantity"`
@@ -147,4 +152,24 @@ type ProductVariantResponse struct {
 	Quantity          int  `json:"quantity"`
 	AvailableQuantity int  `json:"available_quantity"`
 	IsInStock         bool `json:"is_in_stock"`
+}
+
+// ProductImageRequest represents the request to create/update a product image
+type ProductImageRequest struct {
+	URL       string `json:"url" validate:"required,url"`
+	Alt       string `json:"alt" validate:"omitempty,max=255"`
+	Position  int    `json:"position" validate:"omitempty,min=0"`
+	IsPrimary bool   `json:"is_primary"`
+}
+
+// ProductImageResponse represents the response for product image data
+type ProductImageResponse struct {
+	ID        int64     `json:"id"`
+	ProductID int64     `json:"product_id"`
+	URL       string    `json:"url"`
+	Alt       string    `json:"alt"`
+	Position  int       `json:"position"`
+	IsPrimary bool      `json:"is_primary"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

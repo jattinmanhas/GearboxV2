@@ -37,6 +37,13 @@ type IProductHandler interface {
 	RemoveProductFromCategory(w http.ResponseWriter, r *http.Request)
 	GetProductCategories(w http.ResponseWriter, r *http.Request)
 	UpdateProductCategories(w http.ResponseWriter, r *http.Request)
+
+	// Product Images
+	CreateProductImage(w http.ResponseWriter, r *http.Request)
+	GetProductImages(w http.ResponseWriter, r *http.Request)
+	UpdateProductImage(w http.ResponseWriter, r *http.Request)
+	DeleteProductImage(w http.ResponseWriter, r *http.Request)
+	SetPrimaryProductImage(w http.ResponseWriter, r *http.Request)
 }
 
 type productHandler struct {
@@ -648,5 +655,150 @@ func (h *productHandler) UpdateProductCategories(w http.ResponseWriter, r *http.
 	httpx.OK(w, "product categories updated", map[string]interface{}{
 		"product_id":   productID,
 		"category_ids": req.CategoryIDs,
+	})
+}
+
+// Product Image handlers
+
+// CreateProductImage handles POST /api/v1/products/{id}/images
+func (h *productHandler) CreateProductImage(w http.ResponseWriter, r *http.Request) {
+	productIDStr := chi.URLParam(r, "id")
+
+	productID, err := strconv.ParseInt(productIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid product ID", err)
+		return
+	}
+
+	var req dto.ProductImageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
+		return
+	}
+
+	image, err := h.productService.CreateProductImage(r.Context(), &req, productID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to create product image", err)
+		return
+	}
+
+	httpx.Created(w, "product image created", image)
+}
+
+// GetProductImages handles GET /api/v1/products/{id}/images
+func (h *productHandler) GetProductImages(w http.ResponseWriter, r *http.Request) {
+	productIDStr := chi.URLParam(r, "id")
+
+	productID, err := strconv.ParseInt(productIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid product ID", err)
+		return
+	}
+
+	images, err := h.productService.GetProductImages(r.Context(), productID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "failed to get product images", err)
+		return
+	}
+
+	httpx.OK(w, "product images retrieved", images)
+}
+
+// UpdateProductImage handles PUT /api/v1/products/images/{image_id}
+func (h *productHandler) UpdateProductImage(w http.ResponseWriter, r *http.Request) {
+	imageIDStr := chi.URLParam(r, "image_id")
+
+	imageID, err := strconv.ParseInt(imageIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid image ID", err)
+		return
+	}
+
+	var req dto.ProductImageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, validationErrors.Error(), validationErrors)
+		return
+	}
+
+	image, err := h.productService.UpdateProductImage(r.Context(), imageID, &req)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "failed to update product image", err)
+		return
+	}
+
+	httpx.OK(w, "product image updated", image)
+}
+
+// DeleteProductImage handles DELETE /api/v1/products/images/{image_id}
+func (h *productHandler) DeleteProductImage(w http.ResponseWriter, r *http.Request) {
+	imageIDStr := chi.URLParam(r, "image_id")
+
+	imageID, err := strconv.ParseInt(imageIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid image ID", err)
+		return
+	}
+
+	err = h.productService.DeleteProductImage(r.Context(), imageID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "failed to delete product image", err)
+		return
+	}
+
+	httpx.OK(w, "product image deleted", nil)
+}
+
+// SetPrimaryProductImage handles PUT /api/v1/products/{id}/images/{image_id}/primary
+func (h *productHandler) SetPrimaryProductImage(w http.ResponseWriter, r *http.Request) {
+	productIDStr := chi.URLParam(r, "id")
+	imageIDStr := chi.URLParam(r, "image_id")
+
+	productID, err := strconv.ParseInt(productIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid product ID", err)
+		return
+	}
+
+	imageID, err := strconv.ParseInt(imageIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid image ID", err)
+		return
+	}
+
+	err = h.productService.SetPrimaryProductImage(r.Context(), productID, imageID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "failed to set primary product image", err)
+		return
+	}
+
+	httpx.OK(w, "primary product image set", map[string]interface{}{
+		"product_id": productID,
+		"image_id":   imageID,
 	})
 }

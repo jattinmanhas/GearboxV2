@@ -13,11 +13,14 @@ export interface ImageUploadConfig {
   quality: number; // 0-100
   generateThumbnails: boolean;
   thumbnailSizes: { width: number; height: number; name: string }[];
+  useCloudinary?: boolean; // Whether to use Cloudinary for uploads
 }
 
 export interface UploadedImage {
   id: string;
   url: string;
+  secureUrl?: string; // Cloudinary secure URL
+  publicId?: string; // Cloudinary public ID
   thumbnailUrl?: string;
   alt: string;
   width: number;
@@ -26,6 +29,8 @@ export interface UploadedImage {
   mimeType: string;
   uploadedAt: string;
   thumbnails?: { [key: string]: string };
+  folder?: string; // Cloudinary folder
+  tags?: string[]; // Cloudinary tags
 }
 
 export interface ImageUploadResponse {
@@ -48,8 +53,26 @@ export const DEFAULT_IMAGE_CONFIG: ImageUploadConfig = {
     { width: 300, height: 300, name: 'small' },
     { width: 600, height: 600, name: 'medium' },
     { width: 1200, height: 1200, name: 'large' }
-  ]
+  ],
+  useCloudinary: true // Default to Cloudinary if available
 };
+
+/**
+ * Checks if Cloudinary is properly configured
+ * Note: This function only works on the server side
+ */
+export function isCloudinaryConfigured(): boolean {
+  // Only check on server side where process.env is available
+  if (typeof window !== 'undefined') {
+    throw new Error('isCloudinaryConfigured() can only be called on the server side')
+  }
+  
+  return !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  )
+}
 
 /**
  * Validates an image file before upload
@@ -139,8 +162,11 @@ export async function uploadImage(
       };
     }
 
-    // Create form data
+    // Create form data with Cloudinary preference
     const formData = createImageUploadFormData(file, alt, userId, config);
+    
+    // Add Cloudinary preference to form data
+    formData.append('useCloudinary', (config.useCloudinary ?? true).toString());
 
     // Upload to Next.js API route
     const response = await fetch('/api/v1/upload/image', {
@@ -176,11 +202,15 @@ export async function uploadImage(
 /**
  * Deletes an uploaded image
  */
-export async function deleteImage(imageId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteImage(imageId: string, isCloudinary: boolean = false): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`/api/v1/upload/image/${imageId}`, {
       method: 'DELETE',
-      credentials: 'include'
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isCloudinary })
     });
 
     const result = await response.json();

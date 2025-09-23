@@ -152,7 +152,9 @@ export function EnhancedImageUpload({
 
   const handleRemoveImage = async (image: UploadedImage) => {
     try {
-      await deleteImage(image.id)
+      // Check if this is a Cloudinary image
+      const isCloudinary = !!image.publicId
+      await deleteImage(image.id, isCloudinary)
       setPreviewImages(prev => prev.filter(img => img.id !== image.id))
       onImageRemove?.(image.id)
     } catch (error) {
@@ -286,7 +288,7 @@ export function EnhancedImageUpload({
                 <div key={image.id} className="relative group">
                   <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                     <img
-                      src={image.url}
+                      src={image.secureUrl || image.url}
                       alt={image.alt}
                       className="w-full h-full object-cover"
                     />

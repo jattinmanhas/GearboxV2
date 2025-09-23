@@ -84,6 +84,17 @@ export interface Category {
   updated_at: string
 }
 
+export interface ProductImage {
+  id: number
+  product_id: number
+  url: string
+  alt: string
+  position: number
+  is_primary: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Product {
   id: number
   name: string
@@ -107,6 +118,7 @@ export interface Product {
   tags: string
   category_ids?: number[]
   category_names?: string[]
+  images?: ProductImage[]
   created_at: string
   updated_at: string
   // Stock information for products without variants

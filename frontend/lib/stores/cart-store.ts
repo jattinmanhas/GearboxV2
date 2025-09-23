@@ -336,7 +336,7 @@ export const useCartStore = create<CartStore>()(
                 sku: variant ? variant.sku : product.sku,
                 variant_name: variant?.name,
                 variant_sku: variant?.sku,
-                image: undefined, // Product doesn't have image_url field
+                image: product.images && product.images.length > 0 ? product.images[0].url : undefined,
                 maxQuantity: product.max_quantity || 999
               }
             } catch (error) {

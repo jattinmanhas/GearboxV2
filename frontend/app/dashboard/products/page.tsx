@@ -199,9 +199,9 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground">
             Manage your product catalog and inventory
           </p>
@@ -209,11 +209,12 @@ export default function ProductsPage() {
         <div className="flex items-center space-x-2">
           <Button variant="outline" className="flex items-center gap-2">
             <Download className="h-4 w-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
           <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Add Product
+            <span className="hidden sm:inline">Add Product</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
@@ -252,7 +253,7 @@ export default function ProductsPage() {
         <CardContent>
           <div className="space-y-4">
             {/* Basic Search */}
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -266,7 +267,7 @@ export default function ProductsPage() {
                 <select
                   value={filters.category_id || ""}
                   onChange={(e) => handleFilterChange('category_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  className="px-3 py-2 border border-input bg-background rounded-md text-sm min-w-[150px]"
                 >
                   <option value="">All Categories</option>
                   {categories.map((category) => (

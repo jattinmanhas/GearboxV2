@@ -16,7 +16,9 @@ import {
   Package,
   Truck,
   Shield,
-  RotateCcw
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { productApi } from "@/lib/api"
 import { Product, Category, ProductVariant } from "@/lib/types"
@@ -32,6 +34,7 @@ export default function ProductDetailPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   
   // Debug: Log selectedVariant changes
   useEffect(() => {
@@ -77,6 +80,7 @@ export default function ProductDetailPage() {
         setProduct(productData)
         setCategories(categoriesData.data.categories)
         setVariants(variantsData)
+        setSelectedImageIndex(0) // Reset to first image when product changes
         
         // Debug: Log the variants data
         console.log('Variants data:', variantsData)
@@ -217,22 +221,81 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-              <Package className="h-24 w-24 text-muted-foreground" />
+            <div className="relative aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden group">
+              {product.images && product.images.length > 0 ? (
+                <Image
+                  src={product.images[selectedImageIndex].url}
+                  alt={product.images[selectedImageIndex].alt || product.name}
+                  width={600}
+                  height={600}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Package className="h-24 w-24 text-muted-foreground" />
+              )}
+              
+              {/* Navigation arrows */}
+              {product.images && product.images.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background border-border shadow-lg"
+                    onClick={() => setSelectedImageIndex(
+                      selectedImageIndex === 0 
+                        ? (product.images?.length || 1) - 1 
+                        : selectedImageIndex - 1
+                    )}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background border-border shadow-lg"
+                    onClick={() => setSelectedImageIndex(
+                      selectedImageIndex === (product.images?.length || 1) - 1 
+                        ? 0 
+                        : selectedImageIndex + 1
+                    )}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              
+              {/* Image counter */}
+              {product.images && product.images.length > 1 && (
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                  {selectedImageIndex + 1} / {product.images.length}
+                </div>
+              )}
             </div>
             
-            {/* Thumbnail images would go here */}
-            <div className="flex gap-2">
-              <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                <Package className="h-6 w-6 text-muted-foreground" />
+            {/* Thumbnail images */}
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-2">
+                {product.images.slice(0, 4).map((image, index) => (
+                  <div 
+                    key={image.id} 
+                    className={`w-16 h-16 bg-muted rounded-md flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-200 ${
+                      selectedImageIndex === index 
+                        ? 'ring-2 ring-primary ring-offset-2' 
+                        : 'hover:ring-2 hover:ring-primary'
+                    }`}
+                    onClick={() => setSelectedImageIndex(index)}
+                  >
+                    <Image
+                      src={image.url}
+                      alt={image.alt || product.name}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
               </div>
-              <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                <Package className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                <Package className="h-6 w-6 text-muted-foreground" />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Product Info */}

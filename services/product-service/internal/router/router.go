@@ -78,6 +78,13 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			r.Put("/{id}/categories", productHandler.UpdateProductCategories)
 			r.Get("/{id}/categories", productHandler.GetProductCategories)
 			r.Delete("/{id}/categories/{category_id}", productHandler.RemoveProductFromCategory)
+
+			// Product images
+			r.Post("/{id}/images", productHandler.CreateProductImage)
+			r.Get("/{id}/images", productHandler.GetProductImages)
+			r.Put("/images/{image_id}", productHandler.UpdateProductImage)
+			r.Delete("/images/{image_id}", productHandler.DeleteProductImage)
+			r.Put("/{id}/images/{image_id}/primary", productHandler.SetPrimaryProductImage)
 		})
 
 		// Category routes

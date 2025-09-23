@@ -38,6 +38,14 @@ type ProductRepository interface {
 	GetProductCategories(ctx context.Context, productID int64) ([]*domain.Category, error)
 	UpdateProductCategories(ctx context.Context, productID int64, categoryIDs []int64) error
 	CheckCategoryHasProducts(ctx context.Context, categoryID int64) (bool, error)
+
+	// Product Images
+	CreateProductImage(ctx context.Context, image *domain.ProductImage) error
+	GetProductImages(ctx context.Context, productID int64) ([]*domain.ProductImage, error)
+	UpdateProductImage(ctx context.Context, id int64, image *domain.ProductImage) error
+	DeleteProductImage(ctx context.Context, id int64) error
+	DeleteProductImages(ctx context.Context, productID int64) error
+	SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error
 }
 
 type productRepository struct {
@@ -105,6 +113,18 @@ func (r *productRepository) GetProductByID(ctx context.Context, id int64) (*doma
 	product.CategoryIDs = categoryIDs
 	product.CategoryNames = categoryNames
 
+	// Populate image information
+	images, err := r.GetProductImages(ctx, product.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+	}
+	// Convert []*ProductImage to []ProductImage
+	productImages := make([]domain.ProductImage, len(images))
+	for i, img := range images {
+		productImages[i] = *img
+	}
+	product.Images = productImages
+
 	return &product, nil
 }
 
@@ -128,6 +148,18 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 	}
 	product.CategoryIDs = categoryIDs
 	product.CategoryNames = categoryNames
+
+	// Populate image information
+	images, err := r.GetProductImages(ctx, product.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+	}
+	// Convert []*ProductImage to []ProductImage
+	productImages := make([]domain.ProductImage, len(images))
+	for i, img := range images {
+		productImages[i] = *img
+	}
+	product.Images = productImages
 
 	return &product, nil
 }
@@ -215,7 +247,7 @@ func (r *productRepository) ListProducts(ctx context.Context, filter *domain.Pro
 		return nil, 0, fmt.Errorf("failed to list products: %w", err)
 	}
 
-	// Populate category information for each product
+	// Populate category and image information for each product
 	for _, product := range products {
 		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
 		if err != nil {
@@ -223,6 +255,18 @@ func (r *productRepository) ListProducts(ctx context.Context, filter *domain.Pro
 		}
 		product.CategoryIDs = categoryIDs
 		product.CategoryNames = categoryNames
+
+		// Populate image information
+		images, err := r.GetProductImages(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+		}
+		// Convert []*ProductImage to []ProductImage
+		productImages := make([]domain.ProductImage, len(images))
+		for i, img := range images {
+			productImages[i] = *img
+		}
+		product.Images = productImages
 	}
 
 	return products, total, nil
@@ -293,7 +337,7 @@ func (r *productRepository) GetProductsByCategory(ctx context.Context, categoryI
 		return nil, 0, fmt.Errorf("failed to get products by category: %w", err)
 	}
 
-	// Populate category information for each product
+	// Populate category and image information for each product
 	for _, product := range products {
 		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
 		if err != nil {
@@ -301,6 +345,18 @@ func (r *productRepository) GetProductsByCategory(ctx context.Context, categoryI
 		}
 		product.CategoryIDs = categoryIDs
 		product.CategoryNames = categoryNames
+
+		// Populate image information
+		images, err := r.GetProductImages(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+		}
+		// Convert []*ProductImage to []ProductImage
+		productImages := make([]domain.ProductImage, len(images))
+		for i, img := range images {
+			productImages[i] = *img
+		}
+		product.Images = productImages
 	}
 
 	return products, total, nil
@@ -345,7 +401,7 @@ func (r *productRepository) SearchProducts(ctx context.Context, query string, of
 		return nil, 0, fmt.Errorf("failed to search products: %w", err)
 	}
 
-	// Populate category information for each product
+	// Populate category and image information for each product
 	for _, product := range products {
 		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
 		if err != nil {
@@ -353,6 +409,18 @@ func (r *productRepository) SearchProducts(ctx context.Context, query string, of
 		}
 		product.CategoryIDs = categoryIDs
 		product.CategoryNames = categoryNames
+
+		// Populate image information
+		images, err := r.GetProductImages(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+		}
+		// Convert []*ProductImage to []ProductImage
+		productImages := make([]domain.ProductImage, len(images))
+		for i, img := range images {
+			productImages[i] = *img
+		}
+		product.Images = productImages
 	}
 
 	return products, total, nil
@@ -399,7 +467,7 @@ func (r *productRepository) GetProductsByTags(ctx context.Context, tags []string
 		return nil, 0, fmt.Errorf("failed to get products by tags: %w", err)
 	}
 
-	// Populate category information for each product
+	// Populate category and image information for each product
 	for _, product := range products {
 		categoryIDs, categoryNames, err := r.getProductCategories(ctx, product.ID)
 		if err != nil {
@@ -407,6 +475,18 @@ func (r *productRepository) GetProductsByTags(ctx context.Context, tags []string
 		}
 		product.CategoryIDs = categoryIDs
 		product.CategoryNames = categoryNames
+
+		// Populate image information
+		images, err := r.GetProductImages(ctx, product.ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get images for product %d: %w", product.ID, err)
+		}
+		// Convert []*ProductImage to []ProductImage
+		productImages := make([]domain.ProductImage, len(images))
+		for i, img := range images {
+			productImages[i] = *img
+		}
+		product.Images = productImages
 	}
 
 	return products, total, nil
@@ -791,4 +871,155 @@ func (r *productRepository) CheckCategoryHasProducts(ctx context.Context, catego
 		return false, fmt.Errorf("failed to check category has products: %w", err)
 	}
 	return count > 0, nil
+}
+
+// Product Image methods
+
+// CreateProductImage creates a new product image
+func (r *productRepository) CreateProductImage(ctx context.Context, image *domain.ProductImage) error {
+	query := `
+		INSERT INTO product_images (
+			product_id, url, alt, position, is_primary
+		) VALUES (
+			:product_id, :url, :alt, :position, :is_primary
+		)
+		RETURNING id`
+
+	rows, err := r.db.NamedQueryContext(ctx, query, image)
+	if err != nil {
+		return fmt.Errorf("failed to create product image: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		if err := rows.Scan(&image.ID); err != nil {
+			return fmt.Errorf("failed to scan image ID: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetProductImages retrieves all images for a product
+func (r *productRepository) GetProductImages(ctx context.Context, productID int64) ([]*domain.ProductImage, error) {
+	query := `SELECT id, product_id, url, alt, position, is_primary, created_at, updated_at FROM product_images WHERE product_id = $1 ORDER BY position, created_at`
+
+	rows, err := r.db.QueryContext(ctx, query, productID)
+	if err != nil {
+		return []*domain.ProductImage{}, nil
+	}
+	defer rows.Close()
+
+	var images []*domain.ProductImage
+	for rows.Next() {
+		var image domain.ProductImage
+		err := rows.Scan(
+			&image.ID,
+			&image.ProductID,
+			&image.URL,
+			&image.Alt,
+			&image.Position,
+			&image.IsPrimary,
+			&image.CreatedAt,
+			&image.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		images = append(images, &image)
+	}
+
+	if err := rows.Err(); err != nil {
+		return []*domain.ProductImage{}, nil
+	}
+
+	return images, nil
+}
+
+// UpdateProductImage updates an existing product image
+func (r *productRepository) UpdateProductImage(ctx context.Context, id int64, image *domain.ProductImage) error {
+	query := `
+		UPDATE product_images SET
+			url = :url, alt = :alt, position = :position, is_primary = :is_primary
+		WHERE id = :id`
+
+	image.ID = id
+
+	result, err := r.db.NamedExecContext(ctx, query, image)
+	if err != nil {
+		return fmt.Errorf("failed to update product image: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("product image with ID %d not found", id)
+	}
+
+	return nil
+}
+
+// DeleteProductImage deletes a product image
+func (r *productRepository) DeleteProductImage(ctx context.Context, id int64) error {
+	query := `DELETE FROM product_images WHERE id = $1`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete product image: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("product image with ID %d not found", id)
+	}
+
+	return nil
+}
+
+// DeleteProductImages deletes all images for a product
+func (r *productRepository) DeleteProductImages(ctx context.Context, productID int64) error {
+	query := `DELETE FROM product_images WHERE product_id = $1`
+
+	_, err := r.db.ExecContext(ctx, query, productID)
+	if err != nil {
+		return fmt.Errorf("failed to delete product images: %w", err)
+	}
+
+	return nil
+}
+
+// SetPrimaryProductImage sets a product image as primary (and unsets others)
+func (r *productRepository) SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error {
+	// Start transaction
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Unset all primary images for this product
+	_, err = tx.ExecContext(ctx, "UPDATE product_images SET is_primary = false WHERE product_id = $1", productID)
+	if err != nil {
+		return fmt.Errorf("failed to unset primary images: %w", err)
+	}
+
+	// Set the specified image as primary
+	_, err = tx.ExecContext(ctx, "UPDATE product_images SET is_primary = true WHERE id = $1 AND product_id = $2", imageID, productID)
+	if err != nil {
+		return fmt.Errorf("failed to set primary image: %w", err)
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }

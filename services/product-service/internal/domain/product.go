@@ -33,6 +33,9 @@ type Product struct {
 	// Category information (populated by repository)
 	CategoryIDs   []int64  `json:"category_ids,omitempty"`
 	CategoryNames []string `json:"category_names,omitempty"`
+
+	// Image information (populated by repository)
+	Images []ProductImage `json:"images,omitempty"`
 }
 
 // ProductVariant represents different variations of a product (size, color, etc.)
@@ -69,12 +72,14 @@ type ProductAttributeValue struct {
 
 // ProductImage represents product images
 type ProductImage struct {
-	ID        int64  `json:"id" db:"id"`
-	ProductID int64  `json:"product_id" db:"product_id"`
-	URL       string `json:"url" db:"url"`
-	Alt       string `json:"alt" db:"alt"`
-	Position  int    `json:"position" db:"position"`
-	IsPrimary bool   `json:"is_primary" db:"is_primary"`
+	ID        int64     `json:"id" db:"id"`
+	ProductID int64     `json:"product_id" db:"product_id"`
+	URL       string    `json:"url" db:"url"`
+	Alt       string    `json:"alt" db:"alt"`
+	Position  int       `json:"position" db:"position"`
+	IsPrimary bool      `json:"is_primary" db:"is_primary"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ProductCategory represents the many-to-many relationship between products and categories

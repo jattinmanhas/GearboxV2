@@ -37,6 +37,13 @@ type ProductService interface {
 	RemoveProductFromCategory(ctx context.Context, productID, categoryID int64) error
 	GetProductCategories(ctx context.Context, productID int64) ([]*domain.Category, error)
 	UpdateProductCategories(ctx context.Context, productID int64, categoryIDs []int64) error
+
+	// Product Images
+	CreateProductImage(ctx context.Context, req *dto.ProductImageRequest, productID int64) (*domain.ProductImage, error)
+	GetProductImages(ctx context.Context, productID int64) ([]*domain.ProductImage, error)
+	UpdateProductImage(ctx context.Context, id int64, req *dto.ProductImageRequest) (*domain.ProductImage, error)
+	DeleteProductImage(ctx context.Context, id int64) error
+	SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error
 }
 
 type productService struct {
@@ -96,6 +103,15 @@ func (s *productService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		if err != nil {
 			// Log error but don't fail the product creation
 			fmt.Printf("Warning: failed to add product to categories: %v\n", err)
+		}
+	}
+
+	// Add product images if provided
+	if len(req.Images) > 0 {
+		err = s.createProductImages(ctx, product.ID, req.Images)
+		if err != nil {
+			// Log error but don't fail the product creation
+			fmt.Printf("Warning: failed to add product images: %v\n", err)
 		}
 	}
 
@@ -358,6 +374,7 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 			Tags:              product.Tags,
 			CategoryIDs:       product.CategoryIDs,
 			CategoryNames:     product.CategoryNames,
+			Images:            convertDomainImagesToDTO(product.Images),
 			CreatedAt:         product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:         product.UpdatedAt.Format(time.RFC3339),
 			Quantity:          quantity,
@@ -376,6 +393,24 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 		Limit:      req.Limit,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// convertDomainImagesToDTO converts domain images to DTO images
+func convertDomainImagesToDTO(domainImages []domain.ProductImage) []dto.ProductImageResponse {
+	images := make([]dto.ProductImageResponse, len(domainImages))
+	for i, img := range domainImages {
+		images[i] = dto.ProductImageResponse{
+			ID:        img.ID,
+			ProductID: img.ProductID,
+			URL:       img.URL,
+			Alt:       img.Alt,
+			Position:  img.Position,
+			IsPrimary: img.IsPrimary,
+			CreatedAt: img.CreatedAt,
+			UpdatedAt: img.UpdatedAt,
+		}
+	}
+	return images
 }
 
 // GetProductWithStockInfo gets a product with stock information calculated
@@ -440,6 +475,9 @@ func (s *productService) GetProductWithStockInfo(ctx context.Context, product *d
 		}
 	}
 
+	// Convert domain images to DTO images
+	images := convertDomainImagesToDTO(product.Images)
+
 	return &dto.ProductResponse{
 		ID:                product.ID,
 		Name:              product.Name,
@@ -463,6 +501,7 @@ func (s *productService) GetProductWithStockInfo(ctx context.Context, product *d
 		Tags:              product.Tags,
 		CategoryIDs:       product.CategoryIDs,
 		CategoryNames:     product.CategoryNames,
+		Images:            images,
 		CreatedAt:         product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         product.UpdatedAt.Format(time.RFC3339),
 		Quantity:          quantity,
@@ -518,6 +557,7 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 			Tags:             product.Tags,
 			CategoryIDs:      product.CategoryIDs,
 			CategoryNames:    product.CategoryNames,
+			Images:           convertDomainImagesToDTO(product.Images),
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -582,6 +622,7 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 			Tags:             product.Tags,
 			CategoryIDs:      product.CategoryIDs,
 			CategoryNames:    product.CategoryNames,
+			Images:           convertDomainImagesToDTO(product.Images),
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -646,6 +687,7 @@ func (s *productService) GetProductsByTags(ctx context.Context, tags []string, p
 			Tags:             product.Tags,
 			CategoryIDs:      product.CategoryIDs,
 			CategoryNames:    product.CategoryNames,
+			Images:           convertDomainImagesToDTO(product.Images),
 			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 		}
@@ -939,4 +981,132 @@ func (s *productService) GetProductVariantsByProductIDAndSKU(ctx context.Context
 	}
 
 	return variants, nil
+}
+
+// Product Image methods
+
+// createProductImages is a helper method to create multiple product images
+func (s *productService) createProductImages(ctx context.Context, productID int64, imageRequests []dto.ProductImageRequest) error {
+	for i, imageReq := range imageRequests {
+		image := &domain.ProductImage{
+			ProductID: productID,
+			URL:       imageReq.URL,
+			Alt:       imageReq.Alt,
+			Position:  imageReq.Position,
+			IsPrimary: imageReq.IsPrimary,
+		}
+
+		// If position is not set, use the index
+		if image.Position == 0 {
+			image.Position = i + 1
+		}
+
+		// If this is the first image and no primary is set, make it primary
+		if i == 0 && !imageReq.IsPrimary {
+			image.IsPrimary = true
+		}
+
+		err := s.productRepo.CreateProductImage(ctx, image)
+		if err != nil {
+			return fmt.Errorf("failed to create product image: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// CreateProductImage creates a new product image
+func (s *productService) CreateProductImage(ctx context.Context, req *dto.ProductImageRequest, productID int64) (*domain.ProductImage, error) {
+	// Check if product exists
+	_, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	image := &domain.ProductImage{
+		ProductID: productID,
+		URL:       req.URL,
+		Alt:       req.Alt,
+		Position:  req.Position,
+		IsPrimary: req.IsPrimary,
+	}
+
+	err = s.productRepo.CreateProductImage(ctx, image)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create product image: %w", err)
+	}
+
+	return image, nil
+}
+
+// GetProductImages retrieves all images for a product
+func (s *productService) GetProductImages(ctx context.Context, productID int64) ([]*domain.ProductImage, error) {
+	// Check if product exists
+	_, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product: %w", err)
+	}
+
+	images, err := s.productRepo.GetProductImages(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product images: %w", err)
+	}
+
+	return images, nil
+}
+
+// UpdateProductImage updates an existing product image
+func (s *productService) UpdateProductImage(ctx context.Context, id int64, req *dto.ProductImageRequest) (*domain.ProductImage, error) {
+	image := &domain.ProductImage{
+		URL:       req.URL,
+		Alt:       req.Alt,
+		Position:  req.Position,
+		IsPrimary: req.IsPrimary,
+	}
+
+	err := s.productRepo.UpdateProductImage(ctx, id, image)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update product image: %w", err)
+	}
+
+	// Get the updated image
+	updatedImage, err := s.productRepo.GetProductImages(ctx, image.ProductID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get updated image: %w", err)
+	}
+
+	// Find the updated image by ID
+	for _, img := range updatedImage {
+		if img.ID == id {
+			return img, nil
+		}
+	}
+
+	return nil, fmt.Errorf("updated image not found")
+}
+
+// DeleteProductImage deletes a product image
+func (s *productService) DeleteProductImage(ctx context.Context, id int64) error {
+	err := s.productRepo.DeleteProductImage(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete product image: %w", err)
+	}
+
+	return nil
+}
+
+// SetPrimaryProductImage sets a product image as primary
+func (s *productService) SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error {
+	// Check if product exists
+	_, err := s.productRepo.GetProductByID(ctx, productID)
+	if err != nil {
+		return fmt.Errorf("failed to get product: %w", err)
+	}
+
+	err = s.productRepo.SetPrimaryProductImage(ctx, productID, imageID)
+	if err != nil {
+		return fmt.Errorf("failed to set primary product image: %w", err)
+	}
+
+	return nil
 }

@@ -1,17 +1,18 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EnhancedImageUpload } from '@/components/ui/enhanced-image-upload'
 import { DEFAULT_IMAGE_CONFIG, type UploadedImage, type ImageUploadConfig } from '@/lib/image-upload'
-import { ImageIcon, Upload, Settings, Code } from 'lucide-react'
+import { ImageIcon, Upload, Settings, Code, Cloud, HardDrive } from 'lucide-react'
 
 export default function ImageUploadDemoPage() {
   const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([])
   const [customConfig, setCustomConfig] = useState<ImageUploadConfig>(DEFAULT_IMAGE_CONFIG)
   const [showConfig, setShowConfig] = useState(false)
+  const [cloudinaryStatus, setCloudinaryStatus] = useState<{ configured: boolean; cloudName: string | null } | null>(null)
 
   const handleImageSelect = (image: UploadedImage) => {
     setSelectedImages(prev => [...prev, image])
@@ -28,6 +29,14 @@ export default function ImageUploadDemoPage() {
     }))
   }
 
+  useEffect(() => {
+    // Fetch Cloudinary status
+    fetch('/api/v1/cloudinary/status')
+      .then(res => res.json())
+      .then(data => setCloudinaryStatus(data))
+      .catch(err => console.error('Failed to fetch Cloudinary status:', err))
+  }, [])
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -37,6 +46,41 @@ export default function ImageUploadDemoPage() {
           <p className="text-xl text-muted-foreground">
             Test the enhanced image upload functionality with drag & drop, validation, and optimization
           </p>
+          
+          {/* Storage Status */}
+          <div className="flex items-center justify-center gap-2">
+            {cloudinaryStatus?.configured ? (
+              <>
+                <Cloud className="h-5 w-5 text-blue-500" />
+                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                  Cloudinary Active
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  Images will be uploaded to Cloudinary ({cloudinaryStatus.cloudName}) with automatic optimization
+                </span>
+              </>
+            ) : cloudinaryStatus === null ? (
+              <>
+                <HardDrive className="h-5 w-5 text-gray-500" />
+                <Badge variant="outline" className="text-gray-600 border-gray-200">
+                  Checking Status...
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  Checking Cloudinary configuration...
+                </span>
+              </>
+            ) : (
+              <>
+                <HardDrive className="h-5 w-5 text-gray-500" />
+                <Badge variant="outline" className="text-gray-600 border-gray-200">
+                  Local Storage
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  Images will be stored locally. Set up Cloudinary for cloud storage.
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
@@ -151,7 +195,7 @@ export default function ImageUploadDemoPage() {
                     {selectedImages.map((image) => (
                       <div key={image.id} className="flex items-center gap-4 p-4 border rounded-lg">
                         <img
-                          src={image.url}
+                          src={image.secureUrl || image.url}
                           alt={image.alt}
                           className="w-16 h-16 object-cover rounded"
                         />
@@ -235,6 +279,18 @@ export default function ImageUploadDemoPage() {
                   <li className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Image preview and management
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Cloudinary integration with automatic optimization
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Automatic format conversion (WebP, AVIF)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    CDN delivery for faster loading
                   </li>
                 </ul>
               </CardContent>

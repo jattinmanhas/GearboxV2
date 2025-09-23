@@ -85,110 +85,63 @@ export function ProductTable({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-full">
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[300px]">Product</TableHead>
-              <TableHead className="w-[120px]">SKU</TableHead>
-              <TableHead className="w-[120px]">Price</TableHead>
-              <TableHead className="w-[200px]">Categories</TableHead>
-              <TableHead className="w-[120px]">Status</TableHead>
-              <TableHead className="w-[100px]">Created</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+            <TableRow className="h-8">
+              <TableHead className="w-[160px] text-xs">Product</TableHead>
+              <TableHead className="w-[50px] hidden sm:table-cell text-xs">SKU</TableHead>
+              <TableHead className="w-[50px] text-xs">Price</TableHead>
+              <TableHead className="w-[60px] hidden md:table-cell text-xs">Status</TableHead>
+              <TableHead className="w-[40px] text-xs">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.map((product) => (
-              <TableRow key={product.id}>
+              <TableRow key={product.id} className="h-10">
                 <TableCell className="font-medium">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                      <Package className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">{product.name}</div>
-                      {product.short_description && (
-                        <div className="text-sm text-muted-foreground truncate max-w-xs">
-                          {product.short_description}
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden border border-blue-300 relative">
+                      {product.images && product.images.length > 0 ? (
+                        <img 
+                          src={product.images[0].url} 
+                          alt={product.images[0].alt || product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <Package className="h-4 w-4 text-blue-600" />
                         </div>
                       )}
+                      {/* Add a small indicator for products without images */}
+                      {(!product.images || product.images.length === 0) && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full border border-white"></div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate text-xs">{product.name}</div>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                <TableCell className="hidden sm:table-cell">
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded truncate block">
                     {product.sku}
                   </code>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">{formatPrice(product.price)}</span>
-                    {product.compare_price > 0 && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        {formatPrice(product.compare_price)}
-                      </span>
-                    )}
-                  </div>
+                  <div className="text-xs font-medium">{formatPrice(product.price)}</div>
                 </TableCell>
-                <TableCell>
-                  <div className="max-w-xs">
-                    {product.category_names && product.category_names.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {product.category_names.slice(0, 2).map((categoryName, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {categoryName}
-                          </Badge>
-                        ))}
-                        {product.category_names && product.category_names.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{product.category_names.length - 2} more
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">No categories</span>
-                    )}
-                  </div>
+                <TableCell className="hidden md:table-cell">
+                  <Badge variant={(product.is_active ?? true) ? "default" : "secondary"} className="text-xs px-1 py-0">
+                    {(product.is_active ?? true) ? "✓" : "✗"}
+                  </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="flex flex-col space-y-1">
-                    <Badge variant={(product.is_active ?? true) ? "default" : "secondary"}>
-                      {(product.is_active ?? true) ? (
-                        <>
-                          <Eye className="w-3 h-3 mr-1" />
-                          Active
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="w-3 h-3 mr-1" />
-                          Inactive
-                        </>
-                      )}
-                    </Badge>
-                    <div className="flex flex-wrap gap-1">
-                      {(product.is_digital ?? false) && (
-                        <Badge variant="outline" className="text-xs">
-                          <Package className="w-2 h-2 mr-1" />
-                          Digital
-                        </Badge>
-                      )}
-                      {(product.track_quantity ?? false) && (
-                        <Badge variant="outline" className="text-xs">
-                          <TrendingUp className="w-2 h-2 mr-1" />
-                          Tracked
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{formatDate(product.created_at)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
+                      <Button variant="ghost" className="h-6 w-6 p-0">
                         <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -217,77 +170,30 @@ export function ProductTable({
         </Table>
       </div>
 
-      {/* Enhanced Pagination */}
+      {/* Compact Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing page {currentPage} of {totalPages}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(1)}
-              disabled={currentPage <= 1}
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            
-            {/* Page Numbers */}
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => onPageChange(pageNum)}
-                    className="w-8 h-8 p-0"
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(totalPages)}
-              disabled={currentPage >= totalPages}
-            >
-              Last
-            </Button>
-          </div>
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
+            className="h-6 px-2"
+          >
+            <ChevronLeft className="h-3 w-3" />
+          </Button>
+          <span className="px-2 py-1 text-xs font-medium">
+            {currentPage} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            className="h-6 px-2"
+          >
+            <ChevronRight className="h-3 w-3" />
+          </Button>
         </div>
       )}
     </div>

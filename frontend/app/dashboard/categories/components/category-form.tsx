@@ -195,53 +195,51 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Sort Order */}
-            <div className="space-y-2">
-              <Label htmlFor="sort_order">Sort Order</Label>
-              <Input
-                id="sort_order"
-                type="number"
-                value={formData.sort_order}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  sort_order: parseInt(e.target.value) || 0 
-                }))}
-                min="0"
-                className={errors.sort_order ? "border-destructive" : ""}
-              />
-              {errors.sort_order && (
-                <p className="text-sm text-destructive">{errors.sort_order}</p>
-              )}
-            </div>
+          {/* Sort Order */}
+          <div className="space-y-2">
+            <Label htmlFor="sort_order">Sort Order</Label>
+            <Input
+              id="sort_order"
+              type="number"
+              value={formData.sort_order}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                sort_order: parseInt(e.target.value) || 0 
+              }))}
+              min="0"
+              className={errors.sort_order ? "border-destructive" : ""}
+            />
+            {errors.sort_order && (
+              <p className="text-sm text-destructive">{errors.sort_order}</p>
+            )}
+          </div>
 
-            {/* Category Image */}
-            <div className="space-y-2">
-              <Label>Category Image</Label>
-              <EnhancedImageUpload
-                onImageSelect={handleImageSelect}
-                onImageRemove={handleImageRemove}
-                selectedImages={selectedImages}
-                multiple={false}
-                maxImages={1}
-                showPreview={true}
-                showThumbnails={false}
-                config={{
-                  maxFileSize: 2 * 1024 * 1024, // 2MB for categories
-                  allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                  maxWidth: 800,
-                  maxHeight: 600,
-                  quality: 85,
-                  generateThumbnails: false,
-                  thumbnailSizes: []
-                }}
-              />
-              {formData.image_url && (
-                <div className="text-sm text-muted-foreground">
-                  Current image: {formData.image_url}
-                </div>
-              )}
-            </div>
+          {/* Category Image - Full Width */}
+          <div className="space-y-2">
+            <Label>Category Image</Label>
+            <EnhancedImageUpload
+              onImageSelect={handleImageSelect}
+              onImageRemove={handleImageRemove}
+              selectedImages={selectedImages}
+              multiple={false}
+              maxImages={1}
+              showPreview={true}
+              showThumbnails={false}
+              config={{
+                maxFileSize: 2 * 1024 * 1024, // 2MB for categories
+                allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+                maxWidth: 800,
+                maxHeight: 600,
+                quality: 85,
+                generateThumbnails: false,
+                thumbnailSizes: []
+              }}
+            />
+            {formData.image_url && (
+              <div className="text-sm text-muted-foreground">
+                Current image: {formData.image_url}
+              </div>
+            )}
           </div>
 
           {/* Meta Title */}

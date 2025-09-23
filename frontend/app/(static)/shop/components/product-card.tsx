@@ -157,8 +157,18 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
           <div className="flex">
             {/* Product Image - Clickable */}
             <Link href={`/shop/products/${product.id}`} className="block">
-              <div className="w-48 h-48 bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
-                <Package className="h-12 w-12 text-muted-foreground" />
+              <div className="w-48 h-48 bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors overflow-hidden">
+                {product.images && product.images.length > 0 ? (
+                  <Image
+                    src={product.images[0].url}
+                    alt={product.images[0].alt || product.name}
+                    width={192}
+                    height={192}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="h-12 w-12 text-muted-foreground" />
+                )}
               </div>
             </Link>
             
@@ -269,8 +279,18 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
       <CardContent className="p-0 h-full flex flex-col">
         {/* Product Image - Clickable */}
         <Link href={`/shop/products/${product.id}`} className="block">
-          <div className="relative aspect-square bg-muted flex items-center justify-center cursor-pointer">
-            <Package className="h-16 w-16 text-muted-foreground" />
+          <div className="relative aspect-square bg-muted flex items-center justify-center cursor-pointer overflow-hidden">
+            {product.images && product.images.length > 0 ? (
+              <Image
+                src={product.images[0].url}
+                alt={product.images[0].alt || product.name}
+                width={400}
+                height={400}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Package className="h-16 w-16 text-muted-foreground" />
+            )}
             {!product.is_in_stock && (
               <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                 <Badge variant="destructive">Out of Stock</Badge>
