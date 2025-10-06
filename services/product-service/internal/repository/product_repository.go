@@ -46,6 +46,10 @@ type ProductRepository interface {
 	DeleteProductImage(ctx context.Context, id int64) error
 	DeleteProductImages(ctx context.Context, productID int64) error
 	SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error
+
+	// Product Analytics
+	GetProductAnalytics(ctx context.Context) (*domain.ProductAnalytics, error)
+	GetTopSellingProducts(ctx context.Context, limit int) ([]*domain.ProductOrderStats, error)
 }
 
 type productRepository struct {
@@ -1022,4 +1026,106 @@ func (r *productRepository) SetPrimaryProductImage(ctx context.Context, productI
 	}
 
 	return nil
+}
+
+// Product Analytics
+
+// GetProductAnalytics retrieves product analytics
+func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.ProductAnalytics, error) {
+	analytics := &domain.ProductAnalytics{}
+
+	// Get total products count
+	err := r.db.GetContext(ctx, &analytics.TotalProducts, `SELECT COUNT(*) FROM products`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total products count: %w", err)
+	}
+
+	// Get active/inactive products count
+	var activeProducts, inactiveProducts int64
+	err = r.db.GetContext(ctx, &struct {
+		Active   int64 `db:"active"`
+		Inactive int64 `db:"inactive"`
+	}{
+		Active:   activeProducts,
+		Inactive: inactiveProducts,
+	}, `
+		SELECT 
+			COUNT(CASE WHEN is_active = true THEN 1 END) as active,
+			COUNT(CASE WHEN is_active = false THEN 1 END) as inactive
+		FROM products`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active/inactive products count: %w", err)
+	}
+	analytics.ActiveProducts = activeProducts
+	analytics.InactiveProducts = inactiveProducts
+
+	// Get low stock and out of stock products count
+	var lowStockProducts, outOfStockProducts int64
+	err = r.db.GetContext(ctx, &struct {
+		LowStock   int64 `db:"low_stock"`
+		OutOfStock int64 `db:"out_of_stock"`
+	}{
+		LowStock:   lowStockProducts,
+		OutOfStock: outOfStockProducts,
+	}, `
+		SELECT 
+			COUNT(CASE WHEN track_quantity = true AND quantity <= 10 THEN 1 END) as low_stock,
+			COUNT(CASE WHEN track_quantity = true AND quantity = 0 THEN 1 END) as out_of_stock
+		FROM products`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stock products count: %w", err)
+	}
+	analytics.LowStockProducts = lowStockProducts
+	analytics.OutOfStockProducts = outOfStockProducts
+
+	// Get total categories count
+	err = r.db.GetContext(ctx, &analytics.TotalCategories, `SELECT COUNT(*) FROM categories`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total categories count: %w", err)
+	}
+
+	// Get average price
+	err = r.db.GetContext(ctx, &analytics.AveragePrice, `SELECT COALESCE(AVG(price), 0) FROM products WHERE is_active = true`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average price: %w", err)
+	}
+
+	// Get total inventory value
+	err = r.db.GetContext(ctx, &analytics.TotalInventoryValue, `
+		SELECT COALESCE(SUM(price * quantity), 0) 
+		FROM products 
+		WHERE track_quantity = true AND is_active = true`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total inventory value: %w", err)
+	}
+
+	return analytics, nil
+}
+
+// GetTopSellingProducts retrieves top selling products
+func (r *productRepository) GetTopSellingProducts(ctx context.Context, limit int) ([]*domain.ProductOrderStats, error) {
+	query := `
+		SELECT 
+			p.id as product_id,
+			p.name as product_name,
+			p.sku,
+			COALESCE(SUM(oi.quantity), 0) as total_quantity,
+			COALESCE(SUM(oi.total_price), 0) as total_revenue,
+			COUNT(DISTINCT o.id) as order_count,
+			COALESCE(AVG(oi.unit_price), 0) as average_price
+		FROM products p
+		LEFT JOIN order_items oi ON p.id = oi.product_id
+		LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('confirmed', 'processing', 'shipped', 'delivered')
+		WHERE p.is_active = true
+		GROUP BY p.id, p.name, p.sku
+		ORDER BY total_revenue DESC, total_quantity DESC
+		LIMIT $1`
+
+	var products []*domain.ProductOrderStats
+	err := r.db.SelectContext(ctx, &products, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top selling products: %w", err)
+	}
+
+	return products, nil
 }

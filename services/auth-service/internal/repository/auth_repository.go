@@ -18,6 +18,8 @@ type IUserRepository interface {
 	GetUsersCountWithFilters(ctx context.Context, search string, isActive *bool, roleID *int) (int, error)
 	UpdateUser(ctx context.Context, id int, u *domain.User) error
 	DeleteUser(ctx context.Context, id int) error
+	// User Analytics
+	GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error)
 }
 
 type userRepository struct {
@@ -263,4 +265,76 @@ func (r *userRepository) DeleteUser(ctx context.Context, id int) error {
 
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// GetUserAnalytics retrieves user analytics
+func (r *userRepository) GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error) {
+	analytics := &domain.UserAnalytics{}
+
+	// Get total users count
+	err := r.db.GetContext(ctx, &analytics.TotalUsers, `SELECT COUNT(*) FROM users WHERE is_deleted = false`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total users count: %w", err)
+	}
+
+	// Get active users count
+	err = r.db.GetContext(ctx, &analytics.ActiveUsers, `SELECT COUNT(*) FROM users WHERE is_active = true AND is_deleted = false`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active users count: %w", err)
+	}
+
+	// Get new users today
+	err = r.db.GetContext(ctx, &analytics.NewUsersToday, `
+		SELECT COUNT(*) FROM users 
+		WHERE DATE(created_at) = CURRENT_DATE AND is_deleted = false`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new users today: %w", err)
+	}
+
+	// Get new users this week
+	err = r.db.GetContext(ctx, &analytics.NewUsersThisWeek, `
+		SELECT COUNT(*) FROM users 
+		WHERE created_at >= DATE_TRUNC('week', CURRENT_DATE) AND is_deleted = false`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new users this week: %w", err)
+	}
+
+	// Get new users this month
+	err = r.db.GetContext(ctx, &analytics.NewUsersThisMonth, `
+		SELECT COUNT(*) FROM users 
+		WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE) AND is_deleted = false`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new users this month: %w", err)
+	}
+
+	// Get users by role
+	var usersByRole []domain.UserRoleCount
+	err = r.db.SelectContext(ctx, &usersByRole, `
+		SELECT r.name as role, COUNT(u.id) as count
+		FROM roles r
+		LEFT JOIN users u ON r.id = u.role_id AND u.is_deleted = false
+		GROUP BY r.id, r.name
+		ORDER BY count DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users by role: %w", err)
+	}
+	analytics.UsersByRole = usersByRole
+
+	// Get user registration trend (last 30 days)
+	var registrationTrend []domain.UserRegistrationData
+	err = r.db.SelectContext(ctx, &registrationTrend, `
+		SELECT 
+			DATE(created_at) as date,
+			COUNT(*) as count
+		FROM users 
+		WHERE created_at >= CURRENT_DATE - INTERVAL '30 days' 
+		AND is_deleted = false
+		GROUP BY DATE(created_at)
+		ORDER BY date ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user registration trend: %w", err)
+	}
+	analytics.UserRegistrationTrend = registrationTrend
+
+	return analytics, nil
 }

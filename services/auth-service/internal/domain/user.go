@@ -42,3 +42,26 @@ type User struct {
 	RoleID uint   `json:"role_id" db:"role_id"`
 	Role   string `json:"role" db:"-"` // Role name, populated when needed
 }
+
+// UserAnalytics represents analytics data for users
+type UserAnalytics struct {
+	TotalUsers            int64                  `json:"total_users"`
+	ActiveUsers           int64                  `json:"active_users"`
+	NewUsersToday         int64                  `json:"new_users_today"`
+	NewUsersThisWeek      int64                  `json:"new_users_this_week"`
+	NewUsersThisMonth     int64                  `json:"new_users_this_month"`
+	UsersByRole           []UserRoleCount        `json:"users_by_role"`
+	UserRegistrationTrend []UserRegistrationData `json:"user_registration_trend"`
+}
+
+// UserRoleCount represents user count by role
+type UserRoleCount struct {
+	Role  string `json:"role"`
+	Count int64  `json:"count"`
+}
+
+// UserRegistrationData represents user registration data for trends
+type UserRegistrationData struct {
+	Date  string `json:"date"`
+	Count int64  `json:"count"`
+}

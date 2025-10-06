@@ -44,6 +44,10 @@ type ProductService interface {
 	UpdateProductImage(ctx context.Context, id int64, req *dto.ProductImageRequest) (*domain.ProductImage, error)
 	DeleteProductImage(ctx context.Context, id int64) error
 	SetPrimaryProductImage(ctx context.Context, productID, imageID int64) error
+
+	// Product Analytics
+	GetProductAnalytics(ctx context.Context) (*dto.ProductAnalyticsResponse, error)
+	GetTopSellingProducts(ctx context.Context, limit int) ([]*dto.ProductOrderStatsResponse, error)
 }
 
 type productService struct {
@@ -1109,4 +1113,48 @@ func (s *productService) SetPrimaryProductImage(ctx context.Context, productID, 
 	}
 
 	return nil
+}
+
+// Product Analytics
+
+// GetProductAnalytics retrieves product analytics
+func (s *productService) GetProductAnalytics(ctx context.Context) (*dto.ProductAnalyticsResponse, error) {
+	analytics, err := s.productRepo.GetProductAnalytics(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product analytics: %w", err)
+	}
+
+	return &dto.ProductAnalyticsResponse{
+		TotalProducts:       analytics.TotalProducts,
+		ActiveProducts:      analytics.ActiveProducts,
+		InactiveProducts:    analytics.InactiveProducts,
+		LowStockProducts:    analytics.LowStockProducts,
+		OutOfStockProducts:  analytics.OutOfStockProducts,
+		TotalCategories:     analytics.TotalCategories,
+		AveragePrice:        analytics.AveragePrice,
+		TotalInventoryValue: analytics.TotalInventoryValue,
+	}, nil
+}
+
+// GetTopSellingProducts retrieves top selling products
+func (s *productService) GetTopSellingProducts(ctx context.Context, limit int) ([]*dto.ProductOrderStatsResponse, error) {
+	products, err := s.productRepo.GetTopSellingProducts(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top selling products: %w", err)
+	}
+
+	responses := make([]*dto.ProductOrderStatsResponse, len(products))
+	for i, product := range products {
+		responses[i] = &dto.ProductOrderStatsResponse{
+			ProductID:     product.ProductID,
+			ProductName:   product.ProductName,
+			SKU:           product.SKU,
+			TotalQuantity: product.TotalQuantity,
+			TotalRevenue:  product.TotalRevenue,
+			OrderCount:    product.OrderCount,
+			AveragePrice:  product.AveragePrice,
+		}
+	}
+
+	return responses, nil
 }

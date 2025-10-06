@@ -104,3 +104,15 @@ type ProductFilter struct {
 	SortBy     string   `json:"sort_by"`    // name, price, created_at, etc.
 	SortOrder  string   `json:"sort_order"` // asc, desc
 }
+
+// ProductAnalytics represents analytics data for products
+type ProductAnalytics struct {
+	TotalProducts       int64   `json:"total_products"`
+	ActiveProducts      int64   `json:"active_products"`
+	InactiveProducts    int64   `json:"inactive_products"`
+	LowStockProducts    int64   `json:"low_stock_products"`
+	OutOfStockProducts  int64   `json:"out_of_stock_products"`
+	TotalCategories     int64   `json:"total_categories"`
+	AveragePrice        float64 `json:"average_price"`
+	TotalInventoryValue float64 `json:"total_inventory_value"`
+}

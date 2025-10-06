@@ -30,10 +30,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enable experimental features for better performance
-  experimental: {
-    serverComponentsExternalPackages: ['sharp'],
-  },
+  // External packages for server components
+  serverExternalPackages: ['sharp'],
 };
 
 export default nextConfig;

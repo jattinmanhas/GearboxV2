@@ -32,6 +32,8 @@ type IAuthHandler interface {
 	// Profile methods
 	GetProfile(w http.ResponseWriter, r *http.Request)
 	UpdateProfile(w http.ResponseWriter, r *http.Request)
+	// User Analytics
+	GetUserAnalytics(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -584,4 +586,15 @@ func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "profile updated successfully", profile)
+}
+
+// GetUserAnalytics handles GET /api/v1/users/analytics
+func (h *authHandler) GetUserAnalytics(w http.ResponseWriter, r *http.Request) {
+	analytics, err := h.userService.GetUserAnalytics(r.Context())
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get user analytics", err)
+		return
+	}
+
+	httpx.OK(w, "user analytics retrieved successfully", analytics)
 }

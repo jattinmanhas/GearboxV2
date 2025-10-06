@@ -44,6 +44,10 @@ type IProductHandler interface {
 	UpdateProductImage(w http.ResponseWriter, r *http.Request)
 	DeleteProductImage(w http.ResponseWriter, r *http.Request)
 	SetPrimaryProductImage(w http.ResponseWriter, r *http.Request)
+
+	// Product Analytics
+	GetProductAnalytics(w http.ResponseWriter, r *http.Request)
+	GetTopSellingProducts(w http.ResponseWriter, r *http.Request)
 }
 
 type productHandler struct {
@@ -801,4 +805,40 @@ func (h *productHandler) SetPrimaryProductImage(w http.ResponseWriter, r *http.R
 		"product_id": productID,
 		"image_id":   imageID,
 	})
+}
+
+// Product Analytics
+
+// GetProductAnalytics handles GET /api/v1/products/analytics
+func (h *productHandler) GetProductAnalytics(w http.ResponseWriter, r *http.Request) {
+	analytics, err := h.productService.GetProductAnalytics(r.Context())
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get product analytics", err)
+		return
+	}
+
+	httpx.OK(w, "product analytics retrieved successfully", analytics)
+}
+
+// GetTopSellingProducts handles GET /api/v1/products/analytics/top-selling
+func (h *productHandler) GetTopSellingProducts(w http.ResponseWriter, r *http.Request) {
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10 // default limit
+
+	if limitStr != "" {
+		var err error
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			httpx.Error(w, http.StatusBadRequest, "invalid limit parameter", err)
+			return
+		}
+	}
+
+	products, err := h.productService.GetTopSellingProducts(r.Context(), limit)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "failed to get top selling products", err)
+		return
+	}
+
+	httpx.OK(w, "top selling products retrieved successfully", products)
 }

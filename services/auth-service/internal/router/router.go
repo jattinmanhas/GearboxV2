@@ -53,7 +53,8 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 			r.Delete("/user/{id}", authHandler.DeleteUser)
 			r.Post("/user/{id}/change-password", authHandler.ChangePassword)
 			r.Post("/logout-all", authHandler.LogoutAll)
-			r.Get("/users", authHandler.GetAllUsers) // Temporarily moved outside admin group for testing
+			r.Get("/users", authHandler.GetAllUsers)                // Temporarily moved outside admin group for testing
+			r.Get("/users/analytics", authHandler.GetUserAnalytics) // User analytics
 
 			// Profile routes
 			r.Get("/profile", authHandler.GetProfile)

@@ -21,6 +21,8 @@ type IUserService interface {
 	// Profile methods
 	GetProfile(ctx context.Context, userID int) (*domain.User, error)
 	UpdateProfile(ctx context.Context, userID int, updateData *domain.User) (*domain.User, error)
+	// User Analytics
+	GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error)
 }
 
 type userService struct {
@@ -181,4 +183,14 @@ func (s *userService) UpdateProfile(ctx context.Context, userID int, updateData 
 
 	// Return the updated user with all fields
 	return &updatedUser, nil
+}
+
+// GetUserAnalytics retrieves user analytics
+func (s *userService) GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error) {
+	analytics, err := s.userRepo.GetUserAnalytics(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return analytics, nil
 }
