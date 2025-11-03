@@ -120,6 +120,15 @@ func (m *MockUserRepository) GetUserByUsername(ctx context.Context, username str
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+// GetUserByEmail mocks the GetUserByEmail method
+func (m *MockUserRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
 // GetAllUsers mocks the GetAllUsers method
 func (m *MockUserRepository) GetAllUsers(ctx context.Context, limit int, offset int) ([]domain.User, error) {
 	args := m.Called(ctx, limit, offset)
@@ -160,6 +169,15 @@ func (m *MockUserRepository) UpdateUser(ctx context.Context, id int, u *domain.U
 func (m *MockUserRepository) DeleteUser(ctx context.Context, id int) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
+}
+
+// GetUserAnalytics mocks the GetUserAnalytics method
+func (m *MockUserRepository) GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.UserAnalytics), args.Error(1)
 }
 
 // MockRefreshTokenRepository is a mock implementation of IRefreshTokenRepository

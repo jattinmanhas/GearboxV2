@@ -11,7 +11,7 @@ import (
 	sharedMiddleware "github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 )
 
-func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler, addressHandler handlers.IAddressHandler, jwtService *jwt.JWTService) *chi.Mux {
+func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthService, roleHandler handlers.IRoleHandler, addressHandler handlers.IAddressHandler, oauthHandler handlers.IOAuthHandler, jwtService *jwt.JWTService) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Global CORS middleware
@@ -39,6 +39,10 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 		r.Post("/register", authHandler.RegisterUser)
 		r.Post("/refresh", authHandler.RefreshToken)
 
+		// OAuth routes (public)
+		r.Get("/oauth/{provider}", oauthHandler.InitiateOAuth)
+		r.Get("/oauth/{provider}/callback", oauthHandler.HandleOAuthCallback)
+
 		// Protected routes (require authentication)
 		r.Group(func(r chi.Router) {
 			sharedAuthService := sharedMiddleware.NewSharedAuthService(jwtService)
@@ -59,6 +63,11 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 			// Profile routes
 			r.Get("/profile", authHandler.GetProfile)
 			r.Put("/profile", authHandler.UpdateProfile)
+
+			// OAuth management routes (protected)
+			r.Post("/oauth/link/{provider}", oauthHandler.LinkOAuthProvider)
+			r.Delete("/oauth/unlink/{provider}", oauthHandler.UnlinkOAuthProvider)
+			r.Get("/oauth/providers", oauthHandler.GetLinkedProviders)
 
 			// Admin-only cleanup
 			r.Group(func(r chi.Router) {

@@ -236,6 +236,29 @@ func (s *productService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 		}
 	}
 
+	// Update images if provided
+	if req.Images != nil {
+		// Delete existing images
+		existingImages, err := s.productRepo.GetProductImages(ctx, id)
+		if err == nil {
+			for _, img := range existingImages {
+				err := s.productRepo.DeleteProductImage(ctx, img.ID)
+				if err != nil {
+					fmt.Printf("Warning: failed to delete existing product image: %v\n", err)
+				}
+			}
+		}
+
+		// Create new images
+		if len(req.Images) > 0 {
+			err = s.createProductImages(ctx, id, req.Images)
+			if err != nil {
+				// Log error but don't fail the product update
+				fmt.Printf("Warning: failed to add product images: %v\n", err)
+			}
+		}
+	}
+
 	return &updateProduct, nil
 }
 

@@ -15,8 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Category, CreateCategoryRequest, UpdateCategoryRequest } from "@/lib/types"
-import { EnhancedImageUpload } from "@/components/ui/enhanced-image-upload"
-import { UploadedImage } from "@/lib/image-upload"
+import { FlexibleImageInput, ImageItem } from "@/components/ui/flexible-image-input"
 
 interface CategoryFormProps {
   category?: Category | null
@@ -39,7 +38,7 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([])
+  const [categoryImages, setCategoryImages] = useState<ImageItem[]>([])
 
   useEffect(() => {
     if (category) {
@@ -54,12 +53,25 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
         meta_title: category.meta_title,
         meta_description: category.meta_description,
       })
+      
+      // Load existing category image
+      if (category.image_url) {
+        setCategoryImages([{
+          id: 'category-image',
+          url: category.image_url,
+          alt: category.name,
+          source: 'url' as const
+        }])
+      } else {
+        setCategoryImages([])
+      }
     } else {
       // For new categories, ensure slug is generated from name
       setFormData(prev => ({
         ...prev,
         slug: prev.name ? generateSlug(prev.name) : ""
       }))
+      setCategoryImages([])
     }
   }, [category])
 
@@ -110,14 +122,13 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
     return Object.keys(newErrors).length === 0
   }
 
-  const handleImageSelect = (image: UploadedImage) => {
-    setSelectedImages([image]) // Only allow one image for categories
-    setFormData(prev => ({ ...prev, image_url: image.url }))
-  }
-
-  const handleImageRemove = (imageId: string) => {
-    setSelectedImages([])
-    setFormData(prev => ({ ...prev, image_url: "" }))
+  const handleCategoryImagesChange = (images: ImageItem[]) => {
+    setCategoryImages(images)
+    // Update formData with the image URL
+    setFormData(prev => ({
+      ...prev,
+      image_url: images.length > 0 ? images[0].url : ""
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,30 +227,14 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
 
           {/* Category Image - Full Width */}
           <div className="space-y-2">
-            <Label>Category Image</Label>
-            <EnhancedImageUpload
-              onImageSelect={handleImageSelect}
-              onImageRemove={handleImageRemove}
-              selectedImages={selectedImages}
+            <FlexibleImageInput
+              images={categoryImages}
+              onImagesChange={handleCategoryImagesChange}
               multiple={false}
               maxImages={1}
-              showPreview={true}
-              showThumbnails={false}
-              config={{
-                maxFileSize: 2 * 1024 * 1024, // 2MB for categories
-                allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-                maxWidth: 800,
-                maxHeight: 600,
-                quality: 85,
-                generateThumbnails: false,
-                thumbnailSizes: []
-              }}
+              label="Category Image"
+              description="Upload an image or provide a direct URL for the category banner."
             />
-            {formData.image_url && (
-              <div className="text-sm text-muted-foreground">
-                Current image: {formData.image_url}
-              </div>
-            )}
           </div>
 
           {/* Meta Title */}

@@ -43,6 +43,7 @@ func main() {
 	refreshTokenRepo := repository.NewRefreshTokenRepository(database)
 	roleRepo := repository.NewRoleRepository(database)
 	addressRepo := repository.NewAddressRepository(database)
+	oauthRepo := repository.NewOAuthRepository(database)
 
 	// Initialize services
 	jwtService := jwt.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
@@ -50,14 +51,24 @@ func main() {
 	userService := services.NewUserService(userRepo, authService)
 	roleService := services.NewRoleService(roleRepo, userRepo)
 	addressService := services.NewAddressService(addressRepo)
+	oauthService := services.NewOAuthService(
+		oauthRepo,
+		userRepo,
+		refreshTokenRepo,
+		jwtService,
+		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL,
+		cfg.FacebookClientID, cfg.FacebookClientSecret, cfg.FacebookRedirectURL,
+		cfg.GithubClientID, cfg.GithubClientSecret, cfg.GithubRedirectURL,
+	)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService, authService, jwtService, cfg.Environment)
 	roleHandler := handlers.NewRoleHandler(roleService)
 	addressHandler := handlers.NewAddressHandler(addressService, authService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, authHandler, cfg.Environment, cfg.FrontendURL)
 
 	// Initialize router
-	appRouter := router.NewRouter(authHandler, authService, roleHandler, addressHandler, jwtService)
+	appRouter := router.NewRouter(authHandler, authService, roleHandler, addressHandler, oauthHandler, jwtService)
 
 	// Create HTTP server
 	server := &http.Server{

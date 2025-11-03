@@ -146,6 +146,8 @@ export default function ProductsPage() {
 
   const handleCreateProduct = async (productData: CreateProductRequest) => {
     try {
+      console.log('[ProductsPage] Creating product with data:', productData)
+      console.log('[ProductsPage] Images in request:', productData.images)
       await productApi.createProduct(productData)
       setShowForm(false)
       loadProducts()
@@ -156,6 +158,8 @@ export default function ProductsPage() {
 
   const handleUpdateProduct = async (id: number, productData: UpdateProductRequest) => {
     try {
+      console.log('[ProductsPage] Updating product with data:', productData)
+      console.log('[ProductsPage] Images in request:', productData.images)
       await productApi.updateProduct(id, productData)
       setEditingProduct(null)
       setShowForm(false)

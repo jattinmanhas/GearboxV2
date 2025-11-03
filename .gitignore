@@ -1,0 +1,9 @@
+# Local plan and documentation files
+plan.md
+oauth-implementation-plan.plan.md
+*.plan.md
+OAUTH_*.md
+PRODUCT_IMAGE_UPDATE_FIX.md
+FLEXIBLE_IMAGE_INPUT.md
+PRODUCT_IMAGES_TYPE_FIX.md
+

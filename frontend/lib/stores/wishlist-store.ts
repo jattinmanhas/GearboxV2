@@ -114,16 +114,13 @@ export const useWishlistStore = create<WishlistStore>()(
           })
         } catch (error) {
           console.error('Wishlist load error:', error)
-          // If it's a 500 error, it might be because the backend expects user_id
-          // For now, set empty array and show a helpful message
-          if (error instanceof Error && error.message.includes('500')) {
-            set({ 
-              error: 'Wishlist service is not fully configured. Please try again later.',
-              wishlists: []
-            })
-          } else {
-            set({ error: error instanceof Error ? error.message : 'Failed to load wishlists' })
-          }
+          // Silently fail - set empty arrays without error state to not break the UI
+          // This is expected if user is not authenticated or wishlist service is not available
+          set({ 
+            wishlists: [],
+            currentWishlist: null,
+            error: null
+          })
         } finally {
           set({ isLoading: false })
         }

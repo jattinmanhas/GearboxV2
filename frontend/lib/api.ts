@@ -29,7 +29,10 @@ import {
   AssignRoleRequest,
   RemoveRoleRequest,
   CheckPermissionRequest,
-  CheckPermissionResponse
+  CheckPermissionResponse,
+  OAuthProvider,
+  OAuthInitiateResponse,
+  LinkedProvidersResponse
 } from './types'
 
 const API_BASE_URL = '/api/v1'
@@ -46,7 +49,40 @@ export class ApiError extends Error {
 }
 
 export async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json()
+  // Try to parse JSON, but handle cases where response might not be JSON
+  let data: any = {}
+  const contentType = response.headers.get('content-type')
+  const isJson = contentType?.includes('application/json')
+  
+  try {
+    // Read the response text once (can only be read once)
+    const text = await response.text()
+    
+    if (text.trim()) {
+      if (isJson) {
+        try {
+          data = JSON.parse(text)
+        } catch (jsonError) {
+          // If JSON parsing fails even though content-type says JSON, use the text as message
+          console.error('Failed to parse JSON response:', jsonError)
+          data = { message: text || `HTTP ${response.status}: ${response.statusText}` }
+        }
+      } else {
+        // Not JSON content type, use text as message
+        data = { message: text || `HTTP ${response.status}: ${response.statusText}` }
+      }
+    } else {
+      // Empty response
+      data = { message: `HTTP ${response.status}: ${response.statusText}` }
+    }
+  } catch (readError) {
+    console.error('Failed to read response:', readError)
+    // If reading fails, create a basic error object
+    data = { 
+      message: `HTTP ${response.status}: ${response.statusText}`,
+      error: 'Failed to read response'
+    }
+  }
   
   if (!response.ok) {
     // Handle 401 Unauthorized responses more intelligently
@@ -82,25 +118,97 @@ export async function handleResponse<T>(response: Response): Promise<T> {
     }
     
     // Extract detailed error message from backend response
-    let errorMessage = data.message || 'Request failed'
+    let errorMessage = data?.message || 'Request failed'
     
     // Check for detailed error information in the response
-    if (data.error?.detail) {
+    if (data?.error?.detail) {
       errorMessage = data.error.detail
-    } else if (data.error?.message) {
+    } else if (data?.error?.message) {
       errorMessage = data.error.message
-    } else if (data.errors && Array.isArray(data.errors)) {
+    } else if (data?.errors && Array.isArray(data.errors)) {
       errorMessage = data.errors.join(', ')
+    } else if (data?.details) {
+      // Handle nested error details (from Next.js API routes)
+      try {
+        const details = typeof data.details === 'string' ? JSON.parse(data.details) : data.details
+        if (details?.error?.detail) {
+          errorMessage = details.error.detail
+        } else if (details?.error?.message) {
+          errorMessage = details.error.message
+        } else if (details?.message) {
+          errorMessage = details.message
+        }
+      } catch {
+        // If parsing fails, use the error field if it's a string
+        if (typeof data?.error === 'string') {
+          errorMessage = data.error
+        }
+      }
+    } else if (typeof data?.error === 'string') {
+      errorMessage = data.error
+    }
+    
+    // Ensure errorMessage is always a valid string
+    if (!errorMessage || typeof errorMessage !== 'string') {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`
     }
     
     throw new ApiError(
       errorMessage,
       response.status,
-      data.errors
+      data?.errors
     )
   }
   
-  return data
+  // Extract data from wrapped response structure
+  // Backend returns: { timestamp, status, success, message, data, error }
+  // However, product/cart services use this format too, and frontend expects response.data.products
+  // So we need to be smart about extraction:
+  // - If data.data exists and is a plain object (not an array), check if it looks like a nested response
+  // - Only extract if it's clearly a single object (like profile data), not a structured response
+  // - For structured responses (like { products: [...] }), keep the wrapper so frontend can access .data.products
+  
+  if (
+    data && 
+    typeof data === 'object' && 
+    'data' in data && 
+    data.data !== undefined &&
+    ('timestamp' in data || 'status' in data || 'success' in data)
+  ) {
+    // Only extract if data.data is NOT a structured response with nested properties
+    // that the frontend expects (like products, categories, etc.)
+    const extractedData = data.data
+    
+    // If extractedData is an array, keep the wrapper (frontend expects response.data)
+    if (Array.isArray(extractedData)) {
+      return data as T
+    }
+    
+    // If extractedData has properties like 'products', 'categories', 'orders', etc.,
+    // it's a structured response - keep the wrapper
+    // Also check for pagination properties that indicate a list response
+    // Also check for cart-specific properties (session_id, currency) that indicate cart responses
+    // Also check for auth-related properties (user, message together) that indicate login/register responses
+    if (
+      typeof extractedData === 'object' && 
+      extractedData !== null &&
+      ('products' in extractedData || 'categories' in extractedData || 'orders' in extractedData ||
+       'items' in extractedData || 'cart' in extractedData || 'carts' in extractedData ||
+       'addresses' in extractedData || 'coupons' in extractedData ||
+       'total' in extractedData || 'total_pages' in extractedData || 'page' in extractedData ||
+       'subtotal' in extractedData || 'total_amount' in extractedData || 'discount_amount' in extractedData ||
+       'session_id' in extractedData || 'currency' in extractedData || 'cart_id' in extractedData ||
+       'user' in extractedData)
+    ) {
+      return data as T
+    }
+    
+    // Otherwise, extract the data (for simple objects like profile)
+    return extractedData as T
+  }
+  
+  // If no wrapper, return the entire response (for backward compatibility)
+  return data as T
 }
 
 /**
@@ -352,6 +460,9 @@ export const productApi = {
   },
 
   async createProduct(productData: CreateProductRequest): Promise<Product> {
+    console.log('[API] Creating product with data:', productData)
+    console.log('[API] Images being sent:', productData.images)
+    
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
       headers: {
@@ -500,7 +611,32 @@ export const profileApi = {
       credentials: 'include',
     })
     
-    return handleResponse<Address[]>(response)
+    const responseData = await handleResponse<any>(response)
+    
+    // Extract addresses array from response (could be wrapped in data field or direct array)
+    const addresses = Array.isArray(responseData) 
+      ? responseData 
+      : (responseData?.data ? (Array.isArray(responseData.data) ? responseData.data : []) : [])
+    
+    // Map backend address structure to frontend Address type
+    return addresses.map((addr: any) => ({
+      id: addr.id,
+      user_id: addr.user_id,
+      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      first_name: addr.first_name,
+      last_name: addr.last_name,
+      company: addr.company,
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2,
+      city: addr.city,
+      state: addr.state,
+      postal_code: addr.postal_code,
+      country: addr.country,
+      phone_number: addr.phone || addr.phone_number,
+      is_default: addr.is_default,
+      created_at: addr.created_at,
+      updated_at: addr.updated_at,
+    }))
   },
 
   async getAddress(id: number): Promise<Address> {
@@ -512,33 +648,124 @@ export const profileApi = {
       credentials: 'include',
     })
     
-    return handleResponse<Address>(response)
+    const addr = await handleResponse<any>(response)
+    
+    // Map backend address structure to frontend Address type
+    return {
+      id: addr.id,
+      user_id: addr.user_id,
+      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      first_name: addr.first_name,
+      last_name: addr.last_name,
+      company: addr.company,
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2,
+      city: addr.city,
+      state: addr.state,
+      postal_code: addr.postal_code,
+      country: addr.country,
+      phone_number: addr.phone || addr.phone_number,
+      is_default: addr.is_default,
+      created_at: addr.created_at,
+      updated_at: addr.updated_at,
+    }
   },
 
   async createAddress(addressData: CreateAddressRequest): Promise<Address> {
+    // Map frontend address structure to backend format
+    const backendData = {
+      address_type: addressData.type,
+      first_name: addressData.first_name,
+      last_name: addressData.last_name,
+      company: addressData.company,
+      address_line_1: addressData.address_line_1,
+      address_line_2: addressData.address_line_2,
+      city: addressData.city,
+      state: addressData.state,
+      country: addressData.country,
+      postal_code: addressData.postal_code,
+      phone: addressData.phone_number,
+      is_default: addressData.is_default,
+    }
+    
     const response = await fetch(`${API_BASE_URL}/auth/addresses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(addressData),
+      body: JSON.stringify(backendData),
     })
     
-    return handleResponse<Address>(response)
+    const addr = await handleResponse<any>(response)
+    
+    // Map backend address structure to frontend Address type
+    return {
+      id: addr.id,
+      user_id: addr.user_id,
+      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      first_name: addr.first_name,
+      last_name: addr.last_name,
+      company: addr.company,
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2,
+      city: addr.city,
+      state: addr.state,
+      postal_code: addr.postal_code,
+      country: addr.country,
+      phone_number: addr.phone || addr.phone_number,
+      is_default: addr.is_default,
+      created_at: addr.created_at,
+      updated_at: addr.updated_at,
+    }
   },
 
   async updateAddress(id: number, addressData: UpdateAddressRequest): Promise<Address> {
+    // Map frontend address structure to backend format
+    const backendData: any = {}
+    if (addressData.type !== undefined) backendData.address_type = addressData.type
+    if (addressData.first_name !== undefined) backendData.first_name = addressData.first_name
+    if (addressData.last_name !== undefined) backendData.last_name = addressData.last_name
+    if (addressData.company !== undefined) backendData.company = addressData.company
+    if (addressData.address_line_1 !== undefined) backendData.address_line_1 = addressData.address_line_1
+    if (addressData.address_line_2 !== undefined) backendData.address_line_2 = addressData.address_line_2
+    if (addressData.city !== undefined) backendData.city = addressData.city
+    if (addressData.state !== undefined) backendData.state = addressData.state
+    if (addressData.country !== undefined) backendData.country = addressData.country
+    if (addressData.postal_code !== undefined) backendData.postal_code = addressData.postal_code
+    if (addressData.phone_number !== undefined) backendData.phone = addressData.phone_number
+    if (addressData.is_default !== undefined) backendData.is_default = addressData.is_default
+    
     const response = await fetch(`${API_BASE_URL}/auth/addresses/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(addressData),
+      body: JSON.stringify(backendData),
     })
     
-    return handleResponse<Address>(response)
+    const addr = await handleResponse<any>(response)
+    
+    // Map backend address structure to frontend Address type
+    return {
+      id: addr.id,
+      user_id: addr.user_id,
+      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      first_name: addr.first_name,
+      last_name: addr.last_name,
+      company: addr.company,
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2,
+      city: addr.city,
+      state: addr.state,
+      postal_code: addr.postal_code,
+      country: addr.country,
+      phone_number: addr.phone || addr.phone_number,
+      is_default: addr.is_default,
+      created_at: addr.created_at,
+      updated_at: addr.updated_at,
+    }
   },
 
   async deleteAddress(id: number): Promise<ApiResponse> {
@@ -1114,5 +1341,147 @@ export const roleApi = {
     })
     
     return handleResponse<CheckPermissionResponse>(response)
+  },
+}
+
+// OAuth API
+export const oauthApi = {
+  // Initiate OAuth flow
+  async initiateOAuth(provider: OAuthProvider): Promise<OAuthInitiateResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/oauth/${provider}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const data = await handleResponse<{data: OAuthInitiateResponse}>(response)
+    return data.data
+  },
+
+  // Get linked OAuth providers
+  async getLinkedProviders(): Promise<LinkedProvidersResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/oauth/providers`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const data = await handleResponse<{data: LinkedProvidersResponse}>(response)
+    return data.data
+  },
+
+  // Unlink OAuth provider
+  async unlinkProvider(provider: OAuthProvider): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/oauth/unlink/${provider}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  // Link OAuth provider (used when user is already logged in)
+  async linkProvider(provider: OAuthProvider, code: string): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/oauth/link/${provider}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ provider, code }),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+}
+
+// Order API
+export const orderApi = {
+  async createOrderFromCart(cartId: number, orderData: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/orders/from-cart?cart_id=${cartId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(orderData),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getOrder(orderId: number): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+}
+
+// Payment API
+export const paymentApi = {
+  async getPaymentMethods(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/payment-methods`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async getPaymentGateways(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/payment-gateways`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async createPayment(paymentData: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(paymentData),
+    })
+    
+    return handleResponse<any>(response)
+  },
+
+  async processPayment(paymentId: number, paymentData: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/payments/process`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        payment_id: paymentId,
+        ...paymentData,
+      }),
+    })
+    
+    return handleResponse<any>(response)
   },
 }

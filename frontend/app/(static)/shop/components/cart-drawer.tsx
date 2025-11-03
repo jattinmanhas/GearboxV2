@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { 
   Sheet,
@@ -12,19 +10,16 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { 
   ShoppingCart, 
   Plus, 
   Minus, 
-  Trash2, 
-  X,
+  Trash2,
   Package,
   CreditCard,
   ArrowRight,
   Loader2,
-  Eye,
   ChevronDown,
   ChevronUp
 } from "lucide-react"
@@ -49,24 +44,14 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     cart, 
     items, 
     appliedCoupons,
-    availableCoupons,
     isLoading, 
     error, 
     loadCart, 
     updateQuantity, 
-    removeItem, 
-    clearCart,
+    removeItem,
     getItemCount,
-    getTotalPrice,
-    applyCoupon,
-    removeCoupon,
-    loadAvailableCoupons
+    getTotalPrice
   } = useCartStore()
-  
-  const [couponCode, setCouponCode] = useState("")
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
-  const [couponMessage, setCouponMessage] = useState("")
-  const [showAvailableCoupons, setShowAvailableCoupons] = useState(false)
 
   const itemCount = getItemCount()
   const totalPrice = getTotalPrice()
@@ -82,11 +67,6 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
     }
   }, [open, cart, loadCart])
 
-  useEffect(() => {
-    if (open && availableCoupons.length === 0) {
-      loadAvailableCoupons()
-    }
-  }, [open, availableCoupons.length, loadAvailableCoupons])
 
   const handleQuantityChange = async (itemId: number, newQuantity: number) => {
     await updateQuantity(itemId, newQuantity)
@@ -94,36 +74,6 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
   const handleRemoveItem = async (itemId: number) => {
     await removeItem(itemId)
-  }
-
-  const handleClearCart = async () => {
-    await clearCart()
-  }
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim() || !cart) return
-    
-    setIsApplyingCoupon(true)
-    setCouponMessage("")
-    try {
-      await applyCoupon(couponCode.trim())
-      setCouponCode("") // Clear the input on success
-      setCouponMessage("Coupon applied successfully!")
-    } catch (error) {
-      console.error("Failed to apply coupon:", error)
-      setCouponMessage(error instanceof Error ? error.message : "Failed to apply coupon")
-    } finally {
-      setIsApplyingCoupon(false)
-    }
-  }
-
-  const handleRemoveCoupon = async (couponCode: string) => {
-    await removeCoupon(couponCode)
-  }
-
-  const handleSelectCoupon = async (coupon: any) => {
-    setCouponCode(coupon.code)
-    await handleApplyCoupon()
   }
 
   if (!isMounted) {
@@ -297,120 +247,20 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                 </div>
               </div>
 
-              {/* Coupon Section - Compact */}
-              <div className="py-3 border-t">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">Coupons</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
-                    >
-                      {showAvailableCoupons ? "Hide" : "Browse"}
-                    </Button>
+              {/* Applied Coupons - Simple Display Only */}
+              {appliedCoupons.length > 0 && (
+                <div className="py-2 border-t">
+                  <div className="flex items-center justify-between text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{appliedCoupons[0].coupon_code}</span>
+                      <span>applied</span>
+                    </div>
+                    <Link href="/cart" className="text-xs underline hover:no-underline" onClick={() => onOpenChange(false)}>
+                      Manage
+                    </Link>
                   </div>
-
-                  {/* Applied Coupons - Compact */}
-                  {appliedCoupons.length > 0 && (
-                    <div className="space-y-1">
-                      {appliedCoupons.map((coupon) => (
-                        <div key={coupon.id} className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-green-700 dark:text-green-300">
-                              {coupon.coupon_code}
-                            </span>
-                            <span className="text-green-600 dark:text-green-400">
-                              -{formatCurrency(coupon.discount_amount)}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveCoupon(coupon.coupon_code)}
-                            className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Available Coupons - Compact */}
-                  {showAvailableCoupons && (
-                    <div className="space-y-1">
-                      {appliedCoupons.length > 0 && (
-                        <div className="text-xs text-muted-foreground px-2 py-1 bg-blue-50 dark:bg-blue-950/20 rounded">
-                          Only one coupon can be applied per cart. Remove the current coupon to apply a different one.
-                        </div>
-                      )}
-                      <div className="max-h-20 overflow-y-auto space-y-1">
-                        {availableCoupons.map((coupon) => (
-                          <div key={coupon.id} className="flex items-center justify-between px-2 py-1 border rounded text-xs hover:bg-muted/50">
-                            <div className="flex-1">
-                              <div className="font-medium">{coupon.code}</div>
-                              <div className="text-muted-foreground">
-                                {(() => {
-                                  const discountValue = coupon.value || 0;
-                                  const discountType = coupon.type || 'fixed_amount';
-                                  
-                                  if (isNaN(discountValue) || discountValue === null || discountValue === undefined || discountValue === 0) {
-                                    return 'Discount available';
-                                  }
-                                  
-                                  return discountType === 'percentage' 
-                                    ? `${discountValue}% off`
-                                    : discountType === 'free_shipping'
-                                    ? 'Free shipping'
-                                    : `${formatCurrency(discountValue)} off`;
-                                })()}
-                              </div>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSelectCoupon(coupon)}
-                              disabled={appliedCoupons.length > 0}
-                              className="h-6 px-2 text-xs"
-                            >
-                              {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" : 
-                               appliedCoupons.length > 0 ? "Remove existing first" : "Apply"}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manual Coupon Entry - Compact */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1 h-8 text-sm"
-                    />
-                    <Button
-                      onClick={handleApplyCoupon}
-                      disabled={!couponCode.trim() || isApplyingCoupon}
-                      size="sm"
-                      className="h-8 px-3"
-                    >
-                      {isApplyingCoupon ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        "Apply"
-                      )}
-                    </Button>
-                  </div>
-                  {couponMessage && (
-                    <div className={`text-xs ${couponMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
-                      {couponMessage}
-                    </div>
-                  )}
                 </div>
-              </div>
+              )}
 
               {/* Cart Summary - Fixed at Bottom */}
               <div className="py-3 border-t space-y-2 bg-background">
@@ -451,9 +301,9 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     size="sm"
                     asChild
                   >
-                    <Link href="/checkout">
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Proceed to Checkout
+                    <Link href="/cart" onClick={() => onOpenChange(false)}>
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      View Full Cart
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Link>
                   </Button>
@@ -465,20 +315,21 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       size="sm"
                       asChild
                     >
-                      <Link href="/shop" onClick={() => onOpenChange(false)}>
-                        Continue Shopping
+                      <Link href="/checkout" onClick={() => onOpenChange(false)}>
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Checkout
                       </Link>
                     </Button>
                     
                     <Button 
                       variant="outline" 
+                      className="flex-1"
                       size="sm"
-                      onClick={handleClearCart}
-                      disabled={isLoading}
-                      className="text-destructive hover:text-destructive"
+                      asChild
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Clear
+                      <Link href="/shop" onClick={() => onOpenChange(false)}>
+                        Continue Shopping
+                      </Link>
                     </Button>
                   </div>
                 </div>

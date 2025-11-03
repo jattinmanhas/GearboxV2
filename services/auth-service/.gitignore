@@ -1,1 +1,6 @@
 .env*
+
+# Local documentation files
+OAUTH_IMPLEMENTATION.md
+OAUTH_QUICK_START.md
+OAUTH_IMPLEMENTATION_SUMMARY.md

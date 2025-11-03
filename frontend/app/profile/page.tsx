@@ -23,6 +23,7 @@ import { ProfileEditForm } from "./components/profile-edit-form"
 import { AddressForm } from "./components/address-form"
 import { AddressCard } from "./components/address-card"
 import { useUserStore } from "@/lib/stores/user-store"
+import { showSuccess, showError, NotificationMessages } from "@/lib/notifications"
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -46,7 +47,11 @@ export default function ProfilePage() {
       setProfile(profileData)
       setAddresses(Array.isArray(addressesData) ? addressesData : [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load profile")
+      const errorMessage = err instanceof Error ? err.message : "Failed to load profile"
+      setError(errorMessage)
+      showError("Failed to load profile", {
+        description: errorMessage
+      })
     } finally {
       setLoading(false)
     }
@@ -69,9 +74,14 @@ export default function ProfilePage() {
         avatar: updatedProfile.avatar,
       })
       
+      showSuccess(NotificationMessages.user.profileUpdated)
       setShowProfileEdit(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile")
+      const errorMessage = err instanceof Error ? err.message : "Failed to update profile"
+      setError(errorMessage)
+      showError(NotificationMessages.user.profileUpdateError, {
+        description: errorMessage
+      })
     }
   }
 
@@ -79,9 +89,14 @@ export default function ProfilePage() {
     try {
       const newAddress = await profileApi.createAddress(addressData)
       setAddresses(prev => [...prev, newAddress])
+      showSuccess("Address created successfully")
       setShowAddressForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create address")
+      const errorMessage = err instanceof Error ? err.message : "Failed to create address"
+      setError(errorMessage)
+      showError("Failed to create address", {
+        description: errorMessage
+      })
     }
   }
 
@@ -89,10 +104,15 @@ export default function ProfilePage() {
     try {
       const updatedAddress = await profileApi.updateAddress(id, addressData)
       setAddresses(prev => prev.map(addr => addr.id === id ? updatedAddress : addr))
+      showSuccess("Address updated successfully")
       setEditingAddress(null)
       setShowAddressForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update address")
+      const errorMessage = err instanceof Error ? err.message : "Failed to update address"
+      setError(errorMessage)
+      showError("Failed to update address", {
+        description: errorMessage
+      })
     }
   }
 
@@ -102,8 +122,13 @@ export default function ProfilePage() {
     try {
       await profileApi.deleteAddress(id)
       setAddresses(prev => prev.filter(addr => addr.id !== id))
+      showSuccess("Address deleted successfully")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete address")
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete address"
+      setError(errorMessage)
+      showError("Failed to delete address", {
+        description: errorMessage
+      })
     }
   }
 

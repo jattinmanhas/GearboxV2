@@ -12,6 +12,7 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
+	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,14 @@ func (m *MockUserService) UpdateProfile(ctx context.Context, userID int, updateD
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockUserService) GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.UserAnalytics), args.Error(1)
 }
 
 // MockAuthService is a mock implementation of IAuthService
@@ -510,7 +519,7 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		require.NoError(t, err)
 
 		// 🎭 Mock Expectations: Auth service should handle logout
-		claims := &jwt.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
+		claims := &middleware.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
 		mockAuthService.On("LogoutAll", mock.Anything, uint(1)).Return(nil)
 
 		// Create request with access token cookie
@@ -521,7 +530,7 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		})
 
 		// Set claims in context (as middleware would do)
-		ctx := context.WithValue(req.Context(), "claims", claims)
+		ctx := context.WithValue(req.Context(), middleware.ClaimsContextKey, claims)
 		req = req.WithContext(ctx)
 
 		// Create response recorder

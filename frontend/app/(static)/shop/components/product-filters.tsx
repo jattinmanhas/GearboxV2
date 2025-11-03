@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,8 +18,8 @@ interface ProductFiltersProps {
   categories: Category[]
   selectedCategory: number | undefined
   onCategoryChange: (categoryId: number | undefined) => void
-  priceRange: [number, number]
-  onPriceChange: (range: [number, number]) => void
+  priceRange: [number, number] | undefined
+  onPriceChange: (range: [number, number] | undefined) => void
   inStock?: boolean | undefined
   onInStockChange: (value: boolean | undefined) => void
   onSale?: boolean | undefined
@@ -41,11 +41,17 @@ export function ProductFilters({
   isDigital,
   onIsDigitalChange
 }: ProductFiltersProps) {
+  const [mounted, setMounted] = useState(false)
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     price: true,
     features: true
   })
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -56,22 +62,80 @@ export function ProductFilters({
 
   const handlePriceChange = (type: 'min' | 'max', value: string) => {
     const numValue = parseFloat(value) || 0
+    const currentMin = priceRange?.[0] ?? 0
+    const currentMax = priceRange?.[1] ?? 1000
+    
     if (type === 'min') {
-      onPriceChange([numValue, priceRange[1]])
+      onPriceChange([numValue, currentMax])
     } else {
-      onPriceChange([priceRange[0], numValue])
+      onPriceChange([currentMin, numValue])
     }
   }
 
   const clearFilters = () => {
     onCategoryChange(undefined)
-    onPriceChange([0, 1000])
+    onPriceChange(undefined)
     onInStockChange(undefined)
     onOnSaleChange(undefined)
     onIsDigitalChange(undefined)
   }
 
-  const hasActiveFilters = selectedCategory !== undefined || priceRange[0] > 0 || priceRange[1] < 1000 || inStock !== undefined || onSale !== undefined || isDigital !== undefined
+  const hasActiveFilters = selectedCategory !== undefined || priceRange !== undefined || inStock !== undefined || onSale !== undefined || isDigital !== undefined
+
+  // Render static content during SSR
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        {/* Filter Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </h2>
+        </div>
+
+        {/* Categories Filter - Static */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Categories</CardTitle>
+              <ChevronUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="all-categories" checked={selectedCategory === undefined} />
+                <Label htmlFor="all-categories" className="text-sm">
+                  All Categories
+                </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Price Filter - Static */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Price Range</CardTitle>
+              <ChevronUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Features Filter - Static */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Features</CardTitle>
+              <ChevronUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -157,16 +221,16 @@ export function ProductFilters({
               <div className="flex items-center space-x-2">
                 <input
                   type="number"
-                  placeholder="Min"
-                  value={priceRange[0]}
+                  placeholder="Min (0)"
+                  value={priceRange?.[0] ?? ''}
                   onChange={(e) => handlePriceChange('min', e.target.value)}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 />
                 <span className="text-muted-foreground">to</span>
                 <input
                   type="number"
-                  placeholder="Max"
-                  value={priceRange[1]}
+                  placeholder="Max (No limit)"
+                  value={priceRange?.[1] ?? ''}
                   onChange={(e) => handlePriceChange('max', e.target.value)}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 />
@@ -269,12 +333,12 @@ export function ProductFilters({
                   />
                 </Badge>
               )}
-              {(priceRange[0] > 0 || priceRange[1] < 1000) && (
+              {priceRange && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   ${priceRange[0]} - ${priceRange[1]}
                   <X 
                     className="h-3 w-3 cursor-pointer" 
-                    onClick={() => onPriceChange([0, 1000])}
+                    onClick={() => onPriceChange(undefined)}
                   />
                 </Badge>
               )}

@@ -35,13 +35,14 @@ func NewUserService(userRepo repository.IUserRepository, authService IAuthServic
 }
 
 func (s *userService) RegisterNewUser(ctx context.Context, u *domain.User) error {
-	// Hash the password
-	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
+	// Hash the password only if it's provided (for OAuth users, password might be empty)
+	if u.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		u.Password = string(hash)
 	}
-
-	u.Password = string(hash)
 
 	return s.userRepo.RegisterNewUser(ctx, u)
 }
@@ -113,8 +114,12 @@ func (s *userService) ChangePassword(ctx context.Context, id int, currentPasswor
 		return err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
-		return err
+	// If user has a password, verify the current password
+	// If user doesn't have a password (OAuth user), allow setting password without current password
+	if user.HasPassword() {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
+			return err
+		}
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)

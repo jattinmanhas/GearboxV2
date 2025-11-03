@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { UserProfile, UpdateProfileRequest } from "@/lib/types"
+import { showError, showSuccess, NotificationMessages } from "@/lib/notifications"
 
 interface ProfileEditFormProps {
   profile: UserProfile
@@ -33,13 +34,33 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Convert RFC3339 date (2006-01-02T15:04:05Z07:00) to YYYY-MM-DD for date input
+  const formatDateForInput = (dateString: string): string => {
+    if (!dateString || dateString === '0001-01-01T00:00:00Z' || dateString === '') {
+      return ''
+    }
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        return ''
+      }
+      // Format as YYYY-MM-DD for date input
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    } catch {
+      return ''
+    }
+  }
+
   useEffect(() => {
     setFormData({
       first_name: profile.first_name,
       middle_name: profile.middle_name || "",
       last_name: profile.last_name,
       phone_number: profile.phone_number || "",
-      date_of_birth: profile.date_of_birth || "",
+      date_of_birth: formatDateForInput(profile.date_of_birth || ""),
       avatar: profile.avatar || "",
     })
   }, [profile])
@@ -71,6 +92,24 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
     return Object.keys(newErrors).length === 0
   }
 
+  // Convert YYYY-MM-DD to RFC3339 format (2006-01-02T15:04:05Z07:00)
+  const formatDateForBackend = (dateString: string): string | undefined => {
+    if (!dateString || dateString.trim() === '') {
+      return undefined
+    }
+    try {
+      // Create date from YYYY-MM-DD format (local date, no time)
+      const date = new Date(dateString + 'T00:00:00')
+      if (isNaN(date.getTime())) {
+        return undefined
+      }
+      // Format as RFC3339 with timezone
+      return date.toISOString()
+    } catch {
+      return undefined
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -78,9 +117,19 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
 
     setIsSubmitting(true)
     try {
-      await onSave(formData)
+      // Convert date format before sending
+      const profileData: UpdateProfileRequest = {
+        ...formData,
+        date_of_birth: formatDateForBackend(formData.date_of_birth),
+      }
+      await onSave(profileData)
+      // Success notification is shown in the parent component (handleProfileUpdate)
     } catch (error) {
       console.error("Error saving profile:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to save profile"
+      showError(NotificationMessages.user.profileUpdateError, {
+        description: errorMessage
+      })
     } finally {
       setIsSubmitting(false)
     }

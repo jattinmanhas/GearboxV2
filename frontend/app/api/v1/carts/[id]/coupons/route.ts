@@ -21,9 +21,38 @@ export async function POST(
     })
 
     if (!response.ok) {
-      const errorData = await response.text()
+      let errorData: any
+      const contentType = response.headers.get('content-type')
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          errorData = await response.json()
+        } else {
+          const textData = await response.text()
+          try {
+            // Try to parse as JSON if it's a JSON string
+            errorData = JSON.parse(textData)
+          } catch {
+            // If not JSON, use as text
+            errorData = { message: textData }
+          }
+        }
+      } catch {
+        errorData = { message: 'Failed to apply coupon' }
+      }
+      
+      // Extract the actual error message from nested structure
+      let errorMessage = 'Failed to apply coupon'
+      if (errorData?.error?.detail) {
+        errorMessage = errorData.error.detail
+      } else if (errorData?.error?.message) {
+        errorMessage = errorData.error.message
+      } else if (errorData?.message) {
+        errorMessage = errorData.message
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to apply coupon', details: errorData },
+        { error: errorMessage, details: errorData },
         { status: response.status }
       )
     }

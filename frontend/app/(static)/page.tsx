@@ -9,7 +9,6 @@ import {
   WatchIcon,
   ArrowRight,
   Star,
-  Users,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,8 +16,89 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { headers } from "next/headers";
 
 const MainLandingPage = async () => {
+  // Fetch recent products and blogs
+  let products: any[] = [];
+  let blogs: any[] = [];
+  
+  try {
+    // Get the base URL for API calls
+    const headersList = await headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${host}`;
+    
+    // Fetch products - get 3 most recent
+    const params = new URLSearchParams({
+      limit: '3',
+      is_active: 'true',
+      sort_by: 'created_at',
+      sort_order: 'desc'
+    });
+    
+    const productsResponse = await fetch(`${baseUrl}/api/v1/products?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (productsResponse.ok) {
+      const data = await productsResponse.json();
+      products = data.data?.products || data.data || [];
+    }
+    
+    // Fetch blogs - get 3 most recent
+    const blogsResponse = await fetch(`${baseUrl}/api/v1/blog/posts/recent?limit=3`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (blogsResponse.ok) {
+      const blogsData = await blogsResponse.json();
+      blogs = blogsData.data || blogsData || [];
+    }
+  } catch (error) {
+    console.error("Error fetching data for landing page:", error);
+    // Use empty arrays if fetch fails - the page will still render
+  }
+
+  // Helper function to format price
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  // Helper function to get primary image URL
+  const getProductImage = (product: any) => {
+    if (product.images && product.images.length > 0) {
+      const primaryImage = product.images.find((img: any) => img.is_primary) || product.images[0];
+      return primaryImage.url;
+    }
+    return null;
+  };
+
+  // Helper function to format date for blogs
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} weeks ago`;
+    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+    return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -92,57 +172,60 @@ const MainLandingPage = async () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-            {[
-              {
-                title: "iPhone 15 Pro",
-                description: "Latest flagship with titanium design and A17 Pro chip",
-                price: "$999",
-                rating: 4.8,
-                reviews: 1247,
-                image: "📱"
-              },
-              {
-                title: "MacBook Pro M3",
-                description: "Powerful laptop for professionals and creators",
-                price: "$1,999",
-                rating: 4.9,
-                reviews: 892,
-                image: "💻"
-              },
-              {
-                title: "AirPods Pro 2",
-                description: "Premium wireless earbuds with active noise cancellation",
-                price: "$249",
-                rating: 4.7,
-                reviews: 2156,
-                image: "🎧"
-              }
-            ].map((product, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="text-4xl mb-2">{product.image}</div>
-                  <CardTitle className="text-xl">{product.title}</CardTitle>
-                  <CardDescription>{product.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-primary">{product.price}</span>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm text-muted-foreground">
-                        {product.rating} ({product.reviews})
-                      </span>
-                    </div>
-                  </div>
-                  <Button className="w-full" asChild>
-                    <Link href="/shop">
-                      View Details
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            {products.length > 0 ? (
+              products.map((product) => {
+                const imageUrl = getProductImage(product);
+                const price = product.variants && product.variants.length > 0 
+                  ? product.variants[0].price 
+                  : product.price || 0;
+                
+                return (
+                  <Card key={product.id} className="group hover:shadow-lg transition-shadow flex flex-col">
+                    <CardHeader>
+                      <div className="w-full h-48 mb-2 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                        {imageUrl ? (
+                          <img 
+                            src={imageUrl} 
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-4xl">📦</div>
+                        )}
+                      </div>
+                      <CardTitle className="text-xl">{product.name}</CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {product.description || 'Check out this amazing product!'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 flex flex-col">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-2xl font-bold text-primary">{formatPrice(price)}</span>
+                        {product.rating && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm text-muted-foreground">
+                              {product.rating.toFixed(1)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <Button className="w-full mt-auto" asChild>
+                        <Link href={`/shop/products/${product.id}`}>
+                          View Details
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              // Fallback message if no products
+              <div className="col-span-full text-center text-muted-foreground py-12">
+                No products available yet. Check back soon!
+              </div>
+            )}
           </div>
 
           <div className="text-center">
@@ -166,61 +249,56 @@ const MainLandingPage = async () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-            {[
-              {
-                title: "iPhone 15 Pro Review: Is It Worth the Upgrade?",
-                excerpt: "We dive deep into Apple's latest flagship to see if the titanium design and A17 Pro chip justify the premium price tag.",
-                author: "Sarah Chen",
-                date: "2 days ago",
-                readTime: "8 min read",
-                category: "Reviews",
-                image: "📱"
-              },
-              {
-                title: "Best Laptops for Developers in 2024",
-                excerpt: "Our comprehensive guide to finding the perfect development machine, from budget-friendly options to high-end workstations.",
-                author: "Mike Rodriguez",
-                date: "5 days ago",
-                readTime: "12 min read",
-                category: "Guides",
-                image: "💻"
-              },
-              {
-                title: "The Future of AI in Smartphones",
-                excerpt: "Exploring how artificial intelligence is revolutionizing mobile technology and what to expect in the coming years.",
-                author: "Alex Kim",
-                date: "1 week ago",
-                readTime: "6 min read",
-                category: "Tech News",
-                image: "🤖"
-              }
-            ].map((article, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="text-4xl mb-2">{article.image}</div>
-                  <Badge variant="secondary" className="w-fit mb-2">{article.category}</Badge>
-                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                    {article.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-3">{article.excerpt}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                    <span>By {article.author}</span>
-                    <span>{article.readTime}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{article.date}</span>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href="/blogs">
-                        Read More
-                        <ArrowRight className="ml-1 h-3 w-3" />
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {blogs.length > 0 ? (
+              blogs.map((blog) => (
+                <Card key={blog.id} className="group hover:shadow-lg transition-shadow flex flex-col">
+                  <CardHeader>
+                    <div className="w-full h-48 mb-2 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      {blog.featuredImage ? (
+                        <img 
+                          src={blog.featuredImage} 
+                          alt={blog.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-4xl">📝</div>
+                      )}
+                    </div>
+                    {blog.categoryName && (
+                      <Badge variant="secondary" className="w-fit mb-2">{blog.categoryName}</Badge>
+                    )}
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                      {blog.title}
+                    </CardTitle>
+                    <CardDescription className="line-clamp-3">
+                      {blog.excerpt || blog.content.substring(0, 150) + '...'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                      <span>By {blog.authorName}</span>
+                      <span>{blog.readTime || Math.ceil(blog.content.length / 1000)} min read</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className="text-sm text-muted-foreground">
+                        {blog.publishedAt ? formatDate(blog.publishedAt) : formatDate(blog.createdAt)}
+                      </span>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/blog/${blog.slug}`}>
+                          Read More
+                          <ArrowRight className="ml-1 h-3 w-3" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              // Fallback message if no blogs
+              <div className="col-span-full text-center text-muted-foreground py-12">
+                No blog posts available yet. Check back soon!
+              </div>
+            )}
           </div>
 
           <div className="text-center">

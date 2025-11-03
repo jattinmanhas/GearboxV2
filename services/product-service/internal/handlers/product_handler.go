@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,6 +68,11 @@ func (h *productHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
 	}
+
+	// Debug logging
+	fmt.Printf("[ProductHandler] CreateProduct - Request: %+v\n", req)
+	fmt.Printf("[ProductHandler] CreateProduct - Images: %+v\n", req.Images)
+	fmt.Printf("[ProductHandler] CreateProduct - Images count: %d\n", len(req.Images))
 
 	// Validate Request
 	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
@@ -153,6 +159,13 @@ func (h *productHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
 		return
+	}
+
+	// Debug logging
+	fmt.Printf("[ProductHandler] UpdateProduct - Request: %+v\n", req)
+	fmt.Printf("[ProductHandler] UpdateProduct - Images: %+v\n", req.Images)
+	if req.Images != nil {
+		fmt.Printf("[ProductHandler] UpdateProduct - Images count: %d\n", len(req.Images))
 	}
 
 	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {

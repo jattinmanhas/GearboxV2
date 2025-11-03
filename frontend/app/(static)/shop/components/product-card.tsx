@@ -32,7 +32,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [variantsLoading, setVariantsLoading] = useState(false)
   
-  const { addItem, isLoading: cartLoading } = useCartStore()
+  const { addItem } = useCartStore()
   const { 
     addItemToWishlist, 
     removeItemFromWishlist, 
@@ -80,18 +80,18 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   const handleAddToCart = async () => {
     if (!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock)) return
     
+    // Show brief loading state for visual feedback
     setIsAddingToCart(true)
-    try {
-      await addItem({
-        product_id: product.id,
-        product_variant_id: selectedVariant?.id,
-        quantity: 1
-      })
-    } catch (error) {
-      console.error("Failed to add to cart:", error)
-    } finally {
-      setIsAddingToCart(false)
-    }
+    
+    // Call addItem - it will update UI optimistically
+    addItem({
+      product_id: product.id,
+      product_variant_id: selectedVariant?.id,
+      quantity: 1
+    })
+    
+    // Reset loading state after brief delay for visual feedback
+    setTimeout(() => setIsAddingToCart(false), 300)
   }
 
   const handleWishlist = async () => {
@@ -245,7 +245,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                         e.stopPropagation()
                         handleAddToCart()
                       }}
-                      disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
+                      disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || variantsLoading}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}
@@ -369,7 +369,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 e.stopPropagation()
                 handleAddToCart()
               }}
-              disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || cartLoading || variantsLoading}
+              disabled={!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock) || isAddingToCart || variantsLoading}
             >
               <ShoppingCart className="h-4 w-4 mr-1" />
               {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}

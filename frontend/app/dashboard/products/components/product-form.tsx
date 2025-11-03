@@ -16,8 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Product, Category, CreateProductRequest, UpdateProductRequest } from "@/lib/types"
-import { EnhancedImageUpload } from "@/components/ui/enhanced-image-upload"
-import { UploadedImage } from "@/lib/image-upload"
+import { FlexibleImageInput, ImageItem } from "@/components/ui/flexible-image-input"
 
 interface ProductFormProps {
   product?: Product | null
@@ -52,7 +51,7 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([])
+  const [productImages, setProductImages] = useState<ImageItem[]>([])
 
   useEffect(() => {
     if (product) {
@@ -78,6 +77,19 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
         tags: product.tags,
         category_ids: product.category_ids || [],
       })
+      
+      // Load existing product images
+      if (product.images && product.images.length > 0) {
+        const existingImages: ImageItem[] = product.images.map(img => ({
+          id: img.id.toString(),
+          url: img.url,
+          alt: img.alt,
+          source: 'upload' as const
+        }))
+        setProductImages(existingImages)
+      } else {
+        setProductImages([])
+      }
     }
   }, [product])
 
@@ -116,14 +128,6 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
     return Object.keys(newErrors).length === 0
   }
 
-  const handleImageSelect = (image: UploadedImage) => {
-    setSelectedImages(prev => [...prev, image])
-  }
-
-  const handleImageRemove = (imageId: string) => {
-    setSelectedImages(prev => prev.filter(img => img.id !== imageId))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -134,12 +138,16 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
       // Add image URLs to form data
       const formDataWithImages = {
         ...formData,
-        images: selectedImages.map(img => ({
+        images: productImages.map((img, index) => ({
           url: img.url,
-          alt: img.alt,
-          is_primary: false
+          alt: img.alt || '',
+          is_primary: index === 0, // First image is primary
+          position: index + 1
         }))
       }
+      
+      console.log('[ProductForm] Submitting with images:', formDataWithImages.images)
+      
       await onSave(formDataWithImages)
     } catch (error) {
       console.error("Error saving product:", error)
@@ -234,28 +242,13 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
           {/* Product Images */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Product Images</h3>
-            <EnhancedImageUpload
-              onImageSelect={handleImageSelect}
-              onImageRemove={handleImageRemove}
-              selectedImages={selectedImages}
+            <FlexibleImageInput
+              images={productImages}
+              onImagesChange={setProductImages}
               multiple={true}
               maxImages={10}
-              showPreview={true}
-              showThumbnails={true}
-              config={{
-                maxFileSize: 5 * 1024 * 1024, // 5MB for products
-                allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-                maxWidth: 2048,
-                maxHeight: 2048,
-                quality: 85,
-                generateThumbnails: true,
-                thumbnailSizes: [
-                  { width: 150, height: 150, name: 'thumbnail' },
-                  { width: 300, height: 300, name: 'small' },
-                  { width: 600, height: 600, name: 'medium' },
-                  { width: 1200, height: 1200, name: 'large' }
-                ]
-              }}
+              label="Product Images"
+              description="Upload images or provide direct URLs. First image will be the primary image."
             />
           </div>
 

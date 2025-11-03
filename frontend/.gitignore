@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local documentation files
+CART_OPTIMISTIC_UPDATES.md
+CART_UI_IMPROVEMENTS.md
+CART_TOTALS_OPTIMIZATION.md
+OAUTH_FRONTEND_GUIDE.md
+OAUTH_COMPLETE_SUMMARY.md
+COUPON_BUGS_FIX.md

@@ -47,7 +47,7 @@ export default function ShopPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>()
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
+  const [priceRange, setPriceRange] = useState<[number, number] | undefined>(undefined)
   const [sortBy, setSortBy] = useState("name")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [currentPage, setCurrentPage] = useState(1)
@@ -79,8 +79,8 @@ export default function ShopPage() {
         sort_order: "desc"
       }
       
-      // Add price filters if provided
-      if (priceRange) {
+      // Only add price filters if explicitly set by user (not default values)
+      if (priceRange && priceRange.length === 2) {
         filters.min_price = priceRange[0]
         filters.max_price = priceRange[1]
       }
@@ -129,7 +129,8 @@ export default function ShopPage() {
       console.warn('Wishlist loading failed:', error)
       // Continue without wishlist functionality
     })
-  }, [loadWishlists, loadCart])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)
@@ -143,7 +144,7 @@ export default function ShopPage() {
     loadProducts(1, searchTerm, categoryId, priceRange, sortBy, {inStock, onSale, isDigital})
   }
 
-  const handlePriceFilter = (range: [number, number]) => {
+  const handlePriceFilter = (range: [number, number] | undefined) => {
     setPriceRange(range)
     setCurrentPage(1)
     loadProducts(1, searchTerm, selectedCategory, range, sortBy, {inStock, onSale, isDigital})

@@ -12,6 +12,7 @@ type IUserRepository interface {
 	RegisterNewUser(ctx context.Context, u *domain.User) error
 	GetUserByID(ctx context.Context, id int) (*domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetAllUsers(ctx context.Context, limit int, offset int) ([]domain.User, error)
 	GetAllUsersWithFilters(ctx context.Context, limit int, offset int, search string, isActive *bool, roleID *int) ([]domain.User, error)
 	GetUsersCount(ctx context.Context) (int, error)
@@ -83,6 +84,26 @@ func (r *userRepository) GetUserByUsername(ctx context.Context, username string)
 
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, username); err != nil {
+		return nil, err
+	}
+
+	roleName, ok := domain.RoleNames[int(user.RoleID)]
+	if !ok {
+		user.RoleID, user.Role = domain.GetDefaultRole()
+	} else {
+		user.Role = roleName
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	query := `
+		SELECT * FROM users WHERE email = $1 AND is_deleted = false;
+	`
+
+	var user domain.User
+	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
 		return nil, err
 	}
 

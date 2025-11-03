@@ -214,6 +214,12 @@ export interface CreateProductRequest {
   meta_description?: string
   tags?: string
   category_ids?: number[]
+  images?: Array<{
+    url: string
+    alt: string
+    is_primary: boolean
+    position: number
+  }>
 }
 
 export interface UpdateProductRequest {
@@ -237,6 +243,12 @@ export interface UpdateProductRequest {
   meta_description?: string
   tags?: string
   category_ids?: number[]
+  images?: Array<{
+    url: string
+    alt: string
+    is_primary: boolean
+    position: number
+  }>
 }
 export interface ListProductsResponse {
   data: {
@@ -680,3 +692,157 @@ export const FIXED_ROLES = {
 } as const
 
 export type RoleName = keyof typeof FIXED_ROLES
+
+// OAuth Types
+export type OAuthProvider = 'google' | 'facebook' | 'github'
+
+export interface OAuthInitiateResponse {
+  auth_url: string
+  state: string
+}
+
+export interface OAuthProviderLink {
+  id: number
+  provider: OAuthProvider
+  provider_user_id: string
+  email: string
+  linked_at: string
+}
+
+export interface LinkedProvidersResponse {
+  providers: OAuthProviderLink[]
+  count: number
+}
+
+export interface LinkOAuthProviderRequest {
+  provider: OAuthProvider
+  code: string
+}
+
+// Order Types
+export interface CreateOrderFromCartRequest {
+  shipping_address: OrderAddressRequest
+  billing_address?: OrderAddressRequest
+  user_shipping_address_id?: number
+  user_billing_address_id?: number
+  payment_method_id: number
+  currency: string
+  notes?: string
+  apply_coupons?: string[]
+}
+
+export interface OrderAddressRequest {
+  first_name: string
+  last_name: string
+  company?: string
+  address1: string
+  address2?: string
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  phone?: string
+  email: string
+}
+
+export interface OrderResponse {
+  id: number
+  order_number: string
+  user_id: number
+  status: string
+  payment_status: string
+  fulfillment_status: string
+  subtotal: number
+  tax_amount: number
+  shipping_amount: number
+  discount_amount: number
+  total_amount: number
+  currency: string
+  notes?: string
+  items: OrderItemResponse[]
+  addresses: OrderAddressResponse[]
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderItemResponse {
+  id: number
+  order_id: number
+  product_id: number
+  product_variant_id?: number
+  product_name: string
+  product_sku: string
+  quantity: number
+  unit_price: number
+  total_price: number
+}
+
+export interface OrderAddressResponse {
+  id: number
+  order_id: number
+  type: string
+  first_name: string
+  last_name: string
+  company?: string
+  address1: string
+  address2?: string
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  phone?: string
+  email: string
+}
+
+// Payment Types
+export interface PaymentMethod {
+  id: number
+  name: string
+  code: string
+  type: string
+  is_active: boolean
+  is_default: boolean
+  sort_order: number
+  description?: string
+  icon?: string
+}
+
+export interface PaymentGateway {
+  id: number
+  name: string
+  code: string
+  is_active: boolean
+  is_test_mode: boolean
+  sort_order: number
+}
+
+export interface CreatePaymentRequest {
+  order_id: number
+  payment_method_id: number
+  amount: number
+  currency: string
+  gateway_id: string
+  metadata?: Record<string, any>
+}
+
+export interface ProcessPaymentRequest {
+  payment_id: number
+  payment_data: Record<string, any>
+  return_url?: string
+  cancel_url?: string
+}
+
+export interface PaymentResponse {
+  id: number
+  order_id: number
+  payment_method_id: number
+  transaction_id: string
+  gateway_id: string
+  amount: number
+  currency: string
+  status: string
+  gateway_status?: string
+  failure_reason?: string
+  created_at: string
+  updated_at: string
+}

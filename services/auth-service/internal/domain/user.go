@@ -24,7 +24,7 @@ func NewNullTime(t time.Time) sql.NullTime {
 type User struct {
 	ID          uint           `json:"id" db:"id"`
 	Username    string         `json:"username" db:"username"`
-	Password    string         `json:"-" db:"password"`
+	Password    string         `json:"-" db:"password"` // Now nullable for OAuth users
 	Email       string         `json:"email" db:"email"`
 	FirstName   string         `json:"first_name" db:"first_name"`
 	MiddleName  sql.NullString `json:"middle_name" db:"middle_name"`
@@ -41,6 +41,11 @@ type User struct {
 	// Role information
 	RoleID uint   `json:"role_id" db:"role_id"`
 	Role   string `json:"role" db:"-"` // Role name, populated when needed
+}
+
+// HasPassword checks if the user has a password set
+func (u *User) HasPassword() bool {
+	return u.Password != ""
 }
 
 // UserAnalytics represents analytics data for users
