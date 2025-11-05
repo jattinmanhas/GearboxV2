@@ -96,14 +96,14 @@ type PaymentMethodResponse struct {
 
 // PaymentGatewayResponse represents a payment gateway response
 type PaymentGatewayResponse struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	Code       string `json:"code"`
-	IsActive   bool   `json:"is_active"`
-	IsTestMode bool   `json:"is_test_mode"`
-	Config     string `json:"config"`
-	WebhookURL string `json:"webhook_url"`
-	SortOrder  int    `json:"sort_order"`
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Code       string  `json:"code"`
+	IsActive   bool    `json:"is_active"`
+	IsTestMode bool    `json:"is_test_mode"`
+	Config     string  `json:"config"`
+	WebhookURL *string `json:"webhook_url,omitempty"` // Nullable webhook URL
+	SortOrder  int     `json:"sort_order"`
 }
 
 // PaymentRefundResponse represents a refund response

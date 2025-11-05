@@ -15,8 +15,15 @@ NC='\033[0m' # No Color
 DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-5432}
 DB_USER=${DB_USER:-postgres}
+DB_PASSWORD=${DB_PASSWORD:-}
 DB_NAME=${DB_NAME:-gearbox_payment}
-MIGRATIONS_DIR="./migrations"
+DOCKER_CONTAINER_NAME=${DOCKER_CONTAINER_NAME:postgres}
+USE_DOCKER=${USE_DOCKER:true}
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set MIGRATIONS_DIR to the script's directory (where migration files are)
+MIGRATIONS_DIR="$SCRIPT_DIR"
 
 # Function to print colored output
 print_status() {
@@ -36,6 +43,23 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to find PostgreSQL Docker container
+find_postgres_container() {
+    if [ -n "$DOCKER_CONTAINER_NAME" ]; then
+        echo "$DOCKER_CONTAINER_NAME"
+        return
+    fi
+    
+    # Try to find a postgres container
+    local container=$(docker ps --format "{{.Names}}" | grep -i postgres | head -n 1)
+    if [ -n "$container" ]; then
+        echo "$container"
+        return
+    fi
+    
+    return 1
+}
+
 # Function to run migration
 run_migration() {
     local migration_file=$1
@@ -48,10 +72,28 @@ run_migration() {
     
     print_status "Running migration: $(basename $migration_file) ($direction)"
     
-    if [ "$direction" = "up" ]; then
-        psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$migration_file"
+    # Get absolute path of migration file for Docker volume mounting
+    local migration_abs_path=$(cd "$(dirname "$migration_file")" && pwd)/$(basename "$migration_file")
+    
+    if [ "$USE_DOCKER" = "true" ] || [ -n "$DOCKER_CONTAINER_NAME" ]; then
+        # Use Docker to run psql
+        local container=$(find_postgres_container)
+        if [ -z "$container" ]; then
+            print_error "PostgreSQL Docker container not found. Set DOCKER_CONTAINER_NAME or ensure a postgres container is running."
+            exit 1
+        fi
+        
+        print_status "Using Docker container: $container"
+        
+        # Copy migration file to container and execute, or use docker exec with stdin
+        docker exec -i "$container" psql -U "$DB_USER" -d "$DB_NAME" < "$migration_file"
     else
-        psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$migration_file"
+        # Use local psql
+        if [ -n "$DB_PASSWORD" ]; then
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$migration_file"
+        else
+            psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$migration_file"
+        fi
     fi
     
     if [ $? -eq 0 ]; then
@@ -73,23 +115,25 @@ show_usage() {
     echo "  reset   Rollback all migrations and run them again"
     echo ""
     echo "Environment variables:"
-    echo "  DB_HOST     Database host (default: localhost)"
-    echo "  DB_PORT     Database port (default: 5432)"
-    echo "  DB_USER     Database user (default: postgres)"
-    echo "  DB_NAME     Database name (default: gearbox_payment)"
+    echo "  DB_HOST              Database host (default: localhost)"
+    echo "  DB_PORT              Database port (default: 5432)"
+    echo "  DB_USER              Database user (default: postgres)"
+    echo "  DB_PASSWORD          Database password"
+    echo "  DB_NAME              Database name (default: gearbox_payment)"
+    echo "  USE_DOCKER           Use Docker to run psql (default: false)"
+    echo "  DOCKER_CONTAINER_NAME PostgreSQL Docker container name (auto-detected if not set)"
     echo ""
     echo "Examples:"
-    echo "  $0 up                    # Run all migrations"
-    echo "  $0 down                  # Rollback last migration"
-    echo "  $0 status                # Show migration status"
-    echo "  DB_HOST=prod.example.com $0 up  # Run migrations on production"
+    echo "  $0 up                                    # Run all migrations (local psql)"
+    echo "  USE_DOCKER=true $0 up                   # Run migrations via Docker"
+    echo "  DOCKER_CONTAINER_NAME=my-postgres $0 up # Use specific container"
+    echo "  $0 down                                  # Rollback last migration"
+    echo "  $0 status                                # Show migration status"
+    echo "  DB_HOST=prod.example.com $0 up          # Run migrations on production"
 }
 
-# Check if psql is available
-if ! command_exists psql; then
-    print_error "psql command not found. Please install PostgreSQL client tools."
-    exit 1
-fi
+# Parse command line arguments (needed for error messages)
+COMMAND=${1:-up}
 
 # Check if migrations directory exists
 if [ ! -d "$MIGRATIONS_DIR" ]; then
@@ -97,8 +141,33 @@ if [ ! -d "$MIGRATIONS_DIR" ]; then
     exit 1
 fi
 
-# Parse command line arguments
-COMMAND=${1:-up}
+# Check if psql is available locally or if Docker should be used
+if ! command_exists psql; then
+    if [ "$USE_DOCKER" = "true" ] || [ -n "$DOCKER_CONTAINER_NAME" ]; then
+        print_warning "psql not found locally. Will use Docker to run migrations."
+        USE_DOCKER=true
+    elif command_exists docker; then
+        # Try to auto-detect if we should use Docker
+        if find_postgres_container > /dev/null 2>&1; then
+            print_warning "psql not found locally. Auto-detected PostgreSQL Docker container. Using Docker mode."
+            USE_DOCKER=true
+        else
+            print_error "psql command not found and no PostgreSQL Docker container detected."
+            echo ""
+            echo "Options:"
+            echo "  1. Install PostgreSQL client: brew install postgresql@15"
+            echo "  2. Use Docker: USE_DOCKER=true $0 $COMMAND"
+            echo "  3. Set container name: DOCKER_CONTAINER_NAME=your-container $0 $COMMAND"
+            exit 1
+        fi
+    else
+        print_error "psql command not found and Docker is not available."
+        echo ""
+        echo "Please install PostgreSQL client tools:"
+        echo "  brew install postgresql@15"
+        exit 1
+    fi
+fi
 
 case $COMMAND in
     up)
@@ -123,6 +192,7 @@ case $COMMAND in
         print_status "Checking migration status..."
         echo "Database: $DB_NAME@$DB_HOST:$DB_PORT"
         echo "User: $DB_USER"
+        echo "Migrations directory: $MIGRATIONS_DIR"
         echo ""
         echo "Available migration files:"
         ls -la "$MIGRATIONS_DIR"/*.sql 2>/dev/null || echo "No migration files found"

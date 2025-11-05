@@ -40,6 +40,7 @@ type CartRepository interface {
 	RemoveCouponFromCart(ctx context.Context, cartID int64, couponCode string) error
 	GetCartCoupons(ctx context.Context, cartID int64) ([]*domain.CartCoupon, error)
 	GetCartCouponByCode(ctx context.Context, cartID int64, couponCode string) (*domain.CartCoupon, error)
+	UpdateCartCouponDiscount(ctx context.Context, cartID int64, couponCode string, discountAmount float64) error
 
 	// Cart Shipping
 	SetCartShipping(ctx context.Context, shipping *domain.CartShipping) error
@@ -592,6 +593,27 @@ func (r *cartRepository) GetCartCoupons(ctx context.Context, cartID int64) ([]*d
 	}
 
 	return coupons, nil
+}
+
+// UpdateCartCouponDiscount updates the discount amount for a cart coupon
+func (r *cartRepository) UpdateCartCouponDiscount(ctx context.Context, cartID int64, couponCode string, discountAmount float64) error {
+	query := `UPDATE cart_coupons SET discount_amount = $1 WHERE cart_id = $2 AND coupon_code = $3`
+
+	result, err := r.db.ExecContext(ctx, query, discountAmount, cartID, couponCode)
+	if err != nil {
+		return fmt.Errorf("failed to update cart coupon discount: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("cart coupon %s not found in cart %d", couponCode, cartID)
+	}
+
+	return nil
 }
 
 // GetCartCouponByCode retrieves a specific coupon from a cart

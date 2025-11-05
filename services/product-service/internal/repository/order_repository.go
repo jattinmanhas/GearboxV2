@@ -255,11 +255,32 @@ func (r *orderRepository) ListOrders(ctx context.Context, filter *domain.OrderFi
 		return nil, 0, fmt.Errorf("failed to count orders: %w", err)
 	}
 
+	// Determine sort field and order
+	sortBy := "created_at"
+	if filter.SortBy != "" {
+		// Validate sort field to prevent SQL injection
+		validSortFields := map[string]bool{
+			"created_at":   true,
+			"total_amount": true,
+			"order_number": true,
+			"status":       true,
+			"updated_at":   true,
+		}
+		if validSortFields[filter.SortBy] {
+			sortBy = filter.SortBy
+		}
+	}
+	
+	sortOrder := "DESC"
+	if filter.SortOrder == "asc" {
+		sortOrder = "ASC"
+	}
+
 	// Data query
 	query := fmt.Sprintf(`
 		SELECT * FROM orders %s 
-		ORDER BY created_at DESC 
-		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+		ORDER BY %s %s 
+		LIMIT $%d OFFSET $%d`, whereClause, sortBy, sortOrder, argIndex, argIndex+1)
 
 	args = append(args, limit, offset)
 

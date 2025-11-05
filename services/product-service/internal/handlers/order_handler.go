@@ -411,6 +411,18 @@ func (h *orderHandler) DeleteOrder(w http.ResponseWriter, r *http.Request) {
 // ListOrders handles GET /api/v1/orders
 func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy == "" {
+		sortBy = "created_at" // Default sort field
+	}
+	sortOrder := r.URL.Query().Get("order")
+	if sortOrder == "" {
+		sortOrder = "desc" // Default sort order
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc" // Validate sort order
+	}
+
 	req := &dto.ListOrdersRequest{
 		UserID:            getInt64Param(r, "user_id"),
 		Status:            r.URL.Query().Get("status"),
@@ -423,6 +435,8 @@ func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		Search:            r.URL.Query().Get("search"),
 		Page:              getIntParam(r, "page", 1),
 		Limit:             getIntParam(r, "limit", 10),
+		Sort:              sortBy,
+		Order:             sortOrder,
 	}
 
 	response, err := h.orderService.ListOrders(r.Context(), req)

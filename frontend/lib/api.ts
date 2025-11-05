@@ -622,7 +622,7 @@ export const profileApi = {
     return addresses.map((addr: any) => ({
       id: addr.id,
       user_id: addr.user_id,
-      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      type: (addr.address_type || addr.type) as Address['type'],
       first_name: addr.first_name,
       last_name: addr.last_name,
       company: addr.company,
@@ -654,7 +654,7 @@ export const profileApi = {
     return {
       id: addr.id,
       user_id: addr.user_id,
-      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      type: (addr.address_type || addr.type) as Address['type'],
       first_name: addr.first_name,
       last_name: addr.last_name,
       company: addr.company,
@@ -703,7 +703,7 @@ export const profileApi = {
     return {
       id: addr.id,
       user_id: addr.user_id,
-      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      type: (addr.address_type || addr.type) as Address['type'],
       first_name: addr.first_name,
       last_name: addr.last_name,
       company: addr.company,
@@ -751,7 +751,7 @@ export const profileApi = {
     return {
       id: addr.id,
       user_id: addr.user_id,
-      type: (addr.address_type || addr.type) as 'billing' | 'shipping',
+      type: (addr.address_type || addr.type) as Address['type'],
       first_name: addr.first_name,
       last_name: addr.last_name,
       company: addr.company,

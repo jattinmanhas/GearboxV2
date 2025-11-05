@@ -483,55 +483,9 @@ export const useCartStore = create<CartStore>()(
         // Calculate subtotal from items
         const subtotal = state.items.reduce((total, item) => total + item.total_price, 0)
 
-        // Calculate discount based on applied coupons
-        let discount = 0
-        if (state.appliedCoupons.length > 0) {
-          const coupon = state.appliedCoupons[0]
-          // Try to find the coupon in available coupons to get its type
-          const availableCoupon = state.availableCoupons.find(c => c.code === coupon.coupon_code)
-          
-          if (availableCoupon) {
-            const discountValue = availableCoupon.value || 0
-            const discountType = availableCoupon.type || 'fixed_amount'
-            const maxDiscountAmount = availableCoupon.max_discount_amount || 0
-            
-            console.log(`[Cart] Calculating discount for coupon "${coupon.coupon_code}":`, {
-              type: discountType,
-              value: discountValue,
-              maxDiscount: maxDiscountAmount,
-              subtotal
-            })
-            
-            if (discountType === 'percentage') {
-              // Calculate percentage discount
-              discount = (subtotal * discountValue) / 100
-              
-              console.log(`[Cart] Percentage discount calculated: ${discount} (${discountValue}% of ${subtotal})`)
-              
-              // Apply maximum discount cap if set
-              if (maxDiscountAmount > 0 && discount > maxDiscountAmount) {
-                console.log(`[Cart] Applying max discount cap: ${discount} -> ${maxDiscountAmount}`)
-                discount = maxDiscountAmount
-              }
-              
-              // Ensure discount doesn't exceed subtotal
-              if (discount > subtotal) {
-                console.log(`[Cart] Discount exceeds subtotal, capping to ${subtotal}`)
-                discount = subtotal
-              }
-            } else if (discountType === 'fixed_amount') {
-              discount = discountValue
-              // Ensure discount doesn't exceed subtotal
-              if (discount > subtotal) {
-                discount = subtotal
-              }
-            }
-            // For free_shipping, discount would be handled differently
-          } else {
-            // If coupon not in available list, use the stored discount amount
-            discount = coupon.discount_amount
-          }
-        }
+        // Use discount from cart (backend calculated) - don't recalculate locally
+        // The backend handles maximum discount limits correctly
+        const discount = state.cart.discount_amount || 0
 
         // Tax and shipping remain the same or recalculate if you have logic
         const taxAmount = state.cart.tax_amount || 0
@@ -540,11 +494,12 @@ export const useCartStore = create<CartStore>()(
         // Calculate total
         const total = subtotal - discount + taxAmount + shippingAmount
 
-        // Update cart with new totals
+        // Update cart with new totals (keep discount from backend)
         set(state => ({
           cart: state.cart ? {
             ...state.cart,
             subtotal,
+            // Keep discount_amount from backend - don't override
             discount_amount: discount,
             total
           } : null

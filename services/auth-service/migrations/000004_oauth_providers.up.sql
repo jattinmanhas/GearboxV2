@@ -12,7 +12,7 @@ ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
 CREATE TABLE IF NOT EXISTS oauth_providers (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    provider VARCHAR(50) NOT NULL CHECK (provider IN ('google', 'facebook', 'github')),
+    provider VARCHAR(50) NOT NULL CHECK (provider IN ('google', 'github')),
     provider_user_id VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     access_token TEXT,

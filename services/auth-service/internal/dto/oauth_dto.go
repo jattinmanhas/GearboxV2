@@ -26,13 +26,13 @@ type OAuthUserInfoResponse struct {
 
 // LinkOAuthProviderRequest is used to link an OAuth provider to an existing account
 type LinkOAuthProviderRequest struct {
-	Provider string `json:"provider" validate:"required,oneof=google facebook github"`
+	Provider string `json:"provider" validate:"required,oneof=google github"`
 	Code     string `json:"code" validate:"required"`
 }
 
 // UnlinkOAuthProviderRequest is used to unlink an OAuth provider from an account
 type UnlinkOAuthProviderRequest struct {
-	Provider string `json:"provider" validate:"required,oneof=google facebook github"`
+	Provider string `json:"provider" validate:"required,oneof=google github"`
 }
 
 // OAuthProviderResponse represents a linked OAuth provider

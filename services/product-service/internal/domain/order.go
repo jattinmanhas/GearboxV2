@@ -113,6 +113,8 @@ type OrderFilter struct {
 	MinAmount         *float64   `json:"min_amount"`
 	MaxAmount         *float64   `json:"max_amount"`
 	Search            string     `json:"search"`
+	SortBy            string     `json:"sort_by"`   // Field to sort by (created_at, total_amount, order_number, etc.)
+	SortOrder         string     `json:"sort_order"` // asc or desc
 }
 
 // OrderAnalytics represents analytics data for orders

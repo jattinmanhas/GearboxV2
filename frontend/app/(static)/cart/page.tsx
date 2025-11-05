@@ -341,7 +341,7 @@ export default function CartPage() {
                             {coupon.coupon_code}
                           </div>
                           <div className="text-sm text-green-600 dark:text-green-400">
-                            Discount: {formatCurrency(coupon.discount_amount)}
+                            Discount: {formatCurrency(cart?.discount_amount || coupon.discount_amount || 0)}
                           </div>
                         </div>
                         <Button

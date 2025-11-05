@@ -28,6 +28,9 @@ type CouponService interface {
 	ApplyCouponToCart(ctx context.Context, cartID int64, couponCode string, userID *int64) (*domain.Coupon, float64, error)
 	RemoveCouponFromCart(ctx context.Context, cartID int64, couponCode string) error
 	GetCartCoupons(ctx context.Context, cartID int64) ([]*domain.Coupon, error)
+
+	// Discount Calculation
+	CalculateDiscount(ctx context.Context, coupon *domain.Coupon, cartAmount float64) (float64, error)
 }
 
 type couponService struct {
@@ -464,6 +467,11 @@ func (s *couponService) GetCartCoupons(ctx context.Context, cartID int64) ([]*do
 	}
 
 	return coupons, nil
+}
+
+// CalculateDiscount calculates the discount amount for a coupon based on cart amount
+func (s *couponService) CalculateDiscount(ctx context.Context, coupon *domain.Coupon, cartAmount float64) (float64, error) {
+	return s.couponRepo.CalculateDiscount(ctx, coupon, cartAmount)
 }
 
 // Helper functions

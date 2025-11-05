@@ -14,6 +14,7 @@ import {
   Package
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
+import Link from "next/link"
 
 interface RecentOrder {
   id: number
@@ -159,13 +160,20 @@ export function RecentOrders() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5" />
-          Recent Orders
-        </CardTitle>
-        <CardDescription>
-          Latest {orders.length} orders from your customers
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Recent Orders
+            </CardTitle>
+            <CardDescription>
+              Latest {orders.length} orders from your customers
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/orders">View All</Link>
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {orders.length === 0 ? (
@@ -184,8 +192,10 @@ export function RecentOrders() {
                       {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                     </Badge>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/dashboard/orders/${order.id}`}>
+                      <Eye className="h-4 w-4" />
+                    </Link>
                   </Button>
                 </div>
                 
@@ -220,8 +230,8 @@ export function RecentOrders() {
         
         {orders.length > 0 && (
           <div className="mt-6 pt-4 border-t">
-            <Button variant="outline" className="w-full">
-              View All Orders
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/dashboard/orders">View All Orders</Link>
             </Button>
           </div>
         )}

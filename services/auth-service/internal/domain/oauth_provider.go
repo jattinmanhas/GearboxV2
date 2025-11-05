@@ -9,14 +9,13 @@ import (
 type OAuthProvider string
 
 const (
-	ProviderGoogle   OAuthProvider = "google"
-	ProviderFacebook OAuthProvider = "facebook"
-	ProviderGithub   OAuthProvider = "github"
+	ProviderGoogle OAuthProvider = "google"
+	ProviderGithub OAuthProvider = "github"
 )
 
 // ValidProviders returns a list of valid OAuth providers
 func ValidProviders() []OAuthProvider {
-	return []OAuthProvider{ProviderGoogle, ProviderFacebook, ProviderGithub}
+	return []OAuthProvider{ProviderGoogle, ProviderGithub}
 }
 
 // IsValidProvider checks if a provider string is valid
@@ -33,7 +32,7 @@ func IsValidProvider(provider string) bool {
 type OAuthProviderLink struct {
 	ID             uint           `json:"id" db:"id"`
 	UserID         uint           `json:"user_id" db:"user_id"`
-	Provider       string         `json:"provider" db:"provider"` // google, facebook, github
+	Provider       string         `json:"provider" db:"provider"` // google, github
 	ProviderUserID string         `json:"provider_user_id" db:"provider_user_id"`
 	Email          string         `json:"email" db:"email"`
 	AccessToken    sql.NullString `json:"-" db:"access_token"`  // Don't expose in JSON

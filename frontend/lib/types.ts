@@ -309,10 +309,12 @@ export interface UserProfile {
   updated_at: string
 }
 
+export type AddressType = 'home' | 'work' | 'billing' | 'shipping' | 'other'
+
 export interface Address {
   id: number
   user_id: number
-  type: 'billing' | 'shipping'
+  type: AddressType
   first_name: string
   last_name: string
   company?: string
@@ -329,7 +331,7 @@ export interface Address {
 }
 
 export interface CreateAddressRequest {
-  type: 'billing' | 'shipping'
+  type: AddressType
   first_name: string
   last_name: string
   company?: string
@@ -344,7 +346,7 @@ export interface CreateAddressRequest {
 }
 
 export interface UpdateAddressRequest {
-  type?: 'billing' | 'shipping'
+  type?: AddressType
   first_name?: string
   last_name?: string
   company?: string
@@ -694,7 +696,7 @@ export const FIXED_ROLES = {
 export type RoleName = keyof typeof FIXED_ROLES
 
 // OAuth Types
-export type OAuthProvider = 'google' | 'facebook' | 'github'
+export type OAuthProvider = 'google' | 'github'
 
 export interface OAuthInitiateResponse {
   auth_url: string

@@ -55,6 +55,8 @@ type OrderResponse struct {
 	ID                int64                        `json:"id"`
 	OrderNumber       string                       `json:"order_number"`
 	UserID            int64                        `json:"user_id"`
+	CustomerName      string                       `json:"customer_name,omitempty"`      // Customer name from shipping address
+	CustomerEmail     string                       `json:"customer_email,omitempty"`     // Customer email from shipping address
 	Status            string                       `json:"status"`
 	PaymentStatus     string                       `json:"payment_status"`
 	FulfillmentStatus string                       `json:"fulfillment_status"`
@@ -165,6 +167,8 @@ type ListOrdersRequest struct {
 	Search            string     `json:"search"`
 	Page              int        `json:"page"`
 	Limit             int        `json:"limit"`
+	Sort              string     `json:"sort"`  // Field to sort by (created_at, total_amount, order_number, etc.)
+	Order             string     `json:"order"` // asc or desc
 }
 
 // ListOrdersResponse represents the response for listing orders

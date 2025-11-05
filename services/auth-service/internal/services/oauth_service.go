@@ -16,7 +16,6 @@ import (
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/facebook"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 )
@@ -35,7 +34,6 @@ type oauthService struct {
 	refreshTokenRepo repository.IRefreshTokenRepository
 	jwtService       *jwt.JWTService
 	googleConfig     *oauth2.Config
-	facebookConfig   *oauth2.Config
 	githubConfig     *oauth2.Config
 }
 
@@ -45,7 +43,6 @@ func NewOAuthService(
 	refreshTokenRepo repository.IRefreshTokenRepository,
 	jwtService *jwt.JWTService,
 	googleClientID, googleClientSecret, googleRedirectURL string,
-	facebookClientID, facebookClientSecret, facebookRedirectURL string,
 	githubClientID, githubClientSecret, githubRedirectURL string,
 ) IOAuthService {
 	return &oauthService{
@@ -59,13 +56,6 @@ func NewOAuthService(
 			RedirectURL:  googleRedirectURL,
 			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 			Endpoint:     google.Endpoint,
-		},
-		facebookConfig: &oauth2.Config{
-			ClientID:     facebookClientID,
-			ClientSecret: facebookClientSecret,
-			RedirectURL:  facebookRedirectURL,
-			Scopes:       []string{"email", "public_profile"},
-			Endpoint:     facebook.Endpoint,
 		},
 		githubConfig: &oauth2.Config{
 			ClientID:     githubClientID,
@@ -101,8 +91,6 @@ func (s *oauthService) InitiateOAuth(ctx context.Context, provider string) (stri
 	switch provider {
 	case string(domain.ProviderGoogle):
 		authURL = s.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
-	case string(domain.ProviderFacebook):
-		authURL = s.facebookConfig.AuthCodeURL(state)
 	case string(domain.ProviderGithub):
 		authURL = s.githubConfig.AuthCodeURL(state)
 	default:
@@ -338,8 +326,6 @@ func (s *oauthService) exchangeCodeForToken(ctx context.Context, provider string
 	switch provider {
 	case string(domain.ProviderGoogle):
 		config = s.googleConfig
-	case string(domain.ProviderFacebook):
-		config = s.facebookConfig
 	case string(domain.ProviderGithub):
 		config = s.githubConfig
 	default:
@@ -359,8 +345,6 @@ func (s *oauthService) fetchUserInfo(ctx context.Context, provider string, acces
 	switch provider {
 	case string(domain.ProviderGoogle):
 		return s.fetchGoogleUserInfo(ctx, accessToken)
-	case string(domain.ProviderFacebook):
-		return s.fetchFacebookUserInfo(ctx, accessToken)
 	case string(domain.ProviderGithub):
 		return s.fetchGithubUserInfo(ctx, accessToken)
 	default:
@@ -402,46 +386,6 @@ func (s *oauthService) fetchGoogleUserInfo(ctx context.Context, accessToken stri
 		LastName:       googleUser.FamilyName,
 		Avatar:         googleUser.Picture,
 		Provider:       domain.ProviderGoogle,
-	}, nil
-}
-
-// fetchFacebookUserInfo fetches user info from Facebook
-func (s *oauthService) fetchFacebookUserInfo(ctx context.Context, accessToken string) (*domain.OAuthUserInfo, error) {
-	resp, err := http.Get("https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture&access_token=" + accessToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user info: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("facebook API error: %s", string(body))
-	}
-
-	var facebookUser struct {
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		Email     string `json:"email"`
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Picture   struct {
-			Data struct {
-				URL string `json:"url"`
-			} `json:"data"`
-		} `json:"picture"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&facebookUser); err != nil {
-		return nil, fmt.Errorf("failed to decode user info: %w", err)
-	}
-
-	return &domain.OAuthUserInfo{
-		ProviderUserID: facebookUser.ID,
-		Email:          facebookUser.Email,
-		FirstName:      facebookUser.FirstName,
-		LastName:       facebookUser.LastName,
-		Avatar:         facebookUser.Picture.Data.URL,
-		Provider:       domain.ProviderFacebook,
 	}, nil
 }
 

@@ -365,6 +365,8 @@ func (s *orderService) ListOrders(ctx context.Context, req *dto.ListOrdersReques
 		MinAmount:         req.MinAmount,
 		MaxAmount:         req.MaxAmount,
 		Search:            req.Search,
+		SortBy:            req.Sort,
+		SortOrder:         req.Order,
 	}
 
 	// Get orders from repository
@@ -373,13 +375,35 @@ func (s *orderService) ListOrders(ctx context.Context, req *dto.ListOrdersReques
 		return nil, fmt.Errorf("failed to list orders: %w", err)
 	}
 
-	// Convert to response DTOs
+	// Convert to response DTOs with customer info
 	orderResponses := make([]dto.OrderResponse, len(orders))
 	for i, order := range orders {
+		// Get customer info from shipping address
+		customerName := ""
+		customerEmail := ""
+		addresses, err := s.orderRepo.GetOrderAddresses(ctx, order.ID)
+		if err == nil && len(addresses) > 0 {
+			// Find shipping address (prefer shipping, fallback to first address)
+			for _, addr := range addresses {
+				if addr.Type == "shipping" {
+					customerName = fmt.Sprintf("%s %s", addr.FirstName, addr.LastName)
+					customerEmail = addr.Email
+					break
+				}
+			}
+			// If no shipping address found, use first address
+			if customerName == "" && len(addresses) > 0 {
+				customerName = fmt.Sprintf("%s %s", addresses[0].FirstName, addresses[0].LastName)
+				customerEmail = addresses[0].Email
+			}
+		}
+
 		orderResponses[i] = dto.OrderResponse{
 			ID:                order.ID,
 			OrderNumber:       order.OrderNumber,
 			UserID:            order.UserID,
+			CustomerName:     customerName,
+			CustomerEmail:     customerEmail,
 			Status:            order.Status,
 			PaymentStatus:     order.PaymentStatus,
 			FulfillmentStatus: order.FulfillmentStatus,

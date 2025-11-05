@@ -57,7 +57,6 @@ func main() {
 		refreshTokenRepo,
 		jwtService,
 		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL,
-		cfg.FacebookClientID, cfg.FacebookClientSecret, cfg.FacebookRedirectURL,
 		cfg.GithubClientID, cfg.GithubClientSecret, cfg.GithubRedirectURL,
 	)
 

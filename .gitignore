@@ -7,3 +7,7 @@ PRODUCT_IMAGE_UPDATE_FIX.md
 FLEXIBLE_IMAGE_INPUT.md
 PRODUCT_IMAGES_TYPE_FIX.md
 
+# Ignore all .md files (keep locally, but don't track in git)
+*.md
+!node_modules/**/*.md
+

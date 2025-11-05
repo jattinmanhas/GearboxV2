@@ -15,10 +15,6 @@ const providerConfig = {
     name: 'Google',
     color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   },
-  facebook: {
-    name: 'Facebook',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  },
   github: {
     name: 'GitHub',
     color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
@@ -134,7 +130,7 @@ export function OAuthProvidersCard() {
         )}
 
         <div className="space-y-3">
-          {(['google', 'facebook', 'github'] as OAuthProvider[]).map((provider) => {
+          {(['google', 'github'] as OAuthProvider[]).map((provider) => {
             const linked = isProviderLinked(provider)
             const providerLink = getProviderLink(provider)
             const config = providerConfig[provider]

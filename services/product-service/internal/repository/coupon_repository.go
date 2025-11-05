@@ -353,8 +353,8 @@ func (r *couponRepository) CalculateDiscount(ctx context.Context, coupon *domain
 	switch coupon.Type {
 	case "percentage":
 		discountAmount = cartAmount * (coupon.Value / 100)
-		// Apply maximum discount if set
-		if coupon.MaximumDiscount != nil && discountAmount > *coupon.MaximumDiscount {
+		// Apply maximum discount if set (only if > 0)
+		if coupon.MaximumDiscount != nil && *coupon.MaximumDiscount > 0 && discountAmount > *coupon.MaximumDiscount {
 			discountAmount = *coupon.MaximumDiscount
 		}
 	case "fixed_amount":

@@ -418,6 +418,44 @@ func (s *cartService) GetCartSummary(ctx context.Context, cartID int64) (*dto.Ca
 		return nil, fmt.Errorf("failed to get cart summary: %w", err)
 	}
 
+	// Recalculate discount based on current subtotal to ensure maximum discount limit is respected
+	// Get applied coupons and recalculate discount
+	var recalculatedDiscount float64
+	cartCoupons, err := s.couponService.GetCartCoupons(ctx, cartID)
+	if err == nil && len(cartCoupons) > 0 {
+		// Get cart coupon records to update their discount amounts
+		cartCouponRecords, err := s.cartRepo.GetCartCoupons(ctx, cartID)
+		if err == nil {
+			// Recalculate discount for each coupon based on current subtotal
+			for i, coupon := range cartCoupons {
+				discountAmount, err := s.couponService.CalculateDiscount(ctx, coupon, summary.Subtotal)
+				if err == nil {
+					// Ensure discount doesn't exceed subtotal for this coupon
+					if discountAmount > summary.Subtotal {
+						discountAmount = summary.Subtotal
+					}
+					recalculatedDiscount += discountAmount
+					// Update the stored discount amount in cart_coupons table
+					if i < len(cartCouponRecords) {
+						err = s.cartRepo.UpdateCartCouponDiscount(ctx, cartID, cartCouponRecords[i].CouponCode, discountAmount)
+						if err != nil {
+							// Log error but don't fail the operation
+							fmt.Printf("Warning: failed to update cart coupon discount: %v\n", err)
+						}
+					}
+				}
+			}
+		}
+		// Ensure discount doesn't exceed subtotal
+		if recalculatedDiscount > summary.Subtotal {
+			recalculatedDiscount = summary.Subtotal
+		}
+		// Use recalculated discount instead of stored one
+		summary.DiscountAmount = recalculatedDiscount
+		// Recalculate total with new discount
+		summary.TotalAmount = summary.Subtotal + summary.TaxAmount + summary.ShippingAmount - summary.DiscountAmount
+	}
+
 	// Convert to response DTO
 	itemResponses := make([]dto.CartItemResponse, len(summary.Items))
 	for i, item := range summary.Items {

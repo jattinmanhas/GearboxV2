@@ -38,8 +38,9 @@ type User struct {
 type contextKey string
 
 const (
-	UserContextKey   contextKey = "user"
-	ClaimsContextKey contextKey = "claims"
+	UserContextKey     contextKey = "user"
+	ClaimsContextKey   contextKey = "claims"
+	AuthTokenContextKey contextKey = "auth_token"
 )
 
 // AuthMiddleware validates JWT tokens and extracts user information
@@ -63,6 +64,7 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 				if err == nil {
 					// Access token is valid, proceed normally
 					ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
+					ctx = context.WithValue(ctx, AuthTokenContextKey, accessToken)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -120,8 +122,9 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 				Role:     minimalUser.Role,
 			}
 
-			// Add claims to context (no user DB query needed)
+			// Add claims and new access token to context (no user DB query needed)
 			ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
+			ctx = context.WithValue(ctx, AuthTokenContextKey, newAccessToken)
 
 			// Call next handler with updated context
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -142,8 +145,9 @@ func OptionalAuthMiddleware(authService IAuthService) func(http.Handler) http.Ha
 			if token != "" {
 				// Try to validate token
 				if claims, err := authService.ValidateAccessToken(r.Context(), token); err == nil {
-					// Only add claims to context (no user DB query needed)
+					// Add claims and token to context (no user DB query needed)
 					ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
+					ctx = context.WithValue(ctx, AuthTokenContextKey, token)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -182,7 +186,7 @@ func GetUserIDFromContext(ctx context.Context) uint {
 
 // ExtractAuthTokenFromContext extracts auth token from context
 func ExtractAuthTokenFromContext(ctx context.Context) (string, bool) {
-	token, ok := ctx.Value("auth_token").(string)
+	token, ok := ctx.Value(AuthTokenContextKey).(string)
 	return token, ok
 }
 
@@ -280,7 +284,7 @@ func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 
 // GetAuthTokenFromContext extracts the auth token from the request context
 func GetAuthTokenFromContext(ctx context.Context) string {
-	if token, ok := ctx.Value("auth_token").(string); ok {
+	if token, ok := ctx.Value(AuthTokenContextKey).(string); ok {
 		return token
 	}
 	return ""

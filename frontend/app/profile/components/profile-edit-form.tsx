@@ -12,8 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfile, UpdateProfileRequest } from "@/lib/types"
 import { showError, showSuccess, NotificationMessages } from "@/lib/notifications"
+import { EnhancedImageUpload } from "@/components/ui/enhanced-image-upload"
+import { UploadedImage } from "@/lib/image-upload"
+import { X } from "lucide-react"
 
 interface ProfileEditFormProps {
   profile: UserProfile
@@ -33,6 +37,8 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadedAvatar, setUploadedAvatar] = useState<UploadedImage | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState("")
 
   // Convert RFC3339 date (2006-01-02T15:04:05Z07:00) to YYYY-MM-DD for date input
   const formatDateForInput = (dateString: string): string => {
@@ -63,6 +69,8 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
       date_of_birth: formatDateForInput(profile.date_of_birth || ""),
       avatar: profile.avatar || "",
     })
+    setAvatarUrl(profile.avatar || "")
+    setUploadedAvatar(null)
   }, [profile])
 
   const validateForm = () => {
@@ -110,6 +118,30 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
     }
   }
 
+  const handleAvatarUpload = (image: UploadedImage) => {
+    setUploadedAvatar(image)
+    // Use secure URL if available, otherwise use regular URL
+    const imageUrl = image.secureUrl || image.url
+    setAvatarUrl(imageUrl)
+    setFormData(prev => ({ ...prev, avatar: imageUrl }))
+  }
+
+  const handleAvatarRemove = () => {
+    setUploadedAvatar(null)
+    setAvatarUrl("")
+    setFormData(prev => ({ ...prev, avatar: "" }))
+  }
+
+  const handleAvatarUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setAvatarUrl(url)
+    setFormData(prev => ({ ...prev, avatar: url }))
+    // Clear uploaded avatar if URL is manually entered
+    if (url && uploadedAvatar) {
+      setUploadedAvatar(null)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -118,8 +150,12 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
     setIsSubmitting(true)
     try {
       // Convert date format before sending
+      // Use uploaded avatar URL if available, otherwise use manually entered URL
+      const finalAvatarUrl = uploadedAvatar ? (uploadedAvatar.secureUrl || uploadedAvatar.url) : avatarUrl
+      
       const profileData: UpdateProfileRequest = {
         ...formData,
+        avatar: finalAvatarUrl,
         date_of_birth: formatDateForBackend(formData.date_of_birth),
       }
       await onSave(profileData)
@@ -218,15 +254,77 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
             </div>
           </div>
 
-          {/* Avatar URL */}
-          <div className="space-y-2">
-            <Label htmlFor="avatar">Avatar URL</Label>
-            <Input
-              id="avatar"
-              value={formData.avatar}
-              onChange={(e) => setFormData(prev => ({ ...prev, avatar: e.target.value }))}
-              placeholder="https://example.com/avatar.jpg"
-            />
+          {/* Avatar Upload */}
+          <div className="space-y-4">
+            <Label>Profile Picture</Label>
+            
+            {/* Current Avatar Preview */}
+            {(avatarUrl || uploadedAvatar) && (
+              <div className="relative inline-block">
+                <Avatar className="h-24 w-24 border-2">
+                  <AvatarImage 
+                    src={uploadedAvatar ? (uploadedAvatar.secureUrl || uploadedAvatar.url) : avatarUrl} 
+                    alt="Profile avatar" 
+                  />
+                  <AvatarFallback className="text-lg">
+                    {(formData.first_name?.[0] || '').toUpperCase()}{(formData.last_name?.[0] || '').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {uploadedAvatar && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
+                    onClick={handleAvatarRemove}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Image Upload Component */}
+            {!uploadedAvatar && (
+              <div className="border rounded-lg p-4">
+                <EnhancedImageUpload
+                  onImageSelect={handleAvatarUpload}
+                  selectedImages={uploadedAvatar ? [uploadedAvatar] : []}
+                  multiple={false}
+                  maxImages={1}
+                  showPreview={false}
+                  showThumbnails={false}
+                  config={{
+                    maxFileSize: 5 * 1024 * 1024, // 5MB
+                    allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+                    maxWidth: 512,
+                    maxHeight: 512,
+                    quality: 85,
+                    generateThumbnails: false,
+                    thumbnailSizes: [],
+                    useCloudinary: true
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Manual URL Input (Alternative) */}
+            <div className="space-y-2">
+              <Label htmlFor="avatar-url">Or enter avatar URL manually</Label>
+              <Input
+                id="avatar-url"
+                type="url"
+                value={avatarUrl}
+                onChange={handleAvatarUrlChange}
+                placeholder="https://example.com/avatar.jpg"
+                disabled={!!uploadedAvatar}
+              />
+              <p className="text-xs text-muted-foreground">
+                {uploadedAvatar 
+                  ? "Remove the uploaded image to enter a URL manually"
+                  : "Upload an image above or enter a direct URL to an image"}
+              </p>
+            </div>
           </div>
 
           <DialogFooter>

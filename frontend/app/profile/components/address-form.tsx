@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Address, CreateAddressRequest, UpdateAddressRequest } from "@/lib/types"
+import { Address, CreateAddressRequest, UpdateAddressRequest, AddressType } from "@/lib/types"
 
 interface AddressFormProps {
   address?: Address | null
@@ -35,7 +35,7 @@ const US_STATES = [
 
 export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
   const [formData, setFormData] = useState({
-    type: "shipping" as "billing" | "shipping",
+    type: "shipping" as AddressType,
     first_name: "",
     last_name: "",
     company: "",
@@ -144,31 +144,27 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
           {/* Address Type */}
           <div className="space-y-2">
             <Label>Address Type</Label>
-            <div className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="shipping"
-                  name="type"
-                  value="shipping"
-                  checked={formData.type === "shipping"}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as "shipping" | "billing" }))}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="shipping">Shipping</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="billing"
-                  name="type"
-                  value="billing"
-                  checked={formData.type === "billing"}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as "shipping" | "billing" }))}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="billing">Billing</Label>
-              </div>
+            <div className="flex flex-wrap gap-4">
+              {[
+                { value: 'home', label: 'Home' },
+                { value: 'work', label: 'Work' },
+                { value: 'billing', label: 'Billing' },
+                { value: 'shipping', label: 'Shipping' },
+                { value: 'other', label: 'Other' },
+              ].map(({ value, label }) => (
+                <div key={value} className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id={value}
+                    name="type"
+                    value={value}
+                    checked={formData.type === value}
+                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AddressType }))}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor={value}>{label}</Label>
+                </div>
+              ))}
             </div>
           </div>
 

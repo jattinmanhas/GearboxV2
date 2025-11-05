@@ -16,16 +16,13 @@ type Config struct {
 	Environment      string
 
 	// OAuth Configuration
-	GoogleClientID       string
-	GoogleClientSecret   string
-	GoogleRedirectURL    string
-	FacebookClientID     string
-	FacebookClientSecret string
-	FacebookRedirectURL  string
-	GithubClientID       string
-	GithubClientSecret   string
-	GithubRedirectURL    string
-	FrontendURL          string
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
+	GithubClientID     string
+	GithubClientSecret string
+	GithubRedirectURL  string
+	FrontendURL        string
 }
 
 var (
@@ -77,10 +74,6 @@ func loadConfig() {
 	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 
-	facebookClientID := os.Getenv("FACEBOOK_CLIENT_ID")
-	facebookClientSecret := os.Getenv("FACEBOOK_CLIENT_SECRET")
-	facebookRedirectURL := os.Getenv("FACEBOOK_REDIRECT_URL")
-
 	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
 	githubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	githubRedirectURL := os.Getenv("GITHUB_REDIRECT_URL")
@@ -98,16 +91,13 @@ func loadConfig() {
 		Environment:      environment,
 
 		// OAuth
-		GoogleClientID:       googleClientID,
-		GoogleClientSecret:   googleClientSecret,
-		GoogleRedirectURL:    googleRedirectURL,
-		FacebookClientID:     facebookClientID,
-		FacebookClientSecret: facebookClientSecret,
-		FacebookRedirectURL:  facebookRedirectURL,
-		GithubClientID:       githubClientID,
-		GithubClientSecret:   githubClientSecret,
-		GithubRedirectURL:    githubRedirectURL,
-		FrontendURL:          frontendURL,
+		GoogleClientID:     googleClientID,
+		GoogleClientSecret: googleClientSecret,
+		GoogleRedirectURL:  googleRedirectURL,
+		GithubClientID:     githubClientID,
+		GithubClientSecret: githubClientSecret,
+		GithubRedirectURL:  githubRedirectURL,
+		FrontendURL:        frontendURL,
 	}
 }
 

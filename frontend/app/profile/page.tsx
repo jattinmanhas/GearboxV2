@@ -291,7 +291,7 @@ export default function ProfilePage() {
                     Addresses
                   </CardTitle>
                   <CardDescription>
-                    Manage your billing and shipping addresses
+                    Manage your addresses
                   </CardDescription>
                 </div>
                 <Button onClick={handleAddAddress}>
