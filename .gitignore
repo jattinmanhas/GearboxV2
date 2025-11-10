@@ -11,3 +11,17 @@ PRODUCT_IMAGES_TYPE_FIX.md
 *.md
 !node_modules/**/*.md
 
+# Environment files - NEVER commit these!
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
+
+# Service-specific .env files
+services/*/.env
+services/*/.env.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
