@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Databases
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-auth
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gearbox_auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-product:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-product
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gearbox_product
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-product-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-payment
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gearbox_payment
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-blog:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-blog
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gearbox_blog
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-blog-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: gearbox-auth-service
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres-auth:5432/gearbox_auth?sslmode=disable
+      PORT: 8081
+      ENVIRONMENT: development
+      JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
+      JWT_REFRESH_SECRET: your-super-secret-refresh-token-key-here-make-it-long-and-random-change-in-production
+      FRONTEND_URL: http://localhost:3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URL: http://localhost:8081/api/v1/auth/oauth/google/callback
+      GITHUB_REDIRECT_URL: http://localhost:8081/api/v1/auth/oauth/github/callback
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - gearbox-network
+    restart: unless-stopped
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    container_name: gearbox-product-service
+    environment:
+      DB_HOST: postgres-product
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: gearbox_product
+      DB_SSL_MODE: disable
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8082
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:8083
+      JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
+      JWT_REFRESH_SECRET: your-super-secret-refresh-token-key-here-make-it-long-and-random-change-in-production
+      SECURE_COOKIES: "false"
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - gearbox-network
+    restart: unless-stopped
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: gearbox-payment-service
+    environment:
+      DB_HOST: postgres-payment
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: gearbox_payment
+      DB_SSL_MODE: disable
+      HOST: 0.0.0.0
+      PORT: 8083
+      JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
+      JWT_REFRESH_SECRET: your-super-secret-refresh-token-key-here-make-it-long-and-random-change-in-production
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8082
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - gearbox-network
+    restart: unless-stopped
+
+  # Blog Service
+  blog-service:
+    build:
+      context: .
+      dockerfile: services/blog-service/Dockerfile
+    container_name: gearbox-blog-service
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres-blog:5432/gearbox_blog?sslmode=disable
+      PORT: 8084
+      JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
+      FRONTEND_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres-blog:
+        condition: service_healthy
+    networks:
+      - gearbox-network
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: gearbox-frontend
+    environment:
+      AUTH_SERVICE_URL: http://localhost:8081
+      PRODUCT_SERVICE_URL: http://localhost:8082
+      PAYMENT_SERVICE_URL: http://localhost:8083
+      BLOG_SERVICE_URL: http://localhost:8084
+      NEXT_PUBLIC_FRONTEND_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - product-service
+      - payment-service
+      - blog-service
+    networks:
+      - gearbox-network
+    restart: unless-stopped
+
+networks:
+  gearbox-network:
+    driver: bridge
+
+volumes:
+  postgres-auth-data:
+  postgres-product-data:
+  postgres-payment-data:
+  postgres-blog-data:
+

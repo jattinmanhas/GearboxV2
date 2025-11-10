@@ -344,6 +344,34 @@ export const authApi = {
     
     return handleResponse<ApiResponse>(response)
   },
+
+  async forgotPassword(email?: string, username?: string): Promise<ApiResponse> {
+    const body: { email?: string; username?: string } = {}
+    if (email) body.email = email
+    if (username) body.username = username
+
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    })
+    
+    return handleResponse<ApiResponse>(response)
+  },
 }
 
 export const productApi = {

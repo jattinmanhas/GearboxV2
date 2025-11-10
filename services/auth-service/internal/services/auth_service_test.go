@@ -96,6 +96,16 @@ func (m *MockAuthService) CleanupExpiredTokens(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockAuthService) ForgotPassword(ctx context.Context, email, username string, emailService IEmailService) error {
+	args := m.Called(ctx, email, username, emailService)
+	return args.Error(0)
+}
+
+func (m *MockAuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	args := m.Called(ctx, token, newPassword)
+	return args.Error(0)
+}
+
 // RegisterNewUser mocks the RegisterNewUser method
 func (m *MockUserRepository) RegisterNewUser(ctx context.Context, u *domain.User) error {
 	args := m.Called(ctx, u)
@@ -187,6 +197,47 @@ type MockRefreshTokenRepository struct {
 
 type MockRoleRepository struct {
 	mock.Mock
+}
+
+// MockPasswordResetRepository is a mock implementation of IPasswordResetRepository
+type MockPasswordResetRepository struct {
+	mock.Mock
+}
+
+func (m *MockPasswordResetRepository) CreatePasswordResetToken(ctx context.Context, token *domain.PasswordResetToken) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+func (m *MockPasswordResetRepository) GetPasswordResetTokenByToken(ctx context.Context, token string) (*domain.PasswordResetToken, error) {
+	args := m.Called(ctx, token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.PasswordResetToken), args.Error(1)
+}
+
+func (m *MockPasswordResetRepository) GetPasswordResetTokenByUserID(ctx context.Context, userID uint) (*domain.PasswordResetToken, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.PasswordResetToken), args.Error(1)
+}
+
+func (m *MockPasswordResetRepository) MarkTokenAsUsed(ctx context.Context, token string) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+func (m *MockPasswordResetRepository) DeleteExpiredTokens(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockPasswordResetRepository) DeleteTokenByUserID(ctx context.Context, userID uint) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
 }
 
 // CreateRefreshToken mocks the CreateRefreshToken method
@@ -912,11 +963,12 @@ func TestAuthService(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and JWT service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 
 		// 🚀 Action: Create service
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// ✅ Assertions: Service should be created
 		assert.NotNil(t, service)
@@ -934,9 +986,10 @@ func TestAuthService_Login(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		mockRoleRepo := &MockRoleRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user with hashed password
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
@@ -975,9 +1028,10 @@ func TestAuthService_Login(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		mockUserRepo.On("GetUserByUsername", mock.Anything, "nonexistent").Return(nil, errors.New("user not found"))
@@ -999,9 +1053,10 @@ func TestAuthService_Login(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user with hashed password
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.DefaultCost)
@@ -1037,9 +1092,10 @@ func TestAuthService_RefreshToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user
 		user := &domain.User{
@@ -1093,9 +1149,10 @@ func TestAuthService_RefreshToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🚀 Action: Refresh with invalid token
 		user, refreshToken, _, err := service.RefreshToken(context.Background(), "invalid-token")
@@ -1120,9 +1177,10 @@ func TestAuthService_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Refresh token should be revoked
 		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, "test-refresh-token").Return(nil)
@@ -1141,9 +1199,10 @@ func TestAuthService_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, "test-refresh-token").Return(errors.New("database error"))
@@ -1168,9 +1227,10 @@ func TestAuthService_LogoutAll(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: All user tokens should be revoked
 		mockRefreshTokenRepo.On("RevokeAllUserTokens", mock.Anything, uint(1)).Return(nil)
@@ -1189,9 +1249,10 @@ func TestAuthService_LogoutAll(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Repository should return error
 		mockRefreshTokenRepo.On("RevokeAllUserTokens", mock.Anything, uint(1)).Return(errors.New("database error"))
@@ -1216,9 +1277,10 @@ func TestAuthService_ValidateAccessToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user and generate token
 		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}
@@ -1241,9 +1303,10 @@ func TestAuthService_ValidateAccessToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🚀 Action: Validate invalid token
 		claims, err := service.ValidateAccessToken(context.Background(), "invalid-token")
@@ -1263,9 +1326,10 @@ func TestAuthService_GetUserFromToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user and generate token
 		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}
@@ -1294,9 +1358,10 @@ func TestAuthService_GetUserFromToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🚀 Action: Get user from invalid token
 		user, err := service.GetUserFromToken(context.Background(), "invalid-token")
@@ -1314,9 +1379,10 @@ func TestAuthService_GetUserFromToken(t *testing.T) {
 		// 🔧 Setup: Create mock repositories and service
 		mockUserRepo := &MockUserRepository{}
 		mockRefreshTokenRepo := &MockRefreshTokenRepository{}
+		mockPasswordResetRepo := &MockPasswordResetRepository{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		mockRoleRepo := &MockRoleRepository{}
-		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockRoleRepo, jwtService)
+		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// Create test user and generate token
 		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}

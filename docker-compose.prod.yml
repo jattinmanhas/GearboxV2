@@ -1,0 +1,246 @@
+version: '3.8'
+
+# Production Docker Compose
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # PostgreSQL Databases (using managed databases in production is recommended)
+  # These are included for self-hosted production deployments
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-auth-prod
+    environment:
+      POSTGRES_USER: ${DB_AUTH_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_AUTH_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${DB_AUTH_NAME:-gearbox_auth}
+    volumes:
+      - postgres-auth-prod-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_AUTH_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    # Uncomment for production security
+    # ports:
+    #   - "127.0.0.1:5432:5432"  # Only accessible from host
+
+  postgres-product:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-product-prod
+    environment:
+      POSTGRES_USER: ${DB_PRODUCT_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PRODUCT_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${DB_PRODUCT_NAME:-gearbox_product}
+    volumes:
+      - postgres-product-prod-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_PRODUCT_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-payment-prod
+    environment:
+      POSTGRES_USER: ${DB_PAYMENT_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PAYMENT_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${DB_PAYMENT_NAME:-gearbox_payment}
+    volumes:
+      - postgres-payment-prod-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_PAYMENT_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  postgres-blog:
+    image: postgres:16-alpine
+    container_name: gearbox-postgres-blog-prod
+    environment:
+      POSTGRES_USER: ${DB_BLOG_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_BLOG_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${DB_BLOG_NAME:-gearbox_blog}
+    volumes:
+      - postgres-blog-prod-data:/var/lib/postgresql/data
+    networks:
+      - gearbox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_BLOG_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: gearbox-auth-service-prod
+    environment:
+      DATABASE_URL: postgres://${DB_AUTH_USER:-postgres}:${DB_AUTH_PASSWORD:-postgres}@postgres-auth:5432/${DB_AUTH_NAME:-gearbox_auth}?sslmode=require
+      PORT: 8081
+      ENVIRONMENT: production
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+      GITHUB_REDIRECT_URL: ${GITHUB_REDIRECT_URL}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - gearbox-network
+    restart: always
+    # Uncomment to expose port (or use reverse proxy)
+    # ports:
+    #   - "8081:8081"
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    container_name: gearbox-product-service-prod
+    environment:
+      DB_HOST: postgres-product
+      DB_PORT: 5432
+      DB_USER: ${DB_PRODUCT_USER:-postgres}
+      DB_PASSWORD: ${DB_PRODUCT_PASSWORD:-postgres}
+      DB_NAME: ${DB_PRODUCT_NAME:-gearbox_product}
+      DB_SSL_MODE: require
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8082
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8083}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SECURE_COOKIES: "true"
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - gearbox-network
+    restart: always
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: gearbox-payment-service-prod
+    environment:
+      DB_HOST: postgres-payment
+      DB_PORT: 5432
+      DB_USER: ${DB_PAYMENT_USER:-postgres}
+      DB_PASSWORD: ${DB_PAYMENT_PASSWORD:-postgres}
+      DB_NAME: ${DB_PAYMENT_NAME:-gearbox_payment}
+      DB_SSL_MODE: require
+      HOST: 0.0.0.0
+      PORT: 8083
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8082}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - gearbox-network
+    restart: always
+
+  # Blog Service
+  blog-service:
+    build:
+      context: .
+      dockerfile: services/blog-service/Dockerfile
+    container_name: gearbox-blog-service-prod
+    environment:
+      DATABASE_URL: postgres://${DB_BLOG_USER:-postgres}:${DB_BLOG_PASSWORD:-postgres}@postgres-blog:5432/${DB_BLOG_NAME:-gearbox_blog}?sslmode=require
+      PORT: 8084
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres-blog:
+        condition: service_healthy
+    networks:
+      - gearbox-network
+    restart: always
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: gearbox-frontend-prod
+    environment:
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL}
+      BLOG_SERVICE_URL: ${BLOG_SERVICE_URL}
+      NEXT_PUBLIC_FRONTEND_URL: ${FRONTEND_URL}
+      NODE_ENV: production
+    depends_on:
+      - auth-service
+      - product-service
+      - payment-service
+      - blog-service
+    networks:
+      - gearbox-network
+    restart: always
+    # Uncomment to expose port (or use reverse proxy)
+    # ports:
+    #   - "3000:3000"
+
+  # Nginx Reverse Proxy (Optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: gearbox-nginx-prod
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - auth-service
+      - product-service
+      - payment-service
+      - blog-service
+    networks:
+      - gearbox-network
+    restart: always
+
+networks:
+  gearbox-network:
+    driver: bridge
+
+volumes:
+  postgres-auth-prod-data:
+  postgres-product-prod-data:
+  postgres-payment-prod-data:
+  postgres-blog-prod-data:
+

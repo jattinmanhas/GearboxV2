@@ -40,7 +40,7 @@ func main() {
 	paymentRepo := repository.NewPaymentRepository(db.GetDB())
 
 	// Initialize services
-	gatewayService := services.NewPaymentGatewayService(paymentRepo)
+	gatewayService := services.NewPaymentGatewayService(paymentRepo, cfg)
 	paymentService := services.NewPaymentService(paymentRepo, gatewayService)
 
 	// Initialize router

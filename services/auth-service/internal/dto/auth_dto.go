@@ -112,3 +112,15 @@ type SetDefaultAddressRequest struct {
 type SetPrimaryPhoneRequest struct {
 	PhoneID uint `json:"phone_id" validate:"required"`
 }
+
+// Password Reset DTOs
+type ForgotPasswordRequest struct {
+	// Either email or username can be provided
+	Email    string `json:"email" validate:"omitempty,email"`
+	Username string `json:"username" validate:"omitempty,username"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,password"`
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"github.com/jattinmanhas/GearboxV2/services/shared/middleware"
 	"github.com/stretchr/testify/assert"
@@ -175,6 +176,26 @@ func (m *MockAuthService) CleanupExpiredTokens(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockAuthService) ForgotPassword(ctx context.Context, email, username string, emailService services.IEmailService) error {
+	args := m.Called(ctx, email, username, emailService)
+	return args.Error(0)
+}
+
+func (m *MockAuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	args := m.Called(ctx, token, newPassword)
+	return args.Error(0)
+}
+
+// MockEmailService is a mock implementation of IEmailService
+type MockEmailService struct {
+	mock.Mock
+}
+
+func (m *MockEmailService) SendPasswordResetEmail(email, resetToken, resetURL string) error {
+	args := m.Called(email, resetToken, resetURL)
+	return args.Error(0)
+}
+
 // TestAuthHandler_Login tests the login handler
 func TestAuthHandler_Login(t *testing.T) {
 	// 🎯 Test Strategy: Test login handler with mocked services
@@ -183,8 +204,9 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create test user and refresh token
 		user := &domain.User{
@@ -251,8 +273,9 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create invalid request
 		req := httptest.NewRequest("POST", "/login", bytes.NewBufferString("invalid json"))
@@ -281,8 +304,9 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create request with missing fields
 		loginReq := dto.LoginRequest{
@@ -316,8 +340,9 @@ func TestAuthHandler_Login(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// 🎭 Mock Expectations: Auth service should return error
 		mockAuthService.On("Login", mock.Anything, "testuser", "wrongpassword", "test-agent", "127.0.0.1").
@@ -362,8 +387,9 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create test user and refresh token
 		user := &domain.User{
@@ -427,8 +453,9 @@ func TestAuthHandler_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// 🎭 Mock Expectations: Auth service should handle logout
 		mockAuthService.On("Logout", mock.Anything, "test-refresh-token").Return(nil)
@@ -475,8 +502,9 @@ func TestAuthHandler_Logout(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create request without refresh token cookie
 		req := httptest.NewRequest("POST", "/logout", nil)
@@ -509,8 +537,9 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		// 🔧 Setup: Create mock services and handler
 		mockUserService := &MockUserService{}
 		mockAuthService := &MockAuthService{}
+		mockEmailService := &MockEmailService{}
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
-		handler := NewAuthHandler(mockUserService, mockAuthService, jwtService, "development")
+		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
 		// Create test user and access token
 		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}

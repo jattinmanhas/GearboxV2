@@ -38,6 +38,8 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 		r.Post("/login", authHandler.Login)
 		r.Post("/register", authHandler.RegisterUser)
 		r.Post("/refresh", authHandler.RefreshToken)
+		r.Post("/forgot-password", authHandler.ForgotPassword)
+		r.Post("/reset-password", authHandler.ResetPassword)
 
 		// OAuth routes (public)
 		r.Get("/oauth/{provider}", oauthHandler.InitiateOAuth)

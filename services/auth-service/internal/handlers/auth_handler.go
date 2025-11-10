@@ -34,21 +34,26 @@ type IAuthHandler interface {
 	UpdateProfile(w http.ResponseWriter, r *http.Request)
 	// User Analytics
 	GetUserAnalytics(w http.ResponseWriter, r *http.Request)
+	// Password reset methods
+	ForgotPassword(w http.ResponseWriter, r *http.Request)
+	ResetPassword(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
-	userService services.IUserService
-	authService services.IAuthService
-	jwtService  *jwt.JWTService
-	environment string
+	userService  services.IUserService
+	authService  services.IAuthService
+	emailService services.IEmailService
+	jwtService   *jwt.JWTService
+	environment  string
 }
 
-func NewAuthHandler(userService services.IUserService, authService services.IAuthService, jwtService *jwt.JWTService, environment string) IAuthHandler {
+func NewAuthHandler(userService services.IUserService, authService services.IAuthService, emailService services.IEmailService, jwtService *jwt.JWTService, environment string) IAuthHandler {
 	return &authHandler{
-		userService: userService,
-		authService: authService,
-		jwtService:  jwtService,
-		environment: environment,
+		userService:  userService,
+		authService:  authService,
+		emailService: emailService,
+		jwtService:   jwtService,
+		environment:  environment,
 	}
 }
 
@@ -597,4 +602,62 @@ func (h *authHandler) GetUserAnalytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "user analytics retrieved successfully", analytics)
+}
+
+// ForgotPassword handles POST /api/v1/auth/forgot-password
+// This endpoint initiates the password reset process by generating a token and sending it via email
+// Accepts either email or username to find the user
+func (h *authHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	// Validate that at least one identifier is provided
+	if req.Email == "" && req.Username == "" {
+		httpx.Error(w, http.StatusBadRequest, "either email or username is required", nil)
+		return
+	}
+
+	// Validate the request
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, "validation failed", validationErrors)
+		return
+	}
+
+	// Process forgot password request
+	// Note: We always return success to prevent enumeration attacks
+	if err := h.authService.ForgotPassword(r.Context(), req.Email, req.Username, h.emailService); err != nil {
+		// Log the error but still return success to the client
+		// This prevents attackers from determining which emails/usernames are registered
+		httpx.OK(w, "if an account with that email or username exists, a password reset link has been sent", nil)
+		return
+	}
+
+	httpx.OK(w, "if an account with that email or username exists, a password reset link has been sent", nil)
+}
+
+// ResetPassword handles POST /api/v1/auth/reset-password
+// This endpoint resets the user's password using a valid reset token
+func (h *authHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	// Validate the request
+	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
+		httpx.Error(w, http.StatusBadRequest, "validation failed", validationErrors)
+		return
+	}
+
+	// Reset password
+	if err := h.authService.ResetPassword(r.Context(), req.Token, req.NewPassword); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "failed to reset password", err)
+		return
+	}
+
+	httpx.OK(w, "password reset successfully", nil)
 }

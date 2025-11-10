@@ -41,16 +41,27 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(database)
+	passwordResetRepo := repository.NewPasswordResetRepository(database)
 	roleRepo := repository.NewRoleRepository(database)
 	addressRepo := repository.NewAddressRepository(database)
 	oauthRepo := repository.NewOAuthRepository(database)
 
 	// Initialize services
 	jwtService := jwt.NewJWTService(cfg.JWTSecret, cfg.JWTRefreshSecret)
-	authService := services.NewAuthService(userRepo, refreshTokenRepo, roleRepo, jwtService)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetRepo, roleRepo, jwtService)
 	userService := services.NewUserService(userRepo, authService)
 	roleService := services.NewRoleService(roleRepo, userRepo)
 	addressService := services.NewAddressService(addressRepo)
+	emailService := services.NewEmailService(
+		cfg.FrontendURL,
+		cfg.EmailSMTPHost,
+		cfg.EmailSMTPPort,
+		cfg.EmailSMTPUser,
+		cfg.EmailSMTPPassword,
+		cfg.EmailFromAddress,
+		cfg.EmailFromName,
+		cfg.EmailProvider,
+	)
 	oauthService := services.NewOAuthService(
 		oauthRepo,
 		userRepo,
@@ -61,7 +72,7 @@ func main() {
 	)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userService, authService, jwtService, cfg.Environment)
+	authHandler := handlers.NewAuthHandler(userService, authService, emailService, jwtService, cfg.Environment)
 	roleHandler := handlers.NewRoleHandler(roleService)
 	addressHandler := handlers.NewAddressHandler(addressService, authService)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authHandler, cfg.Environment, cfg.FrontendURL)

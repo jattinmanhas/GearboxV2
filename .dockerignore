@@ -1,0 +1,64 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+DEPLOYMENT_GUIDE.md
+FREE_DEPLOYMENT_GUIDE.md
+DEPLOYMENT_ENV_TEMPLATE.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+*.env
+env.example
+
+# Node modules (will be installed in container)
+node_modules/
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+
+# Test files
+*_test.go
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cookies and sensitive files
+cookies.txt
+admin_cookies.txt
+
+# Railway configs (not needed in Docker)
+railway.json
+

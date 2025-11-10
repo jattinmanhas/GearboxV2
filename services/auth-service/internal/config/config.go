@@ -23,6 +23,15 @@ type Config struct {
 	GithubClientSecret string
 	GithubRedirectURL  string
 	FrontendURL        string
+
+	// Email Configuration
+	EmailSMTPHost     string
+	EmailSMTPPort     string
+	EmailSMTPUser     string
+	EmailSMTPPassword string
+	EmailFromAddress  string
+	EmailFromName     string
+	EmailProvider     string // "smtp", "sendgrid", "mailgun", "console" (for logging)
 }
 
 var (
@@ -83,6 +92,27 @@ func loadConfig() {
 		frontendURL = "http://localhost:3000"
 	}
 
+	// Email Configuration
+	emailSMTPHost := os.Getenv("EMAIL_SMTP_HOST")
+	emailSMTPPort := os.Getenv("EMAIL_SMTP_PORT")
+	if emailSMTPPort == "" {
+		emailSMTPPort = "587" // Default to TLS port
+	}
+	emailSMTPUser := os.Getenv("EMAIL_SMTP_USER")
+	emailSMTPPassword := os.Getenv("EMAIL_SMTP_PASSWORD")
+	emailFromAddress := os.Getenv("EMAIL_FROM_ADDRESS")
+	if emailFromAddress == "" {
+		emailFromAddress = "noreply@gearbox.com"
+	}
+	emailFromName := os.Getenv("EMAIL_FROM_NAME")
+	if emailFromName == "" {
+		emailFromName = "GearBox"
+	}
+	emailProvider := os.Getenv("EMAIL_PROVIDER")
+	if emailProvider == "" {
+		emailProvider = "console" // Default to console logging in development
+	}
+
 	cfg = &Config{
 		Port:             port,
 		DatabaseURL:      databaseURL,
@@ -98,6 +128,15 @@ func loadConfig() {
 		GithubClientSecret: githubClientSecret,
 		GithubRedirectURL:  githubRedirectURL,
 		FrontendURL:        frontendURL,
+
+		// Email
+		EmailSMTPHost:     emailSMTPHost,
+		EmailSMTPPort:     emailSMTPPort,
+		EmailSMTPUser:     emailSMTPUser,
+		EmailSMTPPassword: emailSMTPPassword,
+		EmailFromAddress:  emailFromAddress,
+		EmailFromName:     emailFromName,
+		EmailProvider:     emailProvider,
 	}
 }
 
