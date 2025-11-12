@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { OAuthProvider } from '@/lib/types'
 import { oauthApi } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
+import { showError } from '@/lib/notifications'
 
 // OAuth provider icons using their brand logos
 const OAuthIcons = {
@@ -52,13 +53,15 @@ export function OAuthButton({ provider, variant = 'outline', className = '' }: O
   const handleOAuthLogin = async () => {
     setLoading(true)
     try {
-      const { auth_url } = await oauthApi.initiateOAuth(provider)
+      const {auth_url} = await oauthApi.initiateOAuth(provider)
       // Redirect to OAuth provider
+
       window.location.href = auth_url
     } catch (error) {
-      console.error(`${provider} OAuth initiation failed:`, error)
       setLoading(false)
-      // You could show a toast notification here
+      showError(`${provider} OAuth initiation failed: ${error}`, {
+        duration: 5000,
+      })
     }
   }
 
@@ -103,4 +106,3 @@ export function OAuthButtonsGroup({
     </div>
   )
 }
-

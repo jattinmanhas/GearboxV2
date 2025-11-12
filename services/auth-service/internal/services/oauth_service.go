@@ -22,7 +22,7 @@ import (
 
 type IOAuthService interface {
 	InitiateOAuth(ctx context.Context, provider string) (authURL string, state string, err error)
-	HandleOAuthCallback(ctx context.Context, provider string, code string, state string) (*domain.User, *domain.RefreshToken, string, error)
+	HandleOAuthCallback(ctx context.Context, provider string, code string, state string, ipAddress string, userAgent string) (*domain.User, *domain.RefreshToken, string, error)
 	LinkOAuthProvider(ctx context.Context, userID uint, provider string, code string) error
 	UnlinkOAuthProvider(ctx context.Context, userID uint, provider string) error
 	GetLinkedProviders(ctx context.Context, userID uint) ([]*domain.OAuthProviderLink, error)
@@ -101,7 +101,7 @@ func (s *oauthService) InitiateOAuth(ctx context.Context, provider string) (stri
 }
 
 // HandleOAuthCallback handles the OAuth callback and creates or logs in a user
-func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string, code string, state string) (*domain.User, *domain.RefreshToken, string, error) {
+func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string, code string, state string, ipAddress string, userAgent string) (*domain.User, *domain.RefreshToken, string, error) {
 	// Exchange code for token
 	token, err := s.exchangeCodeForToken(ctx, provider, code)
 	if err != nil {
@@ -216,8 +216,8 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 		ExpiresAt:    time.Now().Add(s.jwtService.GetRefreshTokenExpiry()),
 		CreatedAt:    time.Now(),
 		IsRevoked:    false,
-		UserAgent:    fmt.Sprintf("OAuth-%s", provider),
-		IPAddress:    "OAuth-Login",
+		UserAgent:    userAgent,
+		IPAddress:    ipAddress,
 	}
 
 	if err := s.refreshTokenRepo.CreateRefreshToken(ctx, refreshToken); err != nil {

@@ -1383,11 +1383,10 @@ export const oauthApi = {
       },
       credentials: 'include',
     })
-    
-    const data = await handleResponse<{data: OAuthInitiateResponse}>(response)
-    return data.data
-  },
 
+    return await handleResponse<OAuthInitiateResponse>(response)
+  },
+  
   // Get linked OAuth providers
   async getLinkedProviders(): Promise<LinkedProvidersResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/oauth/providers`, {

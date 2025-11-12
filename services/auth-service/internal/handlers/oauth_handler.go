@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
@@ -73,7 +75,7 @@ func (h *oauthHandler) InitiateOAuth(w http.ResponseWriter, r *http.Request) {
 func (h *oauthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	provider := chi.URLParam(r, "provider")
 	if provider == "" {
-		http.Redirect(w, r, h.frontendURL+"/auth/oauth/error?message=invalid_provider", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.frontendURL+"/oauth/error?message=invalid_provider", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -82,14 +84,14 @@ func (h *oauthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 	state := r.URL.Query().Get("state")
 
 	if code == "" || state == "" {
-		http.Redirect(w, r, h.frontendURL+"/auth/oauth/error?message=missing_parameters", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.frontendURL+"/oauth/error?message=missing_parameters", http.StatusTemporaryRedirect)
 		return
 	}
 
 	// Verify state (optional but recommended for security)
 	stateCookie, err := r.Cookie("oauth_state")
 	if err != nil || stateCookie.Value != state {
-		http.Redirect(w, r, h.frontendURL+"/auth/oauth/error?message=invalid_state", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.frontendURL+"/oauth/error?message=invalid_state", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -104,10 +106,17 @@ func (h *oauthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 		MaxAge:   -1,
 	})
 
+	// Extract IP address and user agent
+	ipAddress := h.extractClientIP(r)
+	userAgent := r.UserAgent()
+	if userAgent == "" {
+		userAgent = "127.0.0.1"
+	}
+
 	// Handle OAuth callback
-	_, refreshToken, accessToken, err := h.oauthService.HandleOAuthCallback(r.Context(), provider, code, state)
+	_, refreshToken, accessToken, err := h.oauthService.HandleOAuthCallback(r.Context(), provider, code, state, ipAddress, userAgent)
 	if err != nil {
-		http.Redirect(w, r, h.frontendURL+"/auth/oauth/error?message="+err.Error(), http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.frontendURL+"/oauth/error?message="+err.Error(), http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -116,7 +125,7 @@ func (h *oauthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 	h.setRefreshTokenCookie(w, refreshToken.RefreshToken)
 
 	// Redirect to frontend success page
-	http.Redirect(w, r, h.frontendURL+"/auth/oauth/success", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, h.frontendURL+"/oauth/success", http.StatusTemporaryRedirect)
 }
 
 // LinkOAuthProvider links an OAuth provider to the authenticated user's account
@@ -242,4 +251,27 @@ func (h *oauthHandler) setRefreshTokenCookie(w http.ResponseWriter, token string
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   604800, // 7 days
 	})
+}
+
+// extractClientIP extracts the client IP address from the request
+func (h *oauthHandler) extractClientIP(r *http.Request) string {
+	// Check for forwarded headers first (for proxy/load balancer scenarios)
+	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		if commaIdx := strings.Index(forwardedFor, ","); commaIdx != -1 {
+			return strings.TrimSpace(forwardedFor[:commaIdx])
+		}
+		return strings.TrimSpace(forwardedFor)
+	}
+
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+
+	// Fallback to RemoteAddr
+	ipAddress, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr // fallback, but may include port
+	}
+	return ipAddress
 }

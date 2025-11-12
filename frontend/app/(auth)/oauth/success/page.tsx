@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useUserStore } from '@/lib/stores/user-store'
 import { profileApi } from '@/lib/api'
+import { showError } from '@/lib/notifications'
 
 export default function OAuthSuccessPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
-  const { setUser } = useUserStore()
+  const { login } = useUserStore()
 
   // Prevent hydration mismatch by ensuring component is mounted
   useEffect(() => {
@@ -42,28 +43,32 @@ export default function OAuthSuccessPage() {
             createdAt: profile.created_at,
             updatedAt: profile.updated_at,
           }
-          setUser(userData)
+          // Use the same login flow as normal login to ensure cart merging and state setup
+          await login(userData)
         }
 
         // Wait a moment to show success message
         setTimeout(() => {
           // Redirect to dashboard
-          router.push('/dashboard')
-        }, 1500)
+          router.push('/')
+        }, 500)
       } catch (error) {
-        console.error('Failed to fetch user profile:', error)
+        showError('Failed to fetch user profile', {
+          description: error instanceof Error ? error.message : 'Failed to fetch user profile',
+          duration: 5000,
+        })
         // Even if profile fetch fails, redirect to dashboard
         // as auth cookies should still be valid
         setTimeout(() => {
-          router.push('/dashboard')
-        }, 1500)
+          router.push('/')
+        }, 500)
       } finally {
         setLoading(false)
       }
     }
 
     handleSuccess()
-  }, [router, setUser])
+  }, [router, login])
 
   // Prevent hydration mismatch - don't render until mounted
   if (!mounted) {
@@ -114,4 +119,3 @@ export default function OAuthSuccessPage() {
     </div>
   )
 }
-

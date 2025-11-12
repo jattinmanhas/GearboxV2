@@ -75,8 +75,7 @@ export function LoginForm({
       console.log("Login response:", response)
       
       // The API returns user data in response.data.user
-      // Handle both wrapped and extracted responses
-      const userData = response?.data?.user || response?.user
+      const userData = response?.data?.user
       
       if (userData) {
         const user = {
