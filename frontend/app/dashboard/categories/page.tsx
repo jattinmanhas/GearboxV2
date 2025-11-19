@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Plus, 
-  Search, 
+import { toast } from "sonner"
+import {
+  Plus,
+  Search,
   Package,
   Filter,
   SortAsc,
@@ -20,16 +21,28 @@ import {
   Folder,
   FolderOpen
 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { productApi } from "@/lib/api"
 import { Category, CreateCategoryRequest, UpdateCategoryRequest, CategoryFilters } from "@/lib/types"
 import { CategoryForm } from "./components/category-form"
 import { CategoryTable } from "./components/category-table"
+import { ParentCategorySelector } from "./components/parent-category-selector"
+import { getPublicIdFromUrl } from "@/lib/image-upload"
 import { LoadingState } from "@/components/ui/loading"
+
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [allCategories, setAllCategories] = useState<Category[]>([]) // For parent category dropdown
+  const [parentOptions, setParentOptions] = useState<Category[]>([])
+
   const [loading, setLoading] = useState(true)
+
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -38,10 +51,10 @@ export default function CategoriesPage() {
   const [total, setTotal] = useState(0)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
-  
+
   // Search input state (separate from filters to prevent clearing)
   const [searchInput, setSearchInput] = useState("")
-  
+
   // Filter states
   const [filters, setFilters] = useState<CategoryFilters>({
     page: 1,
@@ -74,18 +87,22 @@ export default function CategoriesPage() {
     }
   }
 
-  const loadAllCategories = async () => {
+  const searchParentCategories = useCallback(async (query: string) => {
     try {
-      const response = await productApi.getCategories({ limit: 100 })
-      setAllCategories(response.data?.categories || [])
+      const response = await productApi.getCategories({
+        search: query,
+        limit: 20,
+        page: 1
+      })
+      setParentOptions(response.data?.categories || [])
     } catch (err) {
-      console.error("Failed to load all categories:", err)
+      console.error("Failed to search parent categories:", err)
     }
-  }
+  }, [])
+
 
   useEffect(() => {
     loadCategories()
-    loadAllCategories()
   }, [])
 
   // Debounced search function
@@ -137,7 +154,7 @@ export default function CategoriesPage() {
       await productApi.createCategory(categoryData)
       setShowForm(false)
       loadCategories()
-      loadAllCategories() // Refresh parent categories dropdown
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create category")
     }
@@ -147,8 +164,9 @@ export default function CategoriesPage() {
     try {
       await productApi.updateCategory(id, categoryData)
       setEditingCategory(null)
+      setShowForm(false)
       loadCategories()
-      loadAllCategories() // Refresh parent categories dropdown
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update category")
     }
@@ -156,13 +174,38 @@ export default function CategoriesPage() {
 
   const handleDeleteCategory = async (id: number) => {
     if (!confirm("Are you sure you want to delete this category?")) return
-    
+
     try {
+      // Find the category to get its image info
+      const categoryToDelete = categories.find(c => c.id === id)
+      if (categoryToDelete && categoryToDelete.image_url) {
+        // Prefer stored public_id, fallback to URL extraction for legacy data
+        const publicId = categoryToDelete.image_public_id || getPublicIdFromUrl(categoryToDelete.image_url)
+
+        if (publicId) {
+          // Delete from Cloudinary using public_id
+          await fetch(`/api/v1/upload/image/${publicId}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ isCloudinary: true })
+          }).catch(err => console.error("Failed to delete category image", err))
+        } else if (categoryToDelete.image_url.includes('/uploads/')) {
+          // Fallback: Local image deletion
+          const filename = categoryToDelete.image_url.split('/uploads/').pop()
+          if (filename) {
+            await fetch(`/api/v1/upload/image/${filename}`, {
+              method: 'DELETE',
+              body: JSON.stringify({ isCloudinary: false })
+            }).catch(err => console.error("Failed to delete local category image", err))
+          }
+        }
+      }
+
       await productApi.deleteCategory(id)
+      toast.success("Category deleted successfully")
       loadCategories()
-      loadAllCategories() // Refresh parent categories dropdown
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete category")
+    } catch (error) {
+      console.error("Failed to delete category:", error)
+      toast.error("Failed to delete category")
     }
   }
 
@@ -242,7 +285,7 @@ export default function CategoriesPage() {
                   {total} categories
                 </Badge>
               </div>
-              
+
               {/* View Mode Toggle */}
               <div className="flex items-center space-x-1">
                 <Button
@@ -270,33 +313,30 @@ export default function CategoriesPage() {
                 {/* Status Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Status</label>
-                  <select
-                    value={filters.is_active === undefined ? "" : filters.is_active.toString()}
-                    onChange={(e) => handleFilterChange('is_active', e.target.value === "" ? undefined : e.target.value === "true")}
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  <Select
+                    value={filters.is_active === undefined ? "all" : filters.is_active.toString()}
+                    onValueChange={(value) => handleFilterChange('is_active', value === "all" ? undefined : value === "true")}
                   >
-                    <option value="">All Status</option>
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="true">Active</SelectItem>
+                      <SelectItem value="false">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Parent Category Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Parent Category</label>
-                  <select
-                    value={filters.parent_id || ""}
-                    onChange={(e) => handleFilterChange('parent_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                  >
-                    <option value="">All Categories</option>
-                    <option value="0">Root Categories Only</option>
-                    {allCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  <ParentCategorySelector
+                    value={filters.parent_id}
+                    onChange={(value) => handleFilterChange('parent_id', value)}
+                    onSearch={searchParentCategories}
+                    options={parentOptions}
+                  />
                 </div>
 
                 {/* Results Summary */}
@@ -306,8 +346,9 @@ export default function CategoriesPage() {
                     {total} total categories
                     {filters.search && ` matching "${filters.search}"`}
                     {filters.is_active !== undefined && ` (${filters.is_active ? 'Active' : 'Inactive'})`}
-                    {filters.parent_id && ` (${filters.parent_id === 0 ? 'Root' : allCategories.find(c => c.id === filters.parent_id)?.name || 'Parent'})`}
+                    {filters.parent_id !== undefined && ` (${filters.parent_id === 0 ? 'Root' : parentOptions.find(c => c.id === filters.parent_id)?.name || 'Parent'})`}
                   </div>
+
                 </div>
               </div>
             )}
@@ -352,8 +393,8 @@ export default function CategoriesPage() {
       {showForm && (
         <CategoryForm
           category={editingCategory}
-          onSave={editingCategory ? 
-            (data: UpdateCategoryRequest) => handleUpdateCategory(editingCategory.id, data) : 
+          onSave={editingCategory ?
+            (data: UpdateCategoryRequest) => handleUpdateCategory(editingCategory.id, data) :
             (data: CreateCategoryRequest) => handleCreateCategory(data)
           }
           onCancel={handleCancel}

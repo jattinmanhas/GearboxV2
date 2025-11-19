@@ -78,6 +78,7 @@ export interface Category {
   is_active: boolean
   sort_order: number
   image_url: string
+  image_public_id?: string
   meta_title: string
   meta_description: string
   created_at: string
@@ -177,6 +178,7 @@ export interface CreateCategoryRequest {
   is_active: boolean
   sort_order: number
   image_url: string
+  image_public_id?: string
   meta_title: string
   meta_description: string
 }
@@ -189,6 +191,7 @@ export interface UpdateCategoryRequest {
   is_active?: boolean
   sort_order?: number
   image_url?: string
+  image_public_id?: string
   meta_title?: string
   meta_description?: string
 }

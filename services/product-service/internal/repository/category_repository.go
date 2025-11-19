@@ -37,10 +37,10 @@ func (r *categoryRepository) Create(ctx context.Context, category *domain.Catego
 	query := `
 		INSERT INTO categories (
 			name, description, slug, parent_id, is_active, sort_order,
-			image_url, meta_title, meta_description, created_at, updated_at
+			image_url, image_public_id, meta_title, meta_description, created_at, updated_at
 		) VALUES (
 			:name, :description, :slug, :parent_id, :is_active, :sort_order,
-			:image_url, :meta_title, :meta_description, :created_at, :updated_at
+			:image_url, :image_public_id, :meta_title, :meta_description, :created_at, :updated_at
 		) RETURNING id`
 
 	rows, err := r.db.NamedQueryContext(ctx, query, category)
@@ -61,7 +61,7 @@ func (r *categoryRepository) Create(ctx context.Context, category *domain.Catego
 func (r *categoryRepository) GetByID(ctx context.Context, id int64) (*domain.Category, error) {
 	query := `
 		SELECT id, name, description, slug, parent_id, is_active, sort_order,
-			   image_url, meta_title, meta_description, created_at, updated_at
+			   image_url, image_public_id, meta_title, meta_description, created_at, updated_at
 		FROM categories
 		WHERE id = $1`
 
@@ -80,7 +80,7 @@ func (r *categoryRepository) GetByID(ctx context.Context, id int64) (*domain.Cat
 func (r *categoryRepository) GetBySlug(ctx context.Context, slug string) (*domain.Category, error) {
 	query := `
 		SELECT id, name, description, slug, parent_id, is_active, sort_order,
-			   image_url, meta_title, meta_description, created_at, updated_at
+			   image_url, image_public_id, meta_title, meta_description, created_at, updated_at
 		FROM categories
 		WHERE slug = $1`
 
@@ -106,6 +106,7 @@ func (r *categoryRepository) Update(ctx context.Context, category *domain.Catego
 			is_active = :is_active,
 			sort_order = :sort_order,
 			image_url = :image_url,
+			image_public_id = :image_public_id,
 			meta_title = :meta_title,
 			meta_description = :meta_description,
 			updated_at = :updated_at
@@ -151,7 +152,7 @@ func (r *categoryRepository) Delete(ctx context.Context, id int64) error {
 func (r *categoryRepository) List(ctx context.Context, filter *domain.CategoryFilter) ([]*domain.Category, error) {
 	query := `
 		SELECT id, name, description, slug, parent_id, is_active, sort_order,
-			   image_url, meta_title, meta_description, created_at, updated_at
+			   image_url, image_public_id, meta_title, meta_description, created_at, updated_at
 		FROM categories
 		WHERE 1=1`
 

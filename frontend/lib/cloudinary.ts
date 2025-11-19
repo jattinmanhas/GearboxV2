@@ -164,7 +164,7 @@ export function generateThumbnailUrls(publicId: string): { [key: string]: string
   }
 
   const thumbnails: { [key: string]: string } = {}
-  
+
   for (const [size, config] of Object.entries(sizes)) {
     thumbnails[size] = getCloudinaryUrl(publicId, config)
   }
@@ -212,6 +212,37 @@ export function getOptimizedImageUrl(
     format: 'auto',
     crop: width && height ? 'fill' : 'scale'
   })
+}
+
+/**
+ * Extract public ID from Cloudinary URL
+ */
+export function getPublicIdFromUrl(url: string): string | null {
+  if (!url) return null
+
+  // Handle standard Cloudinary URLs
+  // Example: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/filename.jpg
+  const regex = /\/v\d+\/(.+)\.[a-zA-Z]+$/
+  const match = url.match(regex)
+
+  if (match && match[1]) {
+    return match[1]
+  }
+
+  // Handle URLs without version
+  // Example: https://res.cloudinary.com/cloud_name/image/upload/folder/filename.jpg
+  const noVersionRegex = /\/upload\/(.+)\.[a-zA-Z]+$/
+  const noVersionMatch = url.match(noVersionRegex)
+
+  if (noVersionMatch && noVersionMatch[1]) {
+    // If the match starts with 'v' followed by numbers and a slash, it might be a version that wasn't caught
+    if (/^v\d+\//.test(noVersionMatch[1])) {
+      return noVersionMatch[1].replace(/^v\d+\//, '')
+    }
+    return noVersionMatch[1]
+  }
+
+  return null
 }
 
 export { cloudinary }

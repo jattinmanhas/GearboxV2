@@ -169,6 +169,9 @@ func (s *categoryService) UpdateCategory(ctx context.Context, id int64, req *dto
 	if req.ImageURL != "" {
 		updatedCategory.ImageURL = req.ImageURL
 	}
+	if req.ImagePublicID != "" {
+		updatedCategory.ImagePublicID = req.ImagePublicID
+	}
 	if req.MetaTitle != "" {
 		updatedCategory.MetaTitle = req.MetaTitle
 	}

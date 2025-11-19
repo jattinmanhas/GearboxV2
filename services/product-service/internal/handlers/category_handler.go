@@ -51,16 +51,17 @@ func (h *categoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	}
 
 	cat := &domain.Category{
-		Name:        req.Name,
-		Description: req.Description,
-		Slug:        req.Slug,
-		ParentID:    req.ParentID,
-		IsActive:    req.IsActive,
-		SortOrder:   req.SortOrder,
-		ImageURL:    req.ImageURL,
-		MetaTitle:   req.MetaTitle,
-		MetaDesc:    req.MetaDescription,
-		CreatedAt:   time.Now(),
+		Name:          req.Name,
+		Description:   req.Description,
+		Slug:          req.Slug,
+		ParentID:      req.ParentID,
+		IsActive:      req.IsActive,
+		SortOrder:     req.SortOrder,
+		ImageURL:      req.ImageURL,
+		ImagePublicID: req.ImagePublicID,
+		MetaTitle:     req.MetaTitle,
+		MetaDesc:      req.MetaDescription,
+		CreatedAt:     time.Now(),
 	}
 
 	category, err := h.categoryService.CreateCategory(r.Context(), cat)

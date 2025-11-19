@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,8 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Category, CreateCategoryRequest, UpdateCategoryRequest } from "@/lib/types"
+import { Category } from "@/lib/types"
 import { FlexibleImageInput, ImageItem } from "@/components/ui/flexible-image-input"
+import { getPublicIdFromUrl } from "@/lib/image-upload"
 
 interface CategoryFormProps {
   category?: Category | null
@@ -32,12 +33,14 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
     is_active: true,
     sort_order: 0,
     image_url: "",
+    image_public_id: "",
     meta_title: "",
     meta_description: "",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [categoryImages, setCategoryImages] = useState<ImageItem[]>([])
 
   useEffect(() => {
@@ -48,19 +51,21 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
         slug: category.slug || generateSlug(category.name),
         parent_id: category.parent_id,
         is_active: category.is_active,
-        sort_order: category.sort_order,
-        image_url: category.image_url,
-        meta_title: category.meta_title,
+        sort_order: category?.sort_order ?? 0,
+        image_url: category?.image_url ?? "",
+        image_public_id: category?.image_public_id ?? "",
+        meta_title: category?.meta_title ?? "",
         meta_description: category.meta_description,
       })
-      
+
       // Load existing category image
       if (category.image_url) {
         setCategoryImages([{
           id: 'category-image',
           url: category.image_url,
           alt: category.name,
-          source: 'url' as const
+          source: 'url' as const,
+          publicId: category.image_public_id || undefined
         }])
       } else {
         setCategoryImages([])
@@ -107,7 +112,7 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
 
     // Auto-generate slug if it's empty
     const slug = formData.slug.trim() || generateSlug(formData.name)
-    
+
     if (!slug) {
       newErrors.slug = "Slug is required"
     } else if (!/^[a-z0-9-]+$/.test(slug)) {
@@ -122,22 +127,82 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
     return Object.keys(newErrors).length === 0
   }
 
-  const handleCategoryImagesChange = (images: ImageItem[]) => {
-    setCategoryImages(images)
-    // Update formData with the image URL
-    setFormData(prev => ({
-      ...prev,
-      image_url: images.length > 0 ? images[0].url : ""
-    }))
+  const handleCategoryImagesChange = (newImages: ImageItem[]) => {
+    setCategoryImages(newImages)
+    // Update formData with the image URL and public_id
+    if (newImages.length > 0) {
+      const image = newImages[0]
+      setFormData(prev => ({
+        ...prev,
+        image_url: image.url,
+        image_public_id: image.publicId || ""
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        image_url: "",
+        image_public_id: ""
+      }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
 
     setIsSubmitting(true)
     try {
+      // Handle image cleanup if image has changed
+      if (category && category.image_url && category.image_url !== formData.image_url) {
+        // Prefer stored public_id, fallback to URL extraction for legacy data
+        const publicId = category.image_public_id || getPublicIdFromUrl(category.image_url)
+
+        if (publicId) {
+          // Delete from Cloudinary using public_id
+          console.log('Deleting old Cloudinary image with public_id:', publicId)
+          try {
+            const deleteResponse = await fetch(`/api/v1/upload/image/${publicId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ isCloudinary: true })
+            })
+
+            const deleteResult = await deleteResponse.json()
+            if (!deleteResponse.ok) {
+              console.error('Failed to delete old image:', deleteResult)
+            } else {
+              console.log('Successfully deleted old image:', deleteResult)
+            }
+          } catch (err) {
+            console.error("Failed to delete old Cloudinary image", err)
+          }
+        } else if (category.image_url.includes('/uploads/')) {
+          // Fallback: Local image deletion
+          const filename = category.image_url.split('/uploads/').pop()
+          if (filename) {
+            try {
+              const deleteResponse = await fetch(`/api/v1/upload/image/${filename}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ isCloudinary: false })
+              })
+
+              const deleteResult = await deleteResponse.json()
+              if (!deleteResponse.ok) {
+                console.error('Failed to delete local image:', deleteResult)
+              }
+            } catch (err) {
+              console.error("Failed to delete local image", err)
+            }
+          }
+        }
+      }
+
       await onSave(formData)
     } catch (error) {
       console.error("Error saving category:", error)
@@ -154,8 +219,8 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
             {category ? "Edit Category" : "Create New Category"}
           </DialogTitle>
           <DialogDescription>
-            {category 
-              ? "Update the category information below." 
+            {category
+              ? "Update the category information below."
               : "Fill in the details to create a new product category."
             }
           </DialogDescription>
@@ -213,9 +278,9 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
               id="sort_order"
               type="number"
               value={formData.sort_order}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
-                sort_order: parseInt(e.target.value) || 0 
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                sort_order: parseInt(e.target.value) || 0
               }))}
               min="0"
               className={errors.sort_order ? "border-destructive" : ""}
@@ -234,6 +299,7 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
               maxImages={1}
               label="Category Image"
               description="Upload an image or provide a direct URL for the category banner."
+              onUploadStatusChange={setIsUploading}
             />
           </div>
 
@@ -274,8 +340,8 @@ export function CategoryForm({ category, onSave, onCancel }: CategoryFormProps) 
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : category ? "Update Category" : "Create Category"}
+            <Button type="submit" disabled={isSubmitting || isUploading}>
+              {isSubmitting ? "Saving..." : isUploading ? "Uploading..." : category ? "Update Category" : "Create Category"}
             </Button>
           </DialogFooter>
         </form>

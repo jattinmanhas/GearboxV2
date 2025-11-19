@@ -6,20 +6,22 @@ type CreateCategoryRequest struct {
 	Slug            string `json:"slug" validate:"slug"`
 	ParentID        *int64 `json:"parent_id" validate:"omitempty"`
 	IsActive        bool   `json:"is_active"`
-	SortOrder       int    `json:"sort_order" validate:"sort_order"`
-	ImageURL        string `json:"image_url" validate:"image_url"`
-	MetaTitle       string `json:"meta_title" validate:"meta_title"`
-	MetaDescription string `json:"meta_description" validate:"meta_description"`
+	SortOrder       int    `json:"sort_order" validate:"min=0"`
+	ImageURL        string `json:"image_url" validate:"omitempty,url"`
+	ImagePublicID   string `json:"image_public_id"`
+	MetaTitle       string `json:"meta_title" validate:"max=255"`
+	MetaDescription string `json:"meta_description"`
 }
 
 type UpdateCategoryRequest struct {
-    Name            string `json:"name" validate:"omitempty,name"`
-    Description     string `json:"description" validate:"omitempty,description"`
-    Slug            string `json:"slug" validate:"omitempty,slug"`
-    ParentID        *int64 `json:"parent_id" validate:"omitempty"`
-    IsActive        *bool  `json:"is_active"`
-    SortOrder       *int   `json:"sort_order" validate:"omitempty,sort_order"`
-    ImageURL        string `json:"image_url" validate:"omitempty,image_url"`
-    MetaTitle       string `json:"meta_title" validate:"omitempty,meta_title"`
-    MetaDescription string `json:"meta_description" validate:"omitempty,meta_description"`
+	Name            string `json:"name" validate:"omitempty,min=2,max=255"`
+	Description     string `json:"description"`
+	Slug            string `json:"slug" validate:"omitempty,slug"`
+	ParentID        *int64 `json:"parent_id"`
+	IsActive        *bool  `json:"is_active"`
+	SortOrder       *int   `json:"sort_order" validate:"omitempty,min=0"`
+	ImageURL        string `json:"image_url" validate:"omitempty,url"`
+	ImagePublicID   string `json:"image_public_id"`
+	MetaTitle       string `json:"meta_title" validate:"omitempty,max=255"`
+	MetaDescription string `json:"meta_description"`
 }

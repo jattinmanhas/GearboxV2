@@ -66,7 +66,7 @@ export function isCloudinaryConfigured(): boolean {
   if (typeof window !== 'undefined') {
     throw new Error('isCloudinaryConfigured() can only be called on the server side')
   }
-  
+
   return !!(
     process.env.CLOUDINARY_CLOUD_NAME &&
     process.env.CLOUDINARY_API_KEY &&
@@ -106,7 +106,7 @@ export function generateImageFilename(originalName: string, userId?: string): st
   const randomString = Math.random().toString(36).substring(2, 8);
   const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
   const prefix = userId ? `user_${userId}` : 'upload';
-  
+
   return `${prefix}_${timestamp}_${randomString}.${extension}`;
 }
 
@@ -114,32 +114,32 @@ export function generateImageFilename(originalName: string, userId?: string): st
  * Creates a FormData object for image upload
  */
 export function createImageUploadFormData(
-  file: File, 
-  alt: string = '', 
+  file: File,
+  alt: string = '',
   userId?: string,
   config: ImageUploadConfig = DEFAULT_IMAGE_CONFIG
 ): FormData {
   const formData = new FormData();
-  
+
   // Add the file
   formData.append('file', file);
-  
+
   // Add metadata
   formData.append('alt', alt);
   formData.append('mimeType', file.type);
   formData.append('size', file.size.toString());
-  
+
   // Add configuration
   formData.append('maxWidth', config.maxWidth.toString());
   formData.append('maxHeight', config.maxHeight.toString());
   formData.append('quality', config.quality.toString());
   formData.append('generateThumbnails', config.generateThumbnails.toString());
-  
+
   // Add user context if available
   if (userId) {
     formData.append('userId', userId);
   }
-  
+
   return formData;
 }
 
@@ -164,7 +164,7 @@ export async function uploadImage(
 
     // Create form data with Cloudinary preference
     const formData = createImageUploadFormData(file, alt, userId, config);
-    
+
     // Add Cloudinary preference to form data
     formData.append('useCloudinary', (config.useCloudinary ?? true).toString());
 
@@ -266,4 +266,36 @@ export async function getUserImages(
       error: error instanceof Error ? error.message : 'Failed to fetch images'
     };
   }
+}
+
+/**
+ * Extract public ID from Cloudinary URL
+ * Client-side safe version
+ */
+export function getPublicIdFromUrl(url: string): string | null {
+  if (!url) return null
+
+  // Handle standard Cloudinary URLs
+  // Example: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/filename.jpg
+  const regex = /\/v\d+\/(.+)\.[a-zA-Z]+$/
+  const match = url.match(regex)
+
+  if (match && match[1]) {
+    return match[1]
+  }
+
+  // Handle URLs without version
+  // Example: https://res.cloudinary.com/cloud_name/image/upload/folder/filename.jpg
+  const noVersionRegex = /\/upload\/(.+)\.[a-zA-Z]+$/
+  const noVersionMatch = url.match(noVersionRegex)
+
+  if (noVersionMatch && noVersionMatch[1]) {
+    // If the match starts with 'v' followed by numbers and a slash, it might be a version that wasn't caught
+    if (/^v\d+\//.test(noVersionMatch[1])) {
+      return noVersionMatch[1].replace(/^v\d+\//, '')
+    }
+    return noVersionMatch[1]
+  }
+
+  return null
 }

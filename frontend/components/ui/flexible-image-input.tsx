@@ -15,6 +15,13 @@ export interface ImageItem {
   url: string
   alt: string
   source: 'upload' | 'url'
+  publicId?: string
+  isCloudinary?: boolean
+  width?: number
+  height?: number
+  mimeType?: string
+  size?: number
+  file?: File
 }
 
 interface FlexibleImageInputProps {
@@ -24,6 +31,7 @@ interface FlexibleImageInputProps {
   maxImages?: number
   label?: string
   description?: string
+  onUploadStatusChange?: (isUploading: boolean) => void
 }
 
 export function FlexibleImageInput({
@@ -32,7 +40,8 @@ export function FlexibleImageInput({
   multiple = true,
   maxImages = 10,
   label = "Images",
-  description
+  description,
+  onUploadStatusChange
 }: FlexibleImageInputProps) {
   const [urlInput, setUrlInput] = useState("")
   const [urlAltInput, setUrlAltInput] = useState("")
@@ -41,17 +50,23 @@ export function FlexibleImageInput({
   const handleImageUpload = (uploadedImage: UploadedImage) => {
     const newImage: ImageItem = {
       id: uploadedImage.id,
-      url: uploadedImage.url || uploadedImage.secureUrl || '',
+      url: uploadedImage.secureUrl || uploadedImage.url || '',
       alt: uploadedImage.alt,
-      source: 'upload'
+      source: 'upload',
+      publicId: uploadedImage.publicId,
+      isCloudinary: !!uploadedImage.publicId,
+      width: uploadedImage.width,
+      height: uploadedImage.height,
+      mimeType: uploadedImage.mimeType,
+      size: uploadedImage.size
     }
-    
+
     if (multiple) {
       onImagesChange([...images, newImage])
     } else {
       onImagesChange([newImage])
     }
-    
+
     setSelectedImages(prev => [...prev, uploadedImage])
   }
 
@@ -111,7 +126,7 @@ export function FlexibleImageInput({
                   }}
                 />
               </div>
-              
+
               {/* Image info */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="flex items-center justify-between">
@@ -129,7 +144,7 @@ export function FlexibleImageInput({
                   </div>
                 </div>
               </div>
-              
+
               {/* Remove button */}
               <Button
                 variant="destructive"
@@ -157,7 +172,7 @@ export function FlexibleImageInput({
               Image URL
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="upload" className="space-y-4">
             <EnhancedImageUpload
               onImageSelect={handleImageUpload}
@@ -167,6 +182,8 @@ export function FlexibleImageInput({
               maxImages={maxImages}
               showPreview={false}
               showThumbnails={false}
+              onUploadStart={() => onUploadStatusChange?.(true)}
+              onUploadEnd={() => onUploadStatusChange?.(false)}
               config={{
                 maxFileSize: 5 * 1024 * 1024,
                 allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
@@ -183,7 +200,7 @@ export function FlexibleImageInput({
               }}
             />
           </TabsContent>
-          
+
           <TabsContent value="url" className="space-y-4">
             <div className="space-y-4 border rounded-lg p-4">
               <div className="space-y-2">
@@ -256,7 +273,7 @@ export function FlexibleImageInput({
 
       {!canAddMore && (
         <div className="text-sm text-muted-foreground text-center p-4 border border-dashed rounded-lg">
-          {multiple 
+          {multiple
             ? `Maximum ${maxImages} images reached. Remove an image to add more.`
             : "Remove the current image to add a new one."}
         </div>

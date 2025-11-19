@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label'
 // import { Progress } from '@/components/ui/progress' // Progress component not available
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  Upload, 
-  X, 
-  Image as ImageIcon, 
-  Check, 
+import {
+  Upload,
+  X,
+  Image as ImageIcon,
+  Check,
   AlertCircle,
   Loader2,
   Trash2,
@@ -34,6 +34,8 @@ interface EnhancedImageUploadProps {
   showPreview?: boolean
   showThumbnails?: boolean
   disabled?: boolean
+  onUploadStart?: () => void
+  onUploadEnd?: () => void
 }
 
 export function EnhancedImageUpload({
@@ -46,7 +48,9 @@ export function EnhancedImageUpload({
   className,
   showPreview = true,
   showThumbnails = true,
-  disabled = false
+  disabled = false,
+  onUploadStart,
+  onUploadEnd
 }: EnhancedImageUploadProps) {
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -75,9 +79,9 @@ export function EnhancedImageUpload({
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    
+
     if (disabled) return
-    
+
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
       handleFiles(files)
@@ -93,9 +97,9 @@ export function EnhancedImageUpload({
 
   const handleFiles = async (files: File[]) => {
     if (disabled) return
-    
+
     setError(null)
-    
+
     // Check if adding these files would exceed the limit
     if (selectedImages.length + files.length > maxImages) {
       setError(`Maximum ${maxImages} images allowed`)
@@ -118,6 +122,7 @@ export function EnhancedImageUpload({
 
     setUploading(true)
     setUploadProgress(0)
+    onUploadStart?.()
 
     try {
       // Simulate progress (in real app, you'd track actual upload progress)
@@ -132,7 +137,7 @@ export function EnhancedImageUpload({
       }, 100)
 
       const result = await uploadImage(file, '', user?.id.toString(), config)
-      
+
       clearInterval(progressInterval)
       setUploadProgress(100)
 
@@ -147,6 +152,7 @@ export function EnhancedImageUpload({
     } finally {
       setUploading(false)
       setUploadProgress(0)
+      onUploadEnd?.()
     }
   }
 
@@ -194,8 +200,8 @@ export function EnhancedImageUpload({
           <div
             className={cn(
               "relative border-2 border-dashed rounded-lg p-8 text-center transition-colors",
-              dragActive 
-                ? "border-primary bg-primary/5" 
+              dragActive
+                ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25 hover:border-muted-foreground/50",
               disabled && "opacity-50 cursor-not-allowed"
             )}
@@ -213,12 +219,12 @@ export function EnhancedImageUpload({
               className="hidden"
               disabled={disabled}
             />
-            
+
             <div className="space-y-4">
               <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
                 <Upload className="h-6 w-6 text-muted-foreground" />
               </div>
-              
+
               <div>
                 <p className="text-lg font-medium">
                   {dragActive ? 'Drop images here' : 'Drag & drop images here'}
@@ -235,7 +241,7 @@ export function EnhancedImageUpload({
                   </button>
                 </p>
               </div>
-              
+
               <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                 <Badge variant="outline">
                   Max {formatFileSize(config.maxFileSize)}
@@ -258,8 +264,8 @@ export function EnhancedImageUpload({
                 <span>{uploadProgress}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
@@ -293,7 +299,7 @@ export function EnhancedImageUpload({
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  
+
                   {/* Image Info */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="text-white text-center p-2">
@@ -301,7 +307,7 @@ export function EnhancedImageUpload({
                       <p className="text-xs">{formatFileSize(image.size)}</p>
                     </div>
                   </div>
-                  
+
                   {/* Actions */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <Button
@@ -313,7 +319,7 @@ export function EnhancedImageUpload({
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
-                  
+
                   {/* Thumbnails */}
                   {showThumbnails && image.thumbnails && (
                     <div className="mt-2 space-y-1">
