@@ -366,7 +366,25 @@ func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id int64) (*doma
 	payment := &domain.Payment{}
 	var metadataJSON []byte
 
-	err := r.db.GetContext(ctx, payment, query, id)
+	// Use QueryRowContext to manually scan fields, handling metadata as []byte
+	row := r.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&payment.ID,
+		&payment.OrderID,
+		&payment.PaymentMethodID,
+		&payment.TransactionID,
+		&payment.GatewayID,
+		&payment.Amount,
+		&payment.Currency,
+		&payment.Status,
+		&payment.GatewayStatus,
+		&payment.GatewayResponse,
+		&payment.FailureReason,
+		&payment.ProcessedAt,
+		&metadataJSON, // Scan metadata as []byte
+		&payment.CreatedAt,
+		&payment.UpdatedAt,
+	)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
@@ -374,14 +392,8 @@ func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id int64) (*doma
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 
-	// Handle metadata separately
-	metadataQuery := `SELECT metadata FROM payments WHERE id = $1`
-	err = r.db.GetContext(ctx, &metadataJSON, metadataQuery, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment metadata: %w", err)
-	}
-
-	if len(metadataJSON) > 0 {
+	// Unmarshal metadata if present
+	if len(metadataJSON) > 0 && string(metadataJSON) != "null" {
 		if err := json.Unmarshal(metadataJSON, &payment.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
@@ -400,7 +412,25 @@ func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, trans
 	payment := &domain.Payment{}
 	var metadataJSON []byte
 
-	err := r.db.GetContext(ctx, payment, query, transactionID)
+	// Use QueryRowContext to manually scan fields, handling metadata as []byte
+	row := r.db.QueryRowContext(ctx, query, transactionID)
+	err := row.Scan(
+		&payment.ID,
+		&payment.OrderID,
+		&payment.PaymentMethodID,
+		&payment.TransactionID,
+		&payment.GatewayID,
+		&payment.Amount,
+		&payment.Currency,
+		&payment.Status,
+		&payment.GatewayStatus,
+		&payment.GatewayResponse,
+		&payment.FailureReason,
+		&payment.ProcessedAt,
+		&metadataJSON, // Scan metadata as []byte
+		&payment.CreatedAt,
+		&payment.UpdatedAt,
+	)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
@@ -408,14 +438,8 @@ func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, trans
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 
-	// Handle metadata separately
-	metadataQuery := `SELECT metadata FROM payments WHERE transaction_id = $1`
-	err = r.db.GetContext(ctx, &metadataJSON, metadataQuery, transactionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment metadata: %w", err)
-	}
-
-	if len(metadataJSON) > 0 {
+	// Unmarshal metadata if present
+	if len(metadataJSON) > 0 && string(metadataJSON) != "null" {
 		if err := json.Unmarshal(metadataJSON, &payment.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
@@ -495,22 +519,51 @@ func (r *PaymentRepository) ListPayments(ctx context.Context, filter *domain.Pay
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
 	args = append(args, limit, offset)
 
-	var payments []*domain.Payment
-	err := r.db.SelectContext(ctx, &payments, query, args...)
+	// Use QueryContext to manually scan rows, handling metadata as []byte
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list payments: %w", err)
 	}
+	defer rows.Close()
 
-	// Handle metadata for each payment
-	for _, payment := range payments {
-		if payment.ID != 0 {
-			var metadataJSON []byte
-			metadataQuery := `SELECT metadata FROM payments WHERE id = $1`
-			err := r.db.GetContext(ctx, &metadataJSON, metadataQuery, payment.ID)
-			if err == nil && len(metadataJSON) > 0 {
-				json.Unmarshal(metadataJSON, &payment.Metadata)
+	var payments []*domain.Payment
+	for rows.Next() {
+		payment := &domain.Payment{}
+		var metadataJSON []byte
+
+		err := rows.Scan(
+			&payment.ID,
+			&payment.OrderID,
+			&payment.PaymentMethodID,
+			&payment.TransactionID,
+			&payment.GatewayID,
+			&payment.Amount,
+			&payment.Currency,
+			&payment.Status,
+			&payment.GatewayStatus,
+			&payment.GatewayResponse,
+			&payment.FailureReason,
+			&payment.ProcessedAt,
+			&metadataJSON, // Scan metadata as []byte
+			&payment.CreatedAt,
+			&payment.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan payment: %w", err)
+		}
+
+		// Unmarshal metadata if present
+		if len(metadataJSON) > 0 && string(metadataJSON) != "null" {
+			if err := json.Unmarshal(metadataJSON, &payment.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 			}
 		}
+
+		payments = append(payments, payment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate payments: %w", err)
 	}
 
 	return payments, nil

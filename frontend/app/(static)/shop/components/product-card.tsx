@@ -6,17 +6,16 @@ import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Heart, 
-  ShoppingCart, 
+import {
+  Heart,
+  ShoppingCart,
   Star,
   Package,
-  Eye
 } from "lucide-react"
 import { Product, Category, ProductVariant } from "@/lib/types"
 import { useCartStore } from "@/lib/stores/cart-store"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
-import { productApi } from "@/lib/api"
+import { productApi } from "@/lib/apiFunctions"
 import { formatPrice } from "@/lib/currency"
 
 interface ProductCardProps {
@@ -31,11 +30,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [variantsLoading, setVariantsLoading] = useState(false)
-  
+
   const { addItem } = useCartStore()
-  const { 
-    addItemToWishlist, 
-    removeItemFromWishlist, 
+  const {
+    addItemToWishlist,
+    removeItemFromWishlist,
     isProductInWishlist,
     wishlists,
     loadWishlists,
@@ -50,11 +49,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
         setVariantsLoading(true)
         const variantsData = await productApi.getProductVariantsWithInventory(product.id)
         setVariants(variantsData)
-        
+
         // Set the first in-stock and active variant as selected, or the first active variant, or the first variant
         const inStockActiveVariants = variantsData.filter(v => v.is_active && v.is_in_stock)
         const activeVariants = variantsData.filter(v => v.is_active)
-        
+
         if (inStockActiveVariants.length > 0) {
           setSelectedVariant(inStockActiveVariants[0])
         } else if (activeVariants.length > 0) {
@@ -73,40 +72,40 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
   }, [product.id])
 
   // Check if product is in any wishlist
-  const isWishlisted = wishlists.some(wishlist => 
+  const isWishlisted = wishlists.some(wishlist =>
     isProductInWishlist(product.id, wishlist.id)
   )
 
   const handleAddToCart = async () => {
     if (!product.is_active || (!product.is_digital && !product.is_in_stock && !selectedVariant?.is_in_stock)) return
-    
+
     // Show brief loading state for visual feedback
     setIsAddingToCart(true)
-    
+
     // Call addItem - it will update UI optimistically
     addItem({
       product_id: product.id,
       product_variant_id: selectedVariant?.id,
       quantity: 1
     })
-    
+
     // Reset loading state after brief delay for visual feedback
     setTimeout(() => setIsAddingToCart(false), 300)
   }
 
   const handleWishlist = async () => {
     if (isWishlisting) return
-    
+
     setIsWishlisting(true)
     try {
       // Load wishlists if not already loaded
       if (wishlists.length === 0) {
         await loadWishlists()
       }
-      
+
       if (isWishlisted) {
         // Find the wishlist containing this product and remove it
-        const wishlistWithProduct = wishlists.find(wishlist => 
+        const wishlistWithProduct = wishlists.find(wishlist =>
           isProductInWishlist(product.id, wishlist.id)
         )
         if (wishlistWithProduct) {
@@ -171,7 +170,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 )}
               </div>
             </Link>
-            
+
             {/* Product Info */}
             <div className="flex-1 p-6">
               <div className="flex justify-between items-start">
@@ -184,11 +183,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                       <Badge variant="destructive">Out of Stock</Badge>
                     )}
                   </div>
-                  
+
                   <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                     {product.short_description || product.description}
                   </p>
-                  
+
                   <div className="flex items-center gap-2 mb-3">
                     <div className="flex items-center">
                       {[...Array(5)].map((_, i) => (
@@ -199,7 +198,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     <span className="text-sm text-muted-foreground">•</span>
                     <span className="text-sm text-muted-foreground">SKU: {product.sku}</span>
                   </div>
-                  
+
                   {product.category_names && product.category_names.length > 0 && (
                     <div className="flex gap-1 mb-3">
                       {product.category_names.slice(0, 2).map((name, index) => (
@@ -210,7 +209,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                     </div>
                   )}
                 </div>
-                
+
                 {/* Price and Actions */}
                 <div className="text-right ml-4">
                   <div className="mb-3">
@@ -223,7 +222,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -250,18 +249,15 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       asChild
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                       }}
                     >
-                      <Link href={`/shop/products/${product.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
                     </Button>
                   </div>
                 </div>
@@ -296,7 +292,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
                 <Badge variant="destructive">Out of Stock</Badge>
               </div>
             )}
-            
+
             {/* Quick Actions */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
@@ -315,7 +311,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
             </div>
           </div>
         </Link>
-        
+
         {/* Product Info - Flex grow to push buttons to bottom */}
         <div className="p-4 flex flex-col flex-grow">
           <div className="mb-2 flex-grow">
@@ -326,7 +322,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               {product.short_description}
             </p>
           </div>
-          
+
           {/* Rating */}
           <div className="flex items-center gap-1 mb-2">
             <div className="flex items-center">
@@ -336,7 +332,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
             </div>
             <span className="text-xs text-muted-foreground">(4.5)</span>
           </div>
-          
+
           {/* Categories */}
           {product.category_names && product.category_names.length > 0 && (
             <div className="flex gap-1 mb-3">
@@ -347,7 +343,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               ))}
             </div>
           )}
-          
+
           {/* Price */}
           <div className="mb-3">
             <div className="text-lg font-bold">
@@ -359,7 +355,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               </div>
             )}
           </div>
-          
+
           {/* Actions - Always at bottom */}
           <div className="flex gap-2 mt-auto">
             <Button
@@ -374,18 +370,15 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
               <ShoppingCart className="h-4 w-4 mr-1" />
               {isAddingToCart ? "Adding..." : (product.is_digital || selectedVariant?.is_in_stock || product.is_in_stock) ? "Add to Cart" : "Out of Stock"}
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               asChild
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
               }}
             >
-              <Link href={`/shop/products/${product.id}`}>
-                <Eye className="h-4 w-4" />
-              </Link>
             </Button>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { PasswordStrength } from "@/app/(auth)/register/components/password-stre
 import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { authApi, ApiError } from "@/lib/api"
+import { authApi, ApiError } from "@/lib/apiFunctions"
 import { RegisterFormData, FormErrors, formDataToRegisterRequest, registerFormSchema } from "@/lib/types"
 import { OAuthButtonsGroup } from "@/components/auth/oauth-button"
 
@@ -39,13 +39,13 @@ export function RegisterForm({
       if (error instanceof Error) {
         const zodError = error as any
         const newErrors: FormErrors = {}
-        
+
         if (zodError.errors) {
           zodError.errors.forEach((err: any) => {
             newErrors[err.path[0]] = err.message
           })
         }
-        
+
         setErrors(newErrors)
       }
       return false
@@ -63,7 +63,7 @@ export function RegisterForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -96,7 +96,7 @@ export function RegisterForm({
           Enter your details below to create your account
         </p>
       </div>
-      
+
       <AlertMessage type="error" message={submitError} />
 
       <div className="grid gap-6">
@@ -104,11 +104,11 @@ export function RegisterForm({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="firstName">First Name</Label>
-            <Input 
+            <Input
               className={cn("inherit dark:bg-neutral-800/50", errors.firstName && "border-red-500")}
-              id="firstName" 
-              type="text" 
-              placeholder="John" 
+              id="firstName"
+              type="text"
+              placeholder="John"
               value={formData.firstName}
               onChange={(e) => handleInputChange("firstName", e.target.value)}
               disabled={isLoading}
@@ -119,11 +119,11 @@ export function RegisterForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="middleName">Middle Name</Label>
-            <Input 
-              className="inherit dark:bg-neutral-800/50" 
-              id="middleName" 
-              type="text" 
-              placeholder="M" 
+            <Input
+              className="inherit dark:bg-neutral-800/50"
+              id="middleName"
+              type="text"
+              placeholder="M"
               value={formData.middleName}
               onChange={(e) => handleInputChange("middleName", e.target.value)}
               disabled={isLoading}
@@ -131,11 +131,11 @@ export function RegisterForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="lastName">Last Name</Label>
-            <Input 
+            <Input
               className={cn("inherit dark:bg-neutral-800/50", errors.lastName && "border-red-500")}
-              id="lastName" 
-              type="text" 
-              placeholder="Doe" 
+              id="lastName"
+              type="text"
+              placeholder="Doe"
               value={formData.lastName}
               onChange={(e) => handleInputChange("lastName", e.target.value)}
               disabled={isLoading}
@@ -145,15 +145,15 @@ export function RegisterForm({
             )}
           </div>
         </div>
-        
+
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="username">Username</Label>
-            <Input 
+            <Input
               className={cn("inherit dark:bg-neutral-800/50", errors.username && "border-red-500")}
-              id="username" 
-              type="text" 
-              placeholder="test_user" 
+              id="username"
+              type="text"
+              placeholder="test_user"
               value={formData.username}
               onChange={(e) => handleInputChange("username", e.target.value)}
               disabled={isLoading}
@@ -164,11 +164,11 @@ export function RegisterForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
-            <Input 
+            <Input
               className={cn("inherit dark:bg-neutral-800/50", errors.email && "border-red-500")}
-              id="email" 
-              type="email" 
-              placeholder="user@example.com" 
+              id="email"
+              type="email"
+              placeholder="user@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
               disabled={isLoading}
@@ -179,10 +179,10 @@ export function RegisterForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Password</Label>
-            <Input 
+            <Input
               className={cn("inherit dark:bg-neutral-800/50", errors.password && "border-red-500")}
-              id="password" 
-              type="password" 
+              id="password"
+              type="password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
               disabled={isLoading}
@@ -193,7 +193,7 @@ export function RegisterForm({
             )}
           </div>
         </div>
-        
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Creating Account..." : "Create Account"}
         </Button>

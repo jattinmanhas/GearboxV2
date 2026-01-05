@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { roleApi } from "@/lib/api"
+import { roleApi } from "@/lib/apiFunctions"
 import { Role, AssignRoleRequest, RemoveRoleRequest } from "@/lib/types"
 import { RoleTable } from "./components/role-table"
 import { Button } from "@/components/ui/button"

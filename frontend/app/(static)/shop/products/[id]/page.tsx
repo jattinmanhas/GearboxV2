@@ -1,177 +1,205 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import Image from "next/image"
-import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { 
-  ArrowLeft, 
-  Heart, 
-  ShoppingCart, 
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  ArrowLeft,
+  Heart,
+  ShoppingCart,
   Star,
   Package,
   Truck,
   Shield,
   RotateCcw,
   ChevronLeft,
-  ChevronRight
-} from "lucide-react"
-import { productApi } from "@/lib/api"
-import { Product, Category, ProductVariant } from "@/lib/types"
-import { useCartStore } from "@/lib/stores/cart-store"
-import { useWishlistStore } from "@/lib/stores/wishlist-store"
-import { formatPrice } from "@/lib/currency"
+  ChevronRight,
+} from "lucide-react";
+import { productApi } from "@/lib/apiFunctions";
+import { Product, Category, ProductVariant } from "@/lib/types";
+import { useCartStore } from "@/lib/stores/cart-store";
+import { useWishlistStore } from "@/lib/stores/wishlist-store";
+import { formatPrice } from "@/lib/currency";
 
 export default function ProductDetailPage() {
-  const params = useParams()
-  const productId = params.id as string
-  
-  const [product, setProduct] = useState<Product | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [variants, setVariants] = useState<ProductVariant[]>([])
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  
+  const params = useParams();
+  const productId = params.id as string;
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   // Debug: Log selectedVariant changes
   useEffect(() => {
-    console.log('Selected variant changed:', selectedVariant)
+    console.log("Selected variant changed:", selectedVariant);
     if (selectedVariant) {
-      console.log('Selected variant is_in_stock:', selectedVariant.is_in_stock)
-      console.log('Selected variant is_active:', selectedVariant.is_active)
+      console.log("Selected variant is_in_stock:", selectedVariant.is_in_stock);
+      console.log("Selected variant is_active:", selectedVariant.is_active);
     }
-  }, [selectedVariant])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [quantity, setQuantity] = useState(1)
-  const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const [isWishlisting, setIsWishlisting] = useState(false)
+  }, [selectedVariant]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isWishlisting, setIsWishlisting] = useState(false);
 
-  const { addItem, isLoading: cartLoading } = useCartStore()
-  const { 
-    addItemToWishlist, 
-    removeItemFromWishlist, 
+  const { addItem, isLoading: cartLoading } = useCartStore();
+  const {
+    addItemToWishlist,
+    removeItemFromWishlist,
     isProductInWishlist,
     wishlists,
-    loadWishlists 
-  } = useWishlistStore()
+    loadWishlists,
+  } = useWishlistStore();
 
   // Check if product is in any wishlist
-  const isWishlisted = product ? wishlists.some(wishlist => 
-    isProductInWishlist(product.id, wishlist.id)
-  ) : false
+  const isWishlisted = product
+    ? wishlists.some((wishlist) => isProductInWishlist(product.id, wishlist.id))
+    : false;
 
   useEffect(() => {
     const loadProduct = async () => {
       try {
-        setLoading(true)
-        setError(null)
-        const [productData, categoriesData, variantsData] = await Promise.all([
+        setLoading(true);
+        setError(null);
+        // Fetch product and categories first
+        const [productData, categoriesData] = await Promise.all([
           productApi.getProduct(parseInt(productId)),
           productApi.getCategories({
             page: 1,
-            limit: 10
+            limit: 10,
           }),
-          productApi.getProductVariantsWithInventory(parseInt(productId))
-        ])
-        setProduct(productData)
-        setCategories(categoriesData.data.categories)
-        setVariants(variantsData)
-        setSelectedImageIndex(0) // Reset to first image when product changes
-        
+        ]);
+        setProduct(productData);
+        setCategories(categoriesData.data.categories);
+        setSelectedImageIndex(0);
+
+        // Fetch variants separately; ignore errors that may arise from zero inventory
+        let variantsData: ProductVariant[] = [];
+        try {
+          variantsData = await productApi.getProductVariantsWithInventory(
+            parseInt(productId)
+          );
+        } catch (variantErr) {
+          console.error(
+            "Failed to fetch variants (may be zero inventory):",
+            variantErr
+          );
+          // Keep variantsData as empty array
+        }
+        setVariants(variantsData);
+
         // Debug: Log the variants data
-        console.log('Variants data:', variantsData)
-        console.log('Product data:', productData)
-        
+        console.log("Variants data:", variantsData);
+        console.log("Product data:", productData);
+
         // Set the first in-stock and active variant as selected, or the first active variant, or the first variant
-        const inStockActiveVariants = variantsData.filter(v => v.is_active && v.is_in_stock)
-        const activeVariants = variantsData.filter(v => v.is_active)
-        
-        console.log('In stock active variants:', inStockActiveVariants)
-        console.log('Active variants:', activeVariants)
-        
+        const inStockActiveVariants = variantsData.filter(
+          (v) => v.is_active && v.is_in_stock
+        );
+        const activeVariants = variantsData.filter((v) => v.is_active);
+
+        console.log("In stock active variants:", inStockActiveVariants);
+        console.log("Active variants:", activeVariants);
+
         if (inStockActiveVariants.length > 0) {
-          console.log('Setting selected variant to in-stock variant:', inStockActiveVariants[0])
-          setSelectedVariant(inStockActiveVariants[0])
+          console.log(
+            "Setting selected variant to in-stock variant:",
+            inStockActiveVariants[0]
+          );
+          setSelectedVariant(inStockActiveVariants[0]);
         } else if (activeVariants.length > 0) {
-          console.log('Setting selected variant to active variant:', activeVariants[0])
-          setSelectedVariant(activeVariants[0])
+          console.log(
+            "Setting selected variant to active variant:",
+            activeVariants[0]
+          );
+          setSelectedVariant(activeVariants[0]);
         } else if (variantsData.length > 0) {
-          console.log('Setting selected variant to first variant:', variantsData[0])
-          setSelectedVariant(variantsData[0])
+          console.log(
+            "Setting selected variant to first variant:",
+            variantsData[0]
+          );
+          setSelectedVariant(variantsData[0]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load product")
+        setError(err instanceof Error ? err.message : "Failed to load product");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (productId) {
-      loadProduct()
+      loadProduct();
     }
-  }, [productId])
-
+  }, [productId]);
 
   // No longer needed - using category_names from API response
 
   const handleAddToCart = async () => {
-    if (!product) return
-    
-    setIsAddingToCart(true)
+    if (!product) return;
+
+    setIsAddingToCart(true);
     try {
       await addItem({
         product_id: product.id,
         product_variant_id: selectedVariant?.id,
-        quantity: quantity
-      })
+        quantity: quantity,
+      });
     } catch (error) {
-      console.error("Failed to add to cart:", error)
+      console.error("Failed to add to cart:", error);
     } finally {
-      setIsAddingToCart(false)
+      setIsAddingToCart(false);
     }
-  }
+  };
 
   const handleWishlist = async () => {
-    if (!product || isWishlisting) return
-    
-    setIsWishlisting(true)
+    if (!product || isWishlisting) return;
+
+    setIsWishlisting(true);
     try {
       // Load wishlists if not already loaded
       if (wishlists.length === 0) {
-        await loadWishlists()
+        await loadWishlists();
       }
-      
+
       if (isWishlisted) {
         // Find the wishlist containing this product and remove it
-        const wishlistWithProduct = wishlists.find(wishlist => 
+        const wishlistWithProduct = wishlists.find((wishlist) =>
           isProductInWishlist(product.id, wishlist.id)
-        )
+        );
         if (wishlistWithProduct) {
-          const item = wishlistWithProduct.items.find(item => item.product_id === product.id)
+          const item = wishlistWithProduct.items.find(
+            (item) => item.product_id === product.id
+          );
           if (item) {
-            await removeItemFromWishlist(wishlistWithProduct.id, item.id)
+            await removeItemFromWishlist(wishlistWithProduct.id, item.id);
           }
         }
       } else {
         // Add to the first wishlist (or create a default one)
         if (wishlists.length > 0) {
-          await addItemToWishlist(wishlists[0].id, product.id)
+          await addItemToWishlist(wishlists[0].id, product.id);
         } else {
           // Create a default wishlist first
           // TODO: Implement default wishlist creation
-          console.log("No wishlists available, need to create one first")
+          console.log("No wishlists available, need to create one first");
         }
       }
     } catch (error) {
-      console.error("Failed to update wishlist:", error)
+      console.error("Failed to update wishlist:", error);
     } finally {
-      setIsWishlisting(false)
+      setIsWishlisting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -182,7 +210,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !product) {
@@ -199,7 +227,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -233,7 +261,7 @@ export default function ProductDetailPage() {
               ) : (
                 <Package className="h-24 w-24 text-muted-foreground" />
               )}
-              
+
               {/* Navigation arrows */}
               {product.images && product.images.length > 1 && (
                 <>
@@ -241,11 +269,13 @@ export default function ProductDetailPage() {
                     variant="outline"
                     size="sm"
                     className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background border-border shadow-lg"
-                    onClick={() => setSelectedImageIndex(
-                      selectedImageIndex === 0 
-                        ? (product.images?.length || 1) - 1 
-                        : selectedImageIndex - 1
-                    )}
+                    onClick={() =>
+                      setSelectedImageIndex(
+                        selectedImageIndex === 0
+                          ? (product.images?.length || 1) - 1
+                          : selectedImageIndex - 1
+                      )
+                    }
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -253,17 +283,19 @@ export default function ProductDetailPage() {
                     variant="outline"
                     size="sm"
                     className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background border-border shadow-lg"
-                    onClick={() => setSelectedImageIndex(
-                      selectedImageIndex === (product.images?.length || 1) - 1 
-                        ? 0 
-                        : selectedImageIndex + 1
-                    )}
+                    onClick={() =>
+                      setSelectedImageIndex(
+                        selectedImageIndex === (product.images?.length || 1) - 1
+                          ? 0
+                          : selectedImageIndex + 1
+                      )
+                    }
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </>
               )}
-              
+
               {/* Image counter */}
               {product.images && product.images.length > 1 && (
                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
@@ -271,18 +303,17 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </div>
-            
+
             {/* Thumbnail images */}
             {product.images && product.images.length > 1 && (
               <div className="flex gap-2">
                 {product.images.slice(0, 4).map((image, index) => (
-                  <div 
-                    key={image.id} 
-                    className={`w-16 h-16 bg-muted rounded-md flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-200 ${
-                      selectedImageIndex === index 
-                        ? 'ring-2 ring-primary ring-offset-2' 
-                        : 'hover:ring-2 hover:ring-primary'
-                    }`}
+                  <div
+                    key={image.id}
+                    className={`w-16 h-16 bg-muted rounded-md flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-200 ${selectedImageIndex === index
+                        ? "ring-2 ring-primary ring-offset-2"
+                        : "hover:ring-2 hover:ring-primary"
+                      }`}
                     onClick={() => setSelectedImageIndex(index)}
                   >
                     <Image
@@ -308,28 +339,43 @@ export default function ProductDetailPage() {
                   <Badge variant="destructive">Out of Stock</Badge>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <Star
+                      key={i}
+                      className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                    />
                   ))}
-                  <span className="text-sm text-muted-foreground ml-2">(4.5) 23 reviews</span>
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (4.5) 23 reviews
+                  </span>
                 </div>
                 <span className="text-sm text-muted-foreground">•</span>
-                <span className="text-sm text-muted-foreground">SKU: {product.sku}</span>
+                <span className="text-sm text-muted-foreground">
+                  SKU: {product.sku}
+                </span>
               </div>
 
               {/* Price */}
               <div className="mb-4">
                 <div className="text-3xl font-bold">
-                  {selectedVariant ? formatPrice(selectedVariant.price) : formatPrice(product.price)}
+                  {selectedVariant
+                    ? formatPrice(selectedVariant.price)
+                    : formatPrice(product.price)}
                 </div>
-                {(selectedVariant ? selectedVariant.compare_price : product.compare_price) > 0 && (
-                  <div className="text-lg text-muted-foreground line-through">
-                    {formatPrice(selectedVariant ? selectedVariant.compare_price : product.compare_price)}
-                  </div>
-                )}
+                {(selectedVariant
+                  ? selectedVariant.compare_price
+                  : product.compare_price) > 0 && (
+                    <div className="text-lg text-muted-foreground line-through">
+                      {formatPrice(
+                        selectedVariant
+                          ? selectedVariant.compare_price
+                          : product.compare_price
+                      )}
+                    </div>
+                  )}
               </div>
 
               {/* Stock Information */}
@@ -337,8 +383,16 @@ export default function ProductDetailPage() {
                 <div className="flex items-center gap-2">
                   {selectedVariant ? (
                     <>
-                      <Badge variant={selectedVariant.is_in_stock ? "default" : "destructive"}>
-                        {selectedVariant.is_in_stock ? "In Stock" : "Out of Stock"}
+                      <Badge
+                        variant={
+                          selectedVariant.is_in_stock
+                            ? "default"
+                            : "destructive"
+                        }
+                      >
+                        {selectedVariant.is_in_stock
+                          ? "In Stock"
+                          : "Out of Stock"}
                       </Badge>
                       {selectedVariant.is_in_stock && (
                         <span className="text-sm text-muted-foreground">
@@ -348,7 +402,11 @@ export default function ProductDetailPage() {
                     </>
                   ) : (
                     <>
-                      <Badge variant={product.is_in_stock ? "default" : "destructive"}>
+                      <Badge
+                        variant={
+                          product.is_in_stock ? "default" : "destructive"
+                        }
+                      >
                         {product.is_in_stock ? "In Stock" : "Out of Stock"}
                       </Badge>
                       {product.is_in_stock && (
@@ -382,32 +440,40 @@ export default function ProductDetailPage() {
                 <h3 className="text-sm font-medium mb-2">Options</h3>
                 <div className="flex flex-wrap gap-2">
                   {variants
-                    .filter(variant => variant.is_active)
+                    .filter((variant) => variant.is_active)
                     .sort((a, b) => a.position - b.position)
                     .map((variant) => (
-                    <Button
-                      key={variant.id}
-                      variant={selectedVariant?.id === variant.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedVariant(variant)}
-                      className={`flex items-center gap-2 ${
-                        !variant.is_in_stock ? 'opacity-60 cursor-not-allowed' : ''
-                      }`}
-                      disabled={!variant.is_in_stock}
-                    >
-                      {variant.name}
-                      <span className="text-xs text-muted-foreground">
-                        ({formatPrice(variant.price)})
-                      </span>
-                      {!variant.is_in_stock && (
-                        <span className="text-xs text-red-500 ml-1">(Out of Stock)</span>
-                      )}
-                    </Button>
-                  ))}
+                      <Button
+                        key={variant.id}
+                        variant={
+                          selectedVariant?.id === variant.id
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() => setSelectedVariant(variant)}
+                        className={`flex items-center gap-2 ${!variant.is_in_stock
+                            ? "opacity-60 cursor-not-allowed"
+                            : ""
+                          }`}
+                        disabled={!variant.is_in_stock}
+                      >
+                        {variant.name}
+                        <span className="text-xs text-muted-foreground">
+                          ({formatPrice(variant.price)})
+                        </span>
+                        {!variant.is_in_stock && (
+                          <span className="text-xs text-red-500 ml-1">
+                            (Out of Stock)
+                          </span>
+                        )}
+                      </Button>
+                    ))}
                 </div>
                 {selectedVariant && (
                   <div className="mt-2 text-sm text-muted-foreground">
-                    Selected: <span className="font-medium">{selectedVariant.name}</span>
+                    Selected:{" "}
+                    <span className="font-medium">{selectedVariant.name}</span>
                     <span className="ml-2">•</span>
                     <span className="ml-2">SKU: {selectedVariant.sku}</span>
                     {!selectedVariant.is_in_stock && (
@@ -429,23 +495,30 @@ export default function ProductDetailPage() {
             {/* Stock Status */}
             <div className="space-y-2">
               {(() => {
-                const isInStock = product.is_digital || (variants.length > 0 
-                  ? (selectedVariant?.is_in_stock ?? false)
-                  : product.is_in_stock)
-                
+                const isInStock =
+                  product.is_digital ||
+                  (variants.length > 0
+                    ? selectedVariant?.is_in_stock ?? false
+                    : product.is_in_stock);
+
                 return (
-                  <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                    isInStock 
-                      ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' 
-                      : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full ${
-                      isInStock ? 'bg-green-500' : 'bg-red-500'
-                    }`} />
-                    <span className={`text-sm font-medium ${
-                      isInStock ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
-                    }`}>
-                      {isInStock ? 'In Stock' : 'Out of Stock'}
+                  <div
+                    className={`flex items-center gap-2 p-3 rounded-lg ${isInStock
+                        ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800"
+                        : "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
+                      }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${isInStock ? "bg-green-500" : "bg-red-500"
+                        }`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${isInStock
+                          ? "text-green-700 dark:text-green-300"
+                          : "text-red-700 dark:text-red-300"
+                        }`}
+                    >
+                      {isInStock ? "In Stock" : "Out of Stock"}
                     </span>
                     {isInStock && product.available_quantity > 0 && (
                       <span className="text-xs text-muted-foreground">
@@ -453,29 +526,33 @@ export default function ProductDetailPage() {
                       </span>
                     )}
                   </div>
-                )
+                );
               })()}
             </div>
 
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
               {(() => {
-                const isInStock = product.is_digital || (variants.length > 0 
-                  ? (selectedVariant?.is_in_stock ?? false)
-                  : product.is_in_stock)
-                
+                const isInStock =
+                  product.is_digital ||
+                  (variants.length > 0
+                    ? selectedVariant?.is_in_stock ?? false
+                    : product.is_in_stock);
+
                 if (!isInStock) {
                   return (
                     <div className="text-center py-4">
-                      <p className="text-muted-foreground mb-4">This product is currently out of stock.</p>
+                      <p className="text-muted-foreground mb-4">
+                        This product is currently out of stock.
+                      </p>
                       <Button variant="outline" disabled>
                         <ShoppingCart className="h-4 w-4 mr-2" />
                         Out of Stock
                       </Button>
                     </div>
-                  )
+                  );
                 }
-                
+
                 return (
                   <>
                     <div>
@@ -508,7 +585,12 @@ export default function ProductDetailPage() {
                         className="flex-1"
                         size="lg"
                         onClick={handleAddToCart}
-                        disabled={!isInStock || !product.is_active || isAddingToCart || cartLoading}
+                        disabled={
+                          !isInStock ||
+                          !product.is_active ||
+                          isAddingToCart ||
+                          cartLoading
+                        }
                       >
                         <ShoppingCart className="h-4 w-4 mr-2" />
                         {isAddingToCart ? "Adding..." : "Add to Cart"}
@@ -520,11 +602,14 @@ export default function ProductDetailPage() {
                         disabled={isWishlisting}
                         className={isWishlisted ? "text-red-500" : ""}
                       >
-                        <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
+                        <Heart
+                          className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""
+                            }`}
+                        />
                       </Button>
                     </div>
                   </>
-                )
+                );
               })()}
             </div>
 
@@ -552,27 +637,34 @@ export default function ProductDetailPage() {
             <CardContent className="p-6">
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Product Details</h3>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Product Details
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="font-medium">SKU:</span> {product.sku}
                     </div>
                     <div>
-                      <span className="font-medium">Weight:</span> {product.weight} lbs
+                      <span className="font-medium">Weight:</span>{" "}
+                      {product.weight} lbs
                     </div>
                     {product.dimensions && (
                       <div>
-                        <span className="font-medium">Dimensions:</span> {product.dimensions}
+                        <span className="font-medium">Dimensions:</span>{" "}
+                        {product.dimensions}
                       </div>
                     )}
                     <div>
-                      <span className="font-medium">Type:</span> {product.is_digital ? "Digital" : "Physical"}
+                      <span className="font-medium">Type:</span>{" "}
+                      {product.is_digital ? "Digital" : "Physical"}
                     </div>
                     <div>
-                      <span className="font-medium">Shipping:</span> {product.requires_shipping ? "Required" : "Not Required"}
+                      <span className="font-medium">Shipping:</span>{" "}
+                      {product.requires_shipping ? "Required" : "Not Required"}
                     </div>
                     <div>
-                      <span className="font-medium">Taxable:</span> {product.taxable ? "Yes" : "No"}
+                      <span className="font-medium">Taxable:</span>{" "}
+                      {product.taxable ? "Yes" : "No"}
                     </div>
                   </div>
                 </div>
@@ -581,7 +673,7 @@ export default function ProductDetailPage() {
                   <div>
                     <h3 className="text-lg font-semibold mb-3">Tags</h3>
                     <div className="flex flex-wrap gap-2">
-                      {product.tags.split(',').map((tag, index) => (
+                      {product.tags.split(",").map((tag, index) => (
                         <Badge key={index} variant="secondary">
                           {tag.trim()}
                         </Badge>
@@ -605,5 +697,5 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

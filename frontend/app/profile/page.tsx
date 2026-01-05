@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Edit, 
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Edit,
   Plus,
   Trash2,
   Check
 } from "lucide-react"
-import { profileApi } from "@/lib/api"
+import { profileApi } from "@/lib/apiFunctions"
 import { UserProfile, Address } from "@/lib/types"
 import { ProfileEditForm } from "./components/profile-edit-form"
 import { AddressForm } from "./components/address-form"
@@ -65,7 +65,7 @@ export default function ProfilePage() {
     try {
       const updatedProfile = await profileApi.updateProfile(profileData)
       setProfile(updatedProfile)
-      
+
       // Update user store with new profile data
       updateProfile({
         firstName: updatedProfile.first_name,
@@ -73,7 +73,7 @@ export default function ProfilePage() {
         lastName: updatedProfile.last_name,
         avatar: updatedProfile.avatar,
       })
-      
+
       showSuccess(NotificationMessages.user.profileUpdated)
       setShowProfileEdit(false)
     } catch (err) {
@@ -118,7 +118,7 @@ export default function ProfilePage() {
 
   const handleAddressDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this address?")) return
-    
+
     try {
       await profileApi.deleteAddress(id)
       setAddresses(prev => prev.filter(addr => addr.id !== id))
@@ -218,7 +218,7 @@ export default function ProfilePage() {
                     {(profile.first_name?.[0] || '').toUpperCase()}{(profile.last_name?.[0] || '').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-3">
@@ -230,7 +230,7 @@ export default function ProfilePage() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -238,7 +238,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground">{profile.email}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-3">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -246,7 +246,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground">{profile.username}</p>
                       </div>
                     </div>
-                    
+
                     {profile.phone_number && (
                       <div className="flex items-center space-x-3">
                         <Phone className="h-4 w-4 text-muted-foreground" />
@@ -256,7 +256,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {profile.date_of_birth && (
                       <div className="flex items-center space-x-3">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -269,9 +269,9 @@ export default function ProfilePage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="text-sm text-muted-foreground">
                     <p>Member since {formatDate(profile.created_at)}</p>
                     <p>Last updated {formatDate(profile.updated_at)}</p>
@@ -343,8 +343,8 @@ export default function ProfilePage() {
       {showAddressForm && (
         <AddressForm
           address={editingAddress}
-          onSave={editingAddress ? 
-            (data) => handleAddressUpdate(editingAddress.id, data) : 
+          onSave={editingAddress ?
+            (data) => handleAddressUpdate(editingAddress.id, data) :
             handleAddressCreate
           }
           onCancel={() => {

@@ -8,7 +8,7 @@ import { AlertMessage } from "@/components/ui/alert-message"
 import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { authApi, ApiError } from "@/lib/api"
+import { authApi, ApiError } from "@/lib/apiFunctions"
 import { LoginFormData, FormErrors, formDataToLoginRequest, loginFormSchema } from "@/lib/types"
 import { useUserStore } from "@/lib/stores/user-store"
 import { OAuthButtonsGroup } from "@/components/auth/oauth-button"
@@ -36,13 +36,13 @@ export function LoginForm({
       if (error instanceof Error) {
         const zodError = error as any
         const newErrors: FormErrors = {}
-        
+
         if (zodError.errors) {
           zodError.errors.forEach((err: any) => {
             newErrors[err.path[0]] = err.message
           })
         }
-        
+
         setErrors(newErrors)
       }
       return false
@@ -60,7 +60,7 @@ export function LoginForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -70,13 +70,13 @@ export function LoginForm({
 
     try {
       const response = await authApi.login(formDataToLoginRequest(formData))
-      
+
       // Debug: Log the response to see the structure
       console.log("Login response:", response)
-      
+
       // The API returns user data in response.data.user
       const userData = response?.data?.user
-      
+
       if (userData) {
         const user = {
           id: userData.id || 1,
@@ -90,13 +90,13 @@ export function LoginForm({
           createdAt: userData.createdAt || new Date().toISOString(),
           updatedAt: userData.updatedAt || new Date().toISOString(),
         }
-        
+
         // Debug: Log the user data being stored
         console.log("User data to store:", user)
-        
+
         // Store user data in Zustand store and handle cart merging
         await login(user)
-        
+
         // Redirect to dashboard or home
         router.push("/")
       } else {
@@ -127,17 +127,17 @@ export function LoginForm({
           Enter your details below to login to your account
         </p>
       </div>
-      
+
       <AlertMessage type="error" message={submitError} />
 
       <div className="grid gap-6">
         <div className="grid gap-3">
           <Label htmlFor="username">Username</Label>
-          <Input 
+          <Input
             className={cn("inherit dark:bg-neutral-800/50", errors.username && "border-red-500")}
-            id="username" 
-            type="text" 
-            placeholder="test_user" 
+            id="username"
+            type="text"
+            placeholder="test_user"
             value={formData.username}
             onChange={(e) => handleInputChange("username", e.target.value)}
             disabled={isLoading}
@@ -156,10 +156,10 @@ export function LoginForm({
               Forgot your password?
             </Link>
           </div>
-          <Input 
+          <Input
             className={cn("inherit dark:bg-neutral-800/50", errors.password && "border-red-500")}
-            id="password" 
-            type="password" 
+            id="password"
+            type="password"
             value={formData.password}
             onChange={(e) => handleInputChange("password", e.target.value)}
             disabled={isLoading}

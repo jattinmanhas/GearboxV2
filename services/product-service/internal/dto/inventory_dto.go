@@ -103,13 +103,16 @@ type InventoryAlertResponse struct {
 	ProductID         int64   `json:"product_id"`
 	ProductVariantID  *int64  `json:"product_variant_id"`
 	AlertType         string  `json:"alert_type"`
+	ProductName       string  `json:"product_name"`
+	ProductSKU        string  `json:"product_sku"`
+	VariantName       *string `json:"variant_name"`
+	VariantSKU        *string `json:"variant_sku"`
 	CurrentQuantity   int     `json:"current_quantity"`
 	ThresholdQuantity int     `json:"threshold_quantity"`
 	IsResolved        bool    `json:"is_resolved"`
 	ResolvedAt        *string `json:"resolved_at"`
 	CreatedAt         string  `json:"created_at"`
 }
-
 // ListInventoryRequest represents the request to list inventory
 type ListInventoryRequest struct {
 	ProductID        *int64 `json:"product_id" validate:"omitempty"`

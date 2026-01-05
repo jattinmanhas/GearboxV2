@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Plus, 
+import {
+  Plus,
   Package,
   Edit,
   Trash2,
@@ -18,7 +18,7 @@ import {
   ArrowUpDown
 } from "lucide-react"
 import { ProductVariant, CreateProductVariantRequest, UpdateProductVariantRequest } from "@/lib/types"
-import { productApi } from "@/lib/api"
+import { productApi } from "@/lib/apiFunctions"
 import { formatPrice } from "@/lib/currency"
 import { ProductVariantForm } from "./product-variant-form"
 import { LoadingState } from "@/components/ui/loading"
@@ -69,7 +69,7 @@ export function ProductVariantManager({ productId, onVariantChange }: ProductVar
 
   const handleUpdateVariant = async (variantData: CreateProductVariantRequest | UpdateProductVariantRequest) => {
     if (!editingVariant) return
-    
+
     try {
       await productApi.updateProductVariant(editingVariant.id, variantData as UpdateProductVariantRequest)
       await loadVariants()
@@ -174,7 +174,7 @@ export function ProductVariantManager({ productId, onVariantChange }: ProductVar
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {!variants || variants.length === 0 ? (
           <div className="text-center py-8">
@@ -223,68 +223,68 @@ export function ProductVariantManager({ productId, onVariantChange }: ProductVar
               {(variants || [])
                 .sort((a, b) => a.position - b.position)
                 .map((variant) => (
-                <div
-                  key={variant.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h4 className="font-medium">{variant.name}</h4>
-                      <Badge variant={variant.is_active ? "default" : "secondary"}>
-                        {variant.is_active ? (
+                  <div
+                    key={variant.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <h4 className="font-medium">{variant.name}</h4>
+                        <Badge variant={variant.is_active ? "default" : "secondary"}>
+                          {variant.is_active ? (
+                            <>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="h-3 w-3 mr-1" />
+                              Inactive
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        <span>SKU: {variant.sku}</span>
+                        <span>•</span>
+                        <span>Price: {formatPrice(variant.price)}</span>
+                        {variant.compare_price > 0 && (
                           <>
-                            <Eye className="h-3 w-3 mr-1" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <EyeOff className="h-3 w-3 mr-1" />
-                            Inactive
+                            <span>•</span>
+                            <span>Compare: {formatPrice(variant.compare_price)}</span>
                           </>
                         )}
-                      </Badge>
+                        {variant.weight > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>Weight: {variant.weight} kg</span>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span>Position: {variant.position}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>SKU: {variant.sku}</span>
-                      <span>•</span>
-                      <span>Price: {formatPrice(variant.price)}</span>
-                      {variant.compare_price > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>Compare: {formatPrice(variant.compare_price)}</span>
-                        </>
-                      )}
-                      {variant.weight > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>Weight: {variant.weight} kg</span>
-                        </>
-                      )}
-                      <span>•</span>
-                      <span>Position: {variant.position}</span>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(variant)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteVariant(variant.id)}
+                        disabled={deletingId === variant.id}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(variant)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteVariant(variant.id)}
-                      disabled={deletingId === variant.id}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}

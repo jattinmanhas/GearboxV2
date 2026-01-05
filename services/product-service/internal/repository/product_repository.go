@@ -882,23 +882,15 @@ func (r *productRepository) CheckCategoryHasProducts(ctx context.Context, catego
 // CreateProductImage creates a new product image
 func (r *productRepository) CreateProductImage(ctx context.Context, image *domain.ProductImage) error {
 	query := `
-		INSERT INTO product_images (
-			product_id, url, alt, position, is_primary
-		) VALUES (
-			:product_id, :url, :alt, :position, :is_primary
-		)
-		RETURNING id`
-
-	rows, err := r.db.NamedQueryContext(ctx, query, image)
+		INSERT INTO product_images (product_id, url, alt, public_id, position, is_primary, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id, created_at, updated_at
+	`
+	err := r.db.QueryRowContext(ctx, query,
+		image.ProductID, image.URL, image.Alt, image.PublicID, image.Position, image.IsPrimary,
+	).Scan(&image.ID, &image.CreatedAt, &image.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create product image: %w", err)
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		if err := rows.Scan(&image.ID); err != nil {
-			return fmt.Errorf("failed to scan image ID: %w", err)
-		}
 	}
 
 	return nil
@@ -906,11 +898,16 @@ func (r *productRepository) CreateProductImage(ctx context.Context, image *domai
 
 // GetProductImages retrieves all images for a product
 func (r *productRepository) GetProductImages(ctx context.Context, productID int64) ([]*domain.ProductImage, error) {
-	query := `SELECT id, product_id, url, alt, position, is_primary, created_at, updated_at FROM product_images WHERE product_id = $1 ORDER BY position, created_at`
+	query := `
+		SELECT id, product_id, url, alt, public_id, position, is_primary, created_at, updated_at
+		FROM product_images
+		WHERE product_id = $1
+		ORDER BY position ASC, created_at
+	`
 
 	rows, err := r.db.QueryContext(ctx, query, productID)
 	if err != nil {
-		return []*domain.ProductImage{}, nil
+		return []*domain.ProductImage{}, fmt.Errorf("failed to query product images: %w", err)
 	}
 	defer rows.Close()
 
@@ -918,17 +915,11 @@ func (r *productRepository) GetProductImages(ctx context.Context, productID int6
 	for rows.Next() {
 		var image domain.ProductImage
 		err := rows.Scan(
-			&image.ID,
-			&image.ProductID,
-			&image.URL,
-			&image.Alt,
-			&image.Position,
-			&image.IsPrimary,
-			&image.CreatedAt,
-			&image.UpdatedAt,
+			&image.ID, &image.ProductID, &image.URL, &image.Alt, &image.PublicID,
+			&image.Position, &image.IsPrimary, &image.CreatedAt, &image.UpdatedAt,
 		)
 		if err != nil {
-			continue
+			return []*domain.ProductImage{}, fmt.Errorf("failed to scan product image: %w", err)
 		}
 		images = append(images, &image)
 	}

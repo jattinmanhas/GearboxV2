@@ -1,31 +1,40 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { MultiSelect, MultiSelectOption } from "@/components/ui/multi-select"
-import { 
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { MultiSelect, MultiSelectOption } from "@/components/ui/multi-select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Product, Category, CreateProductRequest, UpdateProductRequest } from "@/lib/types"
-import { FlexibleImageInput, ImageItem } from "@/components/ui/flexible-image-input"
+} from "@/components/ui/dialog";
+import { Product, Category } from "@/lib/types";
+import {
+  FlexibleImageInput,
+  ImageItem,
+} from "@/components/ui/flexible-image-input";
+import { getPublicIdFromUrl } from "@/lib/image-upload";
 
 interface ProductFormProps {
-  product?: Product | null
-  categories: Category[]
-  onSave: (data: any) => void
-  onCancel: () => void
+  product?: Product | null;
+  categories: Category[];
+  onSave: (data: any) => void;
+  onCancel: () => void;
 }
 
-export function ProductForm({ product, categories, onSave, onCancel }: ProductFormProps) {
+export function ProductForm({
+  product,
+  categories,
+  onSave,
+  onCancel,
+}: ProductFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -47,11 +56,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
     meta_description: "",
     tags: "",
     category_ids: [] as number[],
-  })
+  });
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [productImages, setProductImages] = useState<ImageItem[]>([])
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productImages, setProductImages] = useState<ImageItem[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
   useEffect(() => {
     if (product) {
@@ -76,97 +86,153 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
         meta_description: product.meta_description,
         tags: product.tags,
         category_ids: product.category_ids || [],
-      })
-      
+      });
+
       // Load existing product images
       if (product.images && product.images.length > 0) {
-        const existingImages: ImageItem[] = product.images.map(img => ({
+        const existingImages: ImageItem[] = product.images.map((img) => ({
           id: img.id.toString(),
           url: img.url,
           alt: img.alt,
-          source: 'upload' as const
-        }))
-        setProductImages(existingImages)
+          publicId:
+            img.public_id ||
+            (img.url ? getPublicIdFromUrl(img.url) || undefined : undefined),
+          source: "upload" as const,
+        }));
+        setProductImages(existingImages);
       } else {
-        setProductImages([])
+        setProductImages([]);
       }
     }
-  }, [product])
+  }, [product]);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     }
 
     if (!formData.sku.trim()) {
-      newErrors.sku = "SKU is required"
+      newErrors.sku = "SKU is required";
     }
 
     if (formData.price <= 0) {
-      newErrors.price = "Price must be greater than 0"
+      newErrors.price = "Price must be greater than 0";
     }
 
     if (formData.weight < 0) {
-      newErrors.weight = "Weight cannot be negative"
+      newErrors.weight = "Weight cannot be negative";
     }
 
     if (formData.min_quantity < 0) {
-      newErrors.min_quantity = "Minimum quantity cannot be negative"
+      newErrors.min_quantity = "Minimum quantity cannot be negative";
     }
 
     if (formData.max_quantity < 0) {
-      newErrors.max_quantity = "Maximum quantity cannot be negative"
+      newErrors.max_quantity = "Maximum quantity cannot be negative";
     }
 
-    if (formData.min_quantity > 0 && formData.max_quantity > 0 && formData.min_quantity > formData.max_quantity) {
-      newErrors.max_quantity = "Maximum quantity must be greater than minimum quantity"
+    if (
+      formData.min_quantity > 0 &&
+      formData.max_quantity > 0 &&
+      formData.min_quantity > formData.max_quantity
+    ) {
+      newErrors.max_quantity =
+        "Maximum quantity must be greater than minimum quantity";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) return
+    e.preventDefault();
 
-    setIsSubmitting(true)
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
     try {
+      // Delete images that were removed during editing (deferred deletion)
+      for (const publicId of imagesToDelete) {
+        try {
+          const encodedPublicId = encodeURIComponent(publicId);
+          const deleteResponse = await fetch(
+            `/api/v1/upload/image/${encodedPublicId}`,
+            {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ isCloudinary: true }),
+            }
+          );
+
+          if (!deleteResponse.ok) {
+            console.error("Failed to delete removed image:", publicId);
+          }
+        } catch (err) {
+          console.error("Failed to delete removed image", err);
+        }
+      }
+
       // Add image URLs to form data
       const formDataWithImages = {
         ...formData,
         images: productImages.map((img, index) => ({
           url: img.url,
-          alt: img.alt || '',
+          alt: img.alt || "",
+          public_id:
+            img.publicId || (img.url ? getPublicIdFromUrl(img.url) || "" : ""),
           is_primary: index === 0, // First image is primary
-          position: index + 1
-        }))
-      }
-      
-      console.log('[ProductForm] Submitting with images:', formDataWithImages.images)
-      
-      await onSave(formDataWithImages)
+          position: index + 1,
+        })),
+      };
+
+      await onSave(formDataWithImages);
+
+      // Clear deletion queue after successful save
+      setImagesToDelete([]);
     } catch (error) {
-      console.error("Error saving product:", error)
+      console.error("Error saving product:", error);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleImagesChange = (newImages: ImageItem[]) => {
+    // Compare old vs new to find removed images
+    const removedImages = productImages.filter(
+      (oldImg) => !newImages.find((newImg) => newImg.id === oldImg.id)
+    );
+
+    // Add to deletion queue
+    removedImages.forEach((img) => {
+      if (img.publicId && !imagesToDelete.includes(img.publicId)) {
+        setImagesToDelete((prev) => [...prev, img.publicId!]);
+      } else if (img.url) {
+        // Fallback: try to extract publicId from URL
+        const extractedId = getPublicIdFromUrl(img.url);
+        if (extractedId && !imagesToDelete.includes(extractedId)) {
+          setImagesToDelete((prev) => [...prev, extractedId]);
+        }
+      }
+    });
+
+    setProductImages(newImages);
+  };
 
   const handleCategoryChange = (selectedValues: (string | number)[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      category_ids: selectedValues.map(id => Number(id))
-    }))
-  }
+      category_ids: selectedValues.map((id) => Number(id)),
+    }));
+  };
 
-  const categoryOptions: MultiSelectOption[] = categories.map(category => ({
+  const categoryOptions: MultiSelectOption[] = categories.map((category) => ({
     value: category.id,
-    label: category.name
-  }))
+    label: category.name,
+  }));
 
   return (
     <Dialog open={true} onOpenChange={onCancel}>
@@ -176,10 +242,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
             {product ? "Edit Product" : "Create New Product"}
           </DialogTitle>
           <DialogDescription>
-            {product 
-              ? "Update the product information below." 
-              : "Fill in the details to create a new product."
-            }
+            {product
+              ? "Update the product information below."
+              : "Fill in the details to create a new product."}
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +258,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   placeholder="Product name"
                   className={errors.name ? "border-destructive" : ""}
                 />
@@ -207,7 +274,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Input
                   id="sku"
                   value={formData.sku}
-                  onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, sku: e.target.value }))
+                  }
                   placeholder="Product SKU"
                   className={errors.sku ? "border-destructive" : ""}
                 />
@@ -222,7 +291,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
               <Input
                 id="short_description"
                 value={formData.short_description}
-                onChange={(e) => setFormData(prev => ({ ...prev, short_description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    short_description: e.target.value,
+                  }))
+                }
                 placeholder="Brief product description"
               />
             </div>
@@ -232,7 +306,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="Detailed product description"
                 rows={4}
               />
@@ -244,7 +323,7 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
             <h3 className="text-lg font-medium">Product Images</h3>
             <FlexibleImageInput
               images={productImages}
-              onImagesChange={setProductImages}
+              onImagesChange={handleImagesChange}
               multiple={true}
               maxImages={10}
               label="Product Images"
@@ -263,10 +342,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   type="number"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    price: parseFloat(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      price: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                   className={errors.price ? "border-destructive" : ""}
                 />
                 {errors.price && (
@@ -281,10 +362,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   type="number"
                   step="0.01"
                   value={formData.compare_price}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    compare_price: parseFloat(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      compare_price: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                 />
               </div>
 
@@ -295,10 +378,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   type="number"
                   step="0.01"
                   value={formData.cost_price}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    cost_price: parseFloat(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      cost_price: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -315,10 +400,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   type="number"
                   step="0.01"
                   value={formData.weight}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    weight: parseFloat(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      weight: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                   className={errors.weight ? "border-destructive" : ""}
                 />
                 {errors.weight && (
@@ -331,7 +418,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Input
                   id="dimensions"
                   value={formData.dimensions}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dimensions: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      dimensions: e.target.value,
+                    }))
+                  }
                   placeholder="L x W x H"
                 />
               </div>
@@ -348,14 +440,18 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   id="min_quantity"
                   type="number"
                   value={formData.min_quantity}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    min_quantity: parseInt(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      min_quantity: parseInt(e.target.value) || 0,
+                    }))
+                  }
                   className={errors.min_quantity ? "border-destructive" : ""}
                 />
                 {errors.min_quantity && (
-                  <p className="text-sm text-destructive">{errors.min_quantity}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.min_quantity}
+                  </p>
                 )}
               </div>
 
@@ -365,14 +461,18 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   id="max_quantity"
                   type="number"
                   value={formData.max_quantity}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    max_quantity: parseInt(e.target.value) || 0 
-                  }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      max_quantity: parseInt(e.target.value) || 0,
+                    }))
+                  }
                   className={errors.max_quantity ? "border-destructive" : ""}
                 />
                 {errors.max_quantity && (
-                  <p className="text-sm text-destructive">{errors.max_quantity}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.max_quantity}
+                  </p>
                 )}
               </div>
             </div>
@@ -403,7 +503,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Input
                   id="meta_title"
                   value={formData.meta_title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, meta_title: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      meta_title: e.target.value,
+                    }))
+                  }
                   placeholder="SEO meta title"
                 />
               </div>
@@ -413,7 +518,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Textarea
                   id="meta_description"
                   value={formData.meta_description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, meta_description: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      meta_description: e.target.value,
+                    }))
+                  }
                   placeholder="SEO meta description"
                   rows={2}
                 />
@@ -424,7 +534,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                 <Input
                   id="tags"
                   value={formData.tags}
-                  onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, tags: e.target.value }))
+                  }
                   placeholder="tag1, tag2, tag3"
                 />
               </div>
@@ -440,7 +552,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   <Switch
                     id="is_active"
                     checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, is_active: checked }))
+                    }
                   />
                   <Label htmlFor="is_active">Active</Label>
                 </div>
@@ -449,7 +563,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   <Switch
                     id="is_digital"
                     checked={formData.is_digital}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_digital: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, is_digital: checked }))
+                    }
                   />
                   <Label htmlFor="is_digital">Digital Product</Label>
                 </div>
@@ -458,7 +574,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   <Switch
                     id="requires_shipping"
                     checked={formData.requires_shipping}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, requires_shipping: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        requires_shipping: checked,
+                      }))
+                    }
                   />
                   <Label htmlFor="requires_shipping">Requires Shipping</Label>
                 </div>
@@ -469,7 +590,9 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   <Switch
                     id="taxable"
                     checked={formData.taxable}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, taxable: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, taxable: checked }))
+                    }
                   />
                   <Label htmlFor="taxable">Taxable</Label>
                 </div>
@@ -478,7 +601,12 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
                   <Switch
                     id="track_quantity"
                     checked={formData.track_quantity}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, track_quantity: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        track_quantity: checked,
+                      }))
+                    }
                   />
                   <Label htmlFor="track_quantity">Track Quantity</Label>
                 </div>
@@ -491,11 +619,15 @@ export function ProductForm({ product, categories, onSave, onCancel }: ProductFo
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : product ? "Update Product" : "Create Product"}
+              {isSubmitting
+                ? "Saving..."
+                : product
+                ? "Update Product"
+                : "Create Product"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

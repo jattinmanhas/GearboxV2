@@ -6,17 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Search, 
-  Filter, 
-  Grid, 
-  List, 
+import {
+  Search,
+  Filter,
+  Grid,
+  List,
   ShoppingCart,
   Star,
   Heart,
   Package
 } from "lucide-react"
-import { productApi } from "@/lib/api"
+import { productApi } from "@/lib/apiFunctions"
 import { Product, Category } from "@/lib/types"
 import { ProductCard } from "./components/product-card"
 import { ProductFilters } from "./components/product-filters"
@@ -53,7 +53,7 @@ export default function ShopPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  
+
   // Feature filters
   const [inStock, setInStock] = useState<boolean | undefined>(undefined)
   const [onSale, setOnSale] = useState<boolean | undefined>(undefined)
@@ -61,15 +61,15 @@ export default function ShopPage() {
 
   // Cart store
   const { isOpen, setCartOpen, getItemCount, loadCart } = useCartStore()
-  
+
   // Wishlist store
   const { loadWishlists, getWishlistItemCount } = useWishlistStore()
 
-  const loadProducts = async (page: number = 1, search: string = "", categoryId?: number, priceRange?: [number, number], sortBy?: string, featureFilters?: {inStock?: boolean, onSale?: boolean, isDigital?: boolean}) => {
+  const loadProducts = async (page: number = 1, search: string = "", categoryId?: number, priceRange?: [number, number], sortBy?: string, featureFilters?: { inStock?: boolean, onSale?: boolean, isDigital?: boolean }) => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const filters: any = {
         page,
         limit: 12,
@@ -78,20 +78,20 @@ export default function ShopPage() {
         sort_by: sortBy || "created_at",
         sort_order: "desc"
       }
-      
+
       // Only add price filters if explicitly set by user (not default values)
       if (priceRange && priceRange.length === 2) {
         filters.min_price = priceRange[0]
         filters.max_price = priceRange[1]
       }
-      
+
       // Add feature filters if provided
       if (featureFilters) {
         if (featureFilters.inStock !== undefined) filters.in_stock = featureFilters.inStock
         if (featureFilters.onSale !== undefined) filters.on_sale = featureFilters.onSale
         if (featureFilters.isDigital !== undefined) filters.is_digital = featureFilters.isDigital
       }
-      
+
       const response = await productApi.getProducts(filters)
       setProducts(response.data.products)
       setTotalPages(response.data.total_pages)
@@ -117,7 +117,7 @@ export default function ShopPage() {
   }
 
   useEffect(() => {
-    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital})
+    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, { inStock, onSale, isDigital })
     loadCategories()
     // Load cart to show correct item count
     loadCart().catch(error => {
@@ -129,49 +129,49 @@ export default function ShopPage() {
       console.warn('Wishlist loading failed:', error)
       // Continue without wishlist functionality
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)
     setCurrentPage(1)
-    loadProducts(1, value, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital})
+    loadProducts(1, value, selectedCategory, priceRange, sortBy, { inStock, onSale, isDigital })
   }
 
   const handleCategoryFilter = (categoryId: number | undefined) => {
     setSelectedCategory(categoryId)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, categoryId, priceRange, sortBy, {inStock, onSale, isDigital})
+    loadProducts(1, searchTerm, categoryId, priceRange, sortBy, { inStock, onSale, isDigital })
   }
 
   const handlePriceFilter = (range: [number, number] | undefined) => {
     setPriceRange(range)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, selectedCategory, range, sortBy, {inStock, onSale, isDigital})
+    loadProducts(1, searchTerm, selectedCategory, range, sortBy, { inStock, onSale, isDigital })
   }
 
   const handleInStockFilter = (value: boolean | undefined) => {
     setInStock(value)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, {inStock: value, onSale, isDigital})
+    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, { inStock: value, onSale, isDigital })
   }
 
   const handleOnSaleFilter = (value: boolean | undefined) => {
     setOnSale(value)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale: value, isDigital})
+    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, { inStock, onSale: value, isDigital })
   }
 
   const handleIsDigitalFilter = (value: boolean | undefined) => {
     setIsDigital(value)
     setCurrentPage(1)
-    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital: value})
+    loadProducts(1, searchTerm, selectedCategory, priceRange, sortBy, { inStock, onSale, isDigital: value })
   }
 
   const handleSort = (sort: string) => {
     setSortBy(sort)
     setCurrentPage(1)
-    
+
     // Map frontend sort values to backend sort values
     let backendSort = "created_at"
     switch (sort) {
@@ -190,8 +190,8 @@ export default function ShopPage() {
       default:
         backendSort = "created_at"
     }
-    
-    loadProducts(1, searchTerm, selectedCategory, priceRange, backendSort, {inStock, onSale, isDigital})
+
+    loadProducts(1, searchTerm, selectedCategory, priceRange, backendSort, { inStock, onSale, isDigital })
   }
 
   // No need for client-side filtering since we're doing it on the backend
@@ -210,7 +210,7 @@ export default function ShopPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
+              <Button
                 variant="outline"
                 asChild
                 className="flex items-center gap-2"
@@ -220,7 +220,7 @@ export default function ShopPage() {
                   Wishlist <WishlistCount />
                 </Link>
               </Button>
-              <Button 
+              <Button
                 onClick={() => setCartOpen(true)}
                 className="flex items-center gap-2"
               >
@@ -334,7 +334,7 @@ export default function ShopPage() {
               </div>
             ) : (
               <div className={
-                viewMode === "grid" 
+                viewMode === "grid"
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                   : "space-y-4"
               }>
@@ -357,7 +357,7 @@ export default function ShopPage() {
                   onClick={() => {
                     const newPage = Math.max(1, currentPage - 1)
                     setCurrentPage(newPage)
-                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital})
+                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy, { inStock, onSale, isDigital })
                   }}
                   disabled={currentPage <= 1 || loading}
                 >
@@ -371,7 +371,7 @@ export default function ShopPage() {
                   onClick={() => {
                     const newPage = Math.min(totalPages, currentPage + 1)
                     setCurrentPage(newPage)
-                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy, {inStock, onSale, isDigital})
+                    loadProducts(newPage, searchTerm, selectedCategory, priceRange, sortBy, { inStock, onSale, isDigital })
                   }}
                   disabled={currentPage >= totalPages || loading}
                 >

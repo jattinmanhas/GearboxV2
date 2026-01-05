@@ -76,6 +76,7 @@ type ProductImage struct {
 	ProductID int64     `json:"product_id" db:"product_id"`
 	URL       string    `json:"url" db:"url"`
 	Alt       string    `json:"alt" db:"alt"`
+	PublicID  string    `json:"public_id" db:"public_id"`
 	Position  int       `json:"position" db:"position"`
 	IsPrimary bool      `json:"is_primary" db:"is_primary"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`

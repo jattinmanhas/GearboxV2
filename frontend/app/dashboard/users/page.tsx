@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { userApi, roleApi } from "@/lib/api"
+import { userApi, roleApi } from "@/lib/apiFunctions"
 import { User, Role, UserFilters, UpdateUserRequest, ChangePasswordRequest } from "@/lib/types"
 import { UserTable } from "./components/user-table"
 import { UserForm } from "./components/user-form"
@@ -35,7 +35,7 @@ export default function UsersPage() {
       setLoading(true)
       setError(null)
       const response = await userApi.getUsers(filters)
-      
+
       // Ensure we have valid data
       const usersData = response.data?.users || []
       setUsers(usersData)
@@ -59,7 +59,7 @@ export default function UsersPage() {
   const loadRoles = useCallback(async () => {
     try {
       const response = await roleApi.getRoles()
-      
+
       // Ensure we have an array
       const rolesData = Array.isArray(response) ? response : []
       setRoles(rolesData)
@@ -91,7 +91,7 @@ export default function UsersPage() {
 
   const handleDeleteUser = async (id: number) => {
     if (!confirm("Are you sure you want to delete this user?")) return
-    
+
     try {
       setError(null)
       await userApi.deleteUser(id)
@@ -116,7 +116,7 @@ export default function UsersPage() {
 
   const handleLogoutAll = async (id: number) => {
     if (!confirm("Are you sure you want to logout this user from all devices?")) return
-    
+
     try {
       setError(null)
       await userApi.logoutAll(id)

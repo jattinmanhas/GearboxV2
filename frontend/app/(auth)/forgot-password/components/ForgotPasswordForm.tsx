@@ -8,7 +8,7 @@ import { AlertMessage } from "@/components/ui/alert-message"
 import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { authApi, ApiError } from "@/lib/api"
+import { authApi, ApiError } from "@/lib/apiFunctions"
 
 export function ForgotPasswordForm({
   className,
@@ -80,7 +80,7 @@ export function ForgotPasswordForm({
         identifierType === "email" ? identifier : undefined,
         identifierType === "username" ? identifier : undefined
       )
-      
+
       if (response.message) {
         // Always show success message (security best practice - don't reveal if email exists)
         setSuccess(true)
@@ -107,9 +107,9 @@ export function ForgotPasswordForm({
             If an account with that email or username exists, we've sent you a password reset link.
           </p>
         </div>
-        
+
         <AlertMessage type="success" message="Password reset email sent successfully!" />
-        
+
         <div className="text-center text-sm">
           <Link href="/login" className="underline underline-offset-4">
             Back to login
@@ -127,17 +127,17 @@ export function ForgotPasswordForm({
           Enter your email address or username and we'll send you a link to reset your password.
         </p>
       </div>
-      
+
       <AlertMessage type="error" message={submitError} />
 
       <div className="grid gap-6">
         <div className="grid gap-3">
           <Label htmlFor="identifier">Email or Username</Label>
-          <Input 
+          <Input
             className={cn("inherit dark:bg-neutral-800/50", errors.identifier && "border-red-500")}
-            id="identifier" 
-            type="text" 
-            placeholder="user@example.com or username" 
+            id="identifier"
+            type="text"
+            placeholder="user@example.com or username"
             value={identifier}
             onChange={(e) => handleInputChange(e.target.value)}
             disabled={isLoading}

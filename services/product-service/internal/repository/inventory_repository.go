@@ -514,18 +514,28 @@ func (r *inventoryRepository) GetInventoryAlerts(ctx context.Context, resolved *
 
 	if resolved != nil {
 		query = `
-			SELECT id, product_id, product_variant_id, alert_type, current_quantity, threshold_quantity,
-				   is_resolved, resolved_at, created_at
-			FROM inventory_alerts WHERE is_resolved = $1
-			ORDER BY created_at DESC`
+			SELECT ia.id, ia.product_id, p.name AS product_name, p.sku AS product_sku,
+			       ia.product_variant_id, pv.name AS variant_name, pv.sku AS variant_sku,
+			       ia.alert_type, ia.current_quantity, ia.threshold_quantity,
+			       ia.is_resolved, ia.resolved_at, ia.created_at
+			FROM inventory_alerts ia
+			JOIN products p ON ia.product_id = p.id
+			JOIN product_variants pv ON ia.product_variant_id = pv.id
+			WHERE ia.is_resolved = $1
+			ORDER BY ia.created_at DESC
+		`
 		args = []interface{}{*resolved}
 	} else {
 		query = `
-			SELECT id, product_id, product_variant_id, alert_type, current_quantity, threshold_quantity,
-				   is_resolved, resolved_at, created_at
-			FROM inventory_alerts
-			ORDER BY created_at DESC`
-		args = []interface{}{}
+			SELECT ia.id, ia.product_id, p.name AS product_name, p.sku AS product_sku,
+			       ia.product_variant_id, pv.name AS variant_name, pv.sku AS variant_sku,
+			       ia.alert_type, ia.current_quantity, ia.threshold_quantity,
+			       ia.is_resolved, ia.resolved_at, ia.created_at
+			FROM inventory_alerts ia
+			JOIN products p ON ia.product_id = p.id
+			JOIN product_variants pv ON ia.product_variant_id = pv.id
+			ORDER BY ia.created_at DESC
+		`
 	}
 
 	err := r.db.SelectContext(ctx, &alerts, query, args...)

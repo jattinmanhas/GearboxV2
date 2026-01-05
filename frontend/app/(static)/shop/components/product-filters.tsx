@@ -181,7 +181,7 @@ export function ProductFilters({
                   All Categories
                 </Label>
               </div>
-              {categories.map((category) => (
+              {categories && categories.length > 0 && categories.map((category) => (
                 <div key={category.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`category-${category.id}`}

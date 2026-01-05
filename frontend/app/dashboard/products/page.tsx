@@ -1,42 +1,50 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Plus, 
-  Search, 
-  Package,
-  Filter,
-  Download
-} from "lucide-react"
-import { productApi } from "@/lib/api"
-import { Product, Category, CreateProductRequest, UpdateProductRequest, ProductFilters } from "@/lib/types"
-import { ProductForm } from "./components/product-form"
-import { ProductTable } from "./components/product-table"
-import { ProductVariantManager } from "./components/product-variant-manager"
-import { LoadingState } from "@/components/ui/loading"
+import { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Search, Package, Filter, Download } from "lucide-react";
+import { productApi } from "@/lib/apiFunctions";
+import {
+  Product,
+  Category,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ProductFilters,
+} from "@/lib/types";
+import { ProductForm } from "./components/product-form";
+import { ProductTable } from "./components/product-table";
+import { ProductVariantManager } from "./components/product-variant-manager";
+import { CategorySelector } from "./components/category-selector";
+import { LoadingState } from "@/components/ui/loading";
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
-  const [showVariantManager, setShowVariantManager] = useState(false)
-  const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null)
-  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showVariantManager, setShowVariantManager] = useState(false);
+  const [selectedProductForVariants, setSelectedProductForVariants] =
+    useState<Product | null>(null);
+
   // Search input state (separate from filters to prevent clearing)
-  const [searchInput, setSearchInput] = useState("")
-  
+  const [searchInput, setSearchInput] = useState("");
+
   // Filter states
   const [filters, setFilters] = useState<ProductFilters>({
     page: 1,
@@ -50,83 +58,83 @@ export default function ProductsPage() {
     in_stock: undefined,
     tags: [],
     sort_by: "created_at",
-    sort_order: "desc"
-  })
+    sort_order: "desc",
+  });
 
   const loadProducts = async (newFilters?: Partial<ProductFilters>) => {
     try {
-      setLoading(true)
-      setError(null)
-      const updatedFilters = { ...filters, ...newFilters }
-      const response = await productApi.getProducts(updatedFilters)
-      setProducts(response.data?.products || [])
-      setTotalPages(response.data?.total_pages || 1)
-      setTotal(response.data?.total || 0)
-      setCurrentPage(response.data?.page || 1)
-      setFilters(updatedFilters)
+      setLoading(true);
+      setError(null);
+      const updatedFilters = { ...filters, ...newFilters };
+      const response = await productApi.getProducts(updatedFilters);
+      setProducts(response.data?.products || []);
+      setTotalPages(response.data?.total_pages || 1);
+      setTotal(response.data?.total || 0);
+      setCurrentPage(response.data?.page || 1);
+      setFilters(updatedFilters);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load products")
+      setError(err instanceof Error ? err.message : "Failed to load products");
       // Reset products on error to prevent null reference
-      setProducts([])
-      setTotalPages(1)
-      setTotal(0)
-      setCurrentPage(1)
+      setProducts([]);
+      setTotalPages(1);
+      setTotal(0);
+      setCurrentPage(1);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const loadCategories = async () => {
+  const searchCategories = useCallback(async (query: string) => {
     try {
-      const response = await productApi.getCategories({ 
+      const response = await productApi.getCategories({
+        search: query,
+        limit: 20,
         page: 1,
-        limit: 10 
-      })
-      setCategories(response.data?.categories || [])
+      });
+      setCategories(response.data?.categories || []);
     } catch (err) {
-      console.error("Failed to load categories:", err)
+      console.error("Failed to search categories:", err);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadProducts()
-    loadCategories()
-  }, [])
+    loadProducts();
+  }, []);
 
   // Debounced search function
   const debouncedSearch = useCallback(
     (() => {
-      let timeoutId: NodeJS.Timeout
+      let timeoutId: NodeJS.Timeout;
       return (value: string) => {
-        clearTimeout(timeoutId)
+        clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
-          loadProducts({ search: value, page: 1 })
-        }, 300) // 300ms delay
-      }
+          loadProducts({ search: value, page: 1 });
+        }, 300); // 300ms delay
+      };
     })(),
     []
-  )
+  );
 
   const handleSearchInput = (value: string) => {
-    setSearchInput(value)
-    debouncedSearch(value)
-  }
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
 
   const handleSearch = (value: string) => {
-    setSearchInput(value)
-    loadProducts({ search: value, page: 1 })
-  }
+    setSearchInput(value);
+    loadProducts({ search: value, page: 1 });
+  };
 
   const handleFilterChange = (key: keyof ProductFilters, value: any) => {
-    loadProducts({ [key]: value, page: 1 })
-  }
+    loadProducts({ [key]: value, page: 1 });
+  };
 
   const handlePageChange = (page: number) => {
-    loadProducts({ page })
-  }
+    loadProducts({ page });
+  };
 
   const clearFilters = () => {
-    setSearchInput("")
+    setSearchInput("");
     const clearedFilters: ProductFilters = {
       page: 1,
       limit: 10,
@@ -139,73 +147,78 @@ export default function ProductsPage() {
       in_stock: undefined,
       tags: [],
       sort_by: "created_at",
-      sort_order: "desc"
-    }
-    loadProducts(clearedFilters)
-  }
+      sort_order: "desc",
+    };
+    loadProducts(clearedFilters);
+  };
 
   const handleCreateProduct = async (productData: CreateProductRequest) => {
     try {
-      console.log('[ProductsPage] Creating product with data:', productData)
-      console.log('[ProductsPage] Images in request:', productData.images)
-      await productApi.createProduct(productData)
-      setShowForm(false)
-      loadProducts()
+      console.log("[ProductsPage] Creating product with data:", productData);
+      console.log("[ProductsPage] Images in request:", productData.images);
+      await productApi.createProduct(productData);
+      setShowForm(false);
+      loadProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create product")
+      setError(err instanceof Error ? err.message : "Failed to create product");
     }
-  }
+  };
 
-  const handleUpdateProduct = async (id: number, productData: UpdateProductRequest) => {
+  const handleUpdateProduct = async (
+    id: number,
+    productData: UpdateProductRequest
+  ) => {
     try {
-      console.log('[ProductsPage] Updating product with data:', productData)
-      console.log('[ProductsPage] Images in request:', productData.images)
-      await productApi.updateProduct(id, productData)
-      setEditingProduct(null)
-      setShowForm(false)
-      loadProducts()
+      console.log("[ProductsPage] Updating product with data:", productData);
+      console.log("[ProductsPage] Images in request:", productData.images);
+      await productApi.updateProduct(id, productData);
+      setEditingProduct(null);
+      setShowForm(false);
+      loadProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update product")
+      setError(err instanceof Error ? err.message : "Failed to update product");
     }
-  }
+  };
 
   const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this product?")) return
-    
+    if (!confirm("Are you sure you want to delete this product?")) return;
+
     try {
-      await productApi.deleteProduct(id)
-      loadProducts()
+      await productApi.deleteProduct(id);
+      loadProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete product")
+      setError(err instanceof Error ? err.message : "Failed to delete product");
     }
-  }
+  };
 
   const handleEdit = (product: Product) => {
-    setEditingProduct(product)
-    setShowForm(true)
-  }
+    setEditingProduct(product);
+    setShowForm(true);
+  };
 
   const handleCancel = () => {
-    setShowForm(false)
-    setEditingProduct(null)
-  }
+    setShowForm(false);
+    setEditingProduct(null);
+  };
 
   const handleManageVariants = (product: Product) => {
-    setSelectedProductForVariants(product)
-    setShowVariantManager(true)
-  }
+    setSelectedProductForVariants(product);
+    setShowVariantManager(true);
+  };
 
   const handleVariantManagerCancel = () => {
-    setShowVariantManager(false)
-    setSelectedProductForVariants(null)
-  }
+    setShowVariantManager(false);
+    setSelectedProductForVariants(null);
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Products
+          </h1>
           <p className="text-muted-foreground">
             Manage your product catalog and inventory
           </p>
@@ -215,7 +228,10 @@ export default function ProductsPage() {
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add Product</span>
             <span className="sm:hidden">Add</span>
@@ -242,13 +258,9 @@ export default function ProductsPage() {
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               >
                 <Filter className="h-4 w-4 mr-2" />
-                {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                {showAdvancedFilters ? "Hide" : "Show"} Filters
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-              >
+              <Button variant="outline" size="sm" onClick={clearFilters}>
                 Clear All
               </Button>
             </div>
@@ -268,18 +280,13 @@ export default function ProductsPage() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <select
-                  value={filters.category_id || ""}
-                  onChange={(e) => handleFilterChange('category_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm min-w-[150px]"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <CategorySelector
+                  value={filters.category_id}
+                  onChange={(value) => handleFilterChange("category_id", value)}
+                  onSearch={searchCategories}
+                  options={categories}
+                  placeholder="All Categories"
+                />
               </div>
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Package className="h-3 w-3" />
@@ -294,8 +301,19 @@ export default function ProductsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Status</label>
                   <select
-                    value={filters.is_active === undefined ? "" : filters.is_active.toString()}
-                    onChange={(e) => handleFilterChange('is_active', e.target.value === "" ? undefined : e.target.value === "true")}
+                    value={
+                      filters.is_active === undefined
+                        ? ""
+                        : filters.is_active.toString()
+                    }
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "is_active",
+                        e.target.value === ""
+                          ? undefined
+                          : e.target.value === "true"
+                      )
+                    }
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="">All Status</option>
@@ -308,8 +326,19 @@ export default function ProductsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Type</label>
                   <select
-                    value={filters.is_digital === undefined ? "" : filters.is_digital.toString()}
-                    onChange={(e) => handleFilterChange('is_digital', e.target.value === "" ? undefined : e.target.value === "true")}
+                    value={
+                      filters.is_digital === undefined
+                        ? ""
+                        : filters.is_digital.toString()
+                    }
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "is_digital",
+                        e.target.value === ""
+                          ? undefined
+                          : e.target.value === "true"
+                      )
+                    }
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="">All Types</option>
@@ -322,8 +351,19 @@ export default function ProductsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Stock</label>
                   <select
-                    value={filters.in_stock === undefined ? "" : filters.in_stock.toString()}
-                    onChange={(e) => handleFilterChange('in_stock', e.target.value === "" ? undefined : e.target.value === "true")}
+                    value={
+                      filters.in_stock === undefined
+                        ? ""
+                        : filters.in_stock.toString()
+                    }
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "in_stock",
+                        e.target.value === ""
+                          ? undefined
+                          : e.target.value === "true"
+                      )
+                    }
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="">All Stock</option>
@@ -337,7 +377,9 @@ export default function ProductsPage() {
                   <label className="text-sm font-medium">Sort By</label>
                   <select
                     value={filters.sort_by || ""}
-                    onChange={(e) => handleFilterChange('sort_by', e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("sort_by", e.target.value)
+                    }
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="created_at">Date Created</option>
@@ -354,7 +396,12 @@ export default function ProductsPage() {
                     type="number"
                     placeholder="0.00"
                     value={filters.min_price || ""}
-                    onChange={(e) => handleFilterChange('min_price', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "min_price",
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
                     className="w-full"
                   />
                 </div>
@@ -365,7 +412,12 @@ export default function ProductsPage() {
                     type="number"
                     placeholder="999.99"
                     value={filters.max_price || ""}
-                    onChange={(e) => handleFilterChange('max_price', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "max_price",
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
                     className="w-full"
                   />
                 </div>
@@ -375,7 +427,12 @@ export default function ProductsPage() {
                   <label className="text-sm font-medium">Order</label>
                   <select
                     value={filters.sort_order || "desc"}
-                    onChange={(e) => handleFilterChange('sort_order', e.target.value as 'asc' | 'desc')}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        "sort_order",
+                        e.target.value as "asc" | "desc"
+                      )
+                    }
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="desc">Descending</option>
@@ -424,9 +481,11 @@ export default function ProductsPage() {
         <ProductForm
           product={editingProduct}
           categories={categories}
-          onSave={editingProduct ? 
-            (data: UpdateProductRequest) => handleUpdateProduct(editingProduct.id, data) : 
-            (data: CreateProductRequest) => handleCreateProduct(data)
+          onSave={
+            editingProduct
+              ? (data: UpdateProductRequest) =>
+                handleUpdateProduct(editingProduct.id, data)
+              : (data: CreateProductRequest) => handleCreateProduct(data)
           }
           onCancel={handleCancel}
         />
@@ -463,5 +522,5 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

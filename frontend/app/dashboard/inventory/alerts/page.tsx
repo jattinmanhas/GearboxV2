@@ -1,126 +1,163 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  AlertTriangle, 
-  TrendingDown, 
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertTriangle,
+  TrendingDown,
   TrendingUp,
   RefreshCw,
   CheckCircle,
-  XCircle
-} from "lucide-react"
-import { InventoryAlert } from "@/lib/types"
+  XCircle,
+} from "lucide-react";
+import { InventoryAlert } from "@/lib/types";
+import { inventoryApi } from "@/lib/apiFunctions";
 
 export default function InventoryAlertsPage() {
-  const [alerts, setAlerts] = useState<InventoryAlert[]>([])
-  const [loading, setLoading] = useState(true)
-  const [resolvedFilter, setResolvedFilter] = useState<boolean | undefined>(undefined)
+  const [alerts, setAlerts] = useState<InventoryAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resolvedFilter, setResolvedFilter] = useState<boolean | undefined>(
+    undefined
+  );
+  const [isCheckingAlerts, setIsCheckingAlerts] = useState(false);
 
   // Fetch inventory alerts
   const fetchAlerts = async () => {
     try {
-      setLoading(true)
-      const params = new URLSearchParams()
+      setLoading(true);
+      const params = new URLSearchParams();
       if (resolvedFilter !== undefined) {
-        params.append('resolved', resolvedFilter.toString())
+        params.append("resolved", resolvedFilter.toString());
       }
 
-      const response = await fetch(`/api/v1/inventory/alerts?${params}`, {
-        credentials: 'include'
-      })
-      const data = await response.json()
-      
-      if (response.ok) {
-        setAlerts(data.data || [])
+      const response = await inventoryApi.getInventoryAlerts(params.toString());
+      console.log(response);
+      if (response.success) {
+        setAlerts(response.data || []);
+      } else {
+        const msg = response.message || "Failed to fetch inventory alerts";
+        console.error("Inventory alerts fetch failed:", response);
       }
     } catch (error) {
-      console.error('Error fetching inventory alerts:', error)
+      console.error("Error fetching inventory alerts:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Check inventory alerts
+  const checkAlerts = async () => {
+    try {
+      setIsCheckingAlerts(true);
+      const response = await inventoryApi.checkInventoryAlerts();
+
+      if (response.success) {
+        // Refresh the alerts list after checking
+        await fetchAlerts();
+      } else {
+        console.error("Failed to check inventory alerts:", response.message);
+      }
+    } catch (error) {
+      console.error("Error checking inventory alerts:", error);
+    } finally {
+      setIsCheckingAlerts(false);
+    }
+  };
 
   // Resolve alert
   const resolveAlert = async (alertId: number) => {
     try {
-      const response = await fetch(`/api/v1/inventory/alerts/${alertId}/resolve`, {
-        method: 'PUT',
-        credentials: 'include'
-      })
+      const response = await inventoryApi.resolveInventoryAlert(alertId);
 
-      if (response.ok) {
-        fetchAlerts()
+      if (response.success) {
+        fetchAlerts();
       }
     } catch (error) {
-      console.error('Error resolving alert:', error)
+      console.error("Error resolving alert:", error);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchAlerts()
-  }, [resolvedFilter])
+    fetchAlerts();
+  }, [resolvedFilter]);
 
   const getAlertIcon = (alertType: string) => {
     switch (alertType) {
-      case 'low_stock':
-        return <TrendingDown className="h-5 w-5 text-yellow-500" />
-      case 'out_of_stock':
-        return <XCircle className="h-5 w-5 text-red-500" />
-      case 'overstock':
-        return <TrendingUp className="h-5 w-5 text-blue-500" />
+      case "low_stock":
+        return <TrendingDown className="h-5 w-5 text-yellow-500" />;
+      case "out_of_stock":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case "overstock":
+        return <TrendingUp className="h-5 w-5 text-blue-500" />;
       default:
-        return <AlertTriangle className="h-5 w-5 text-gray-500" />
+        return <AlertTriangle className="h-5 w-5 text-gray-500" />;
     }
-  }
+  };
 
   const getAlertColor = (alertType: string) => {
     switch (alertType) {
-      case 'low_stock':
-        return 'bg-yellow-50 border-yellow-200'
-      case 'out_of_stock':
-        return 'bg-red-50 border-red-200'
-      case 'overstock':
-        return 'bg-blue-50 border-blue-200'
+      case "low_stock":
+        return "bg-yellow-50 border-yellow-200";
+      case "out_of_stock":
+        return "bg-red-50 border-red-200";
+      case "overstock":
+        return "bg-blue-50 border-blue-200";
       default:
-        return 'bg-gray-50 border-gray-200'
+        return "bg-gray-50 border-gray-200";
     }
-  }
+  };
 
   const getAlertBadgeColor = (alertType: string) => {
     switch (alertType) {
-      case 'low_stock':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'out_of_stock':
-        return 'bg-red-100 text-red-800'
-      case 'overstock':
-        return 'bg-blue-100 text-blue-800'
+      case "low_stock":
+        return "bg-yellow-100 text-yellow-800";
+      case "out_of_stock":
+        return "bg-red-100 text-red-800";
+      case "overstock":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800'
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
-  const filteredAlerts = alerts.filter(alert => {
-    if (resolvedFilter === undefined) return true
-    return alert.is_resolved === resolvedFilter
-  })
+  const filteredAlerts = alerts.filter((alert) => {
+    if (resolvedFilter === undefined) return true;
+    return alert.is_resolved === resolvedFilter;
+  });
 
-  const activeAlerts = alerts.filter(alert => !alert.is_resolved)
-  const resolvedAlerts = alerts.filter(alert => alert.is_resolved)
+  const activeAlerts = alerts.filter((alert) => !alert.is_resolved);
+  const resolvedAlerts = alerts.filter((alert) => alert.is_resolved);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory Alerts</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Inventory Alerts
+          </h1>
           <p className="text-muted-foreground">
             Monitor and manage inventory alerts and warnings
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={checkAlerts}
+            disabled={isCheckingAlerts}
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            {isCheckingAlerts ? "Checking..." : "Check Inventory Alerts"}
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchAlerts}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -142,27 +179,31 @@ export default function InventoryAlertsPage() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{activeAlerts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Requiring attention
-            </p>
+            <div className="text-2xl font-bold text-red-600">
+              {activeAlerts.length}
+            </div>
+            <p className="text-xs text-muted-foreground">Requiring attention</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved Alerts</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Resolved Alerts
+            </CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{resolvedAlerts.length}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {resolvedAlerts.length}
+            </div>
             <p className="text-xs text-muted-foreground">
               Successfully resolved
             </p>
@@ -222,39 +263,62 @@ export default function InventoryAlertsPage() {
               {filteredAlerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className={`p-4 border rounded-lg ${getAlertColor(alert.alert_type)}`}
+                  className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       {getAlertIcon(alert.alert_type)}
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium">
-                            {alert.product_name} {alert.variant_name && `(${alert.variant_name})`}
+                          <h3 className="font-semibold text-foreground">
+                            {alert.product_name}{" "}
+                            {alert.variant_name && `(${alert.variant_name})`}
                           </h3>
-                          <Badge className={getAlertBadgeColor(alert.alert_type)}>
-                            {alert.alert_type.replace('_', ' ').toUpperCase()}
+                          <Badge
+                            className={getAlertBadgeColor(alert.alert_type)}
+                          >
+                            {alert.alert_type.replace("_", " ").toUpperCase()}
                           </Badge>
-                          <Badge variant={alert.is_resolved ? "secondary" : "destructive"}>
+                          <Badge
+                            variant={
+                              alert.is_resolved ? "secondary" : "destructive"
+                            }
+                          >
                             {alert.is_resolved ? "Resolved" : "Active"}
                           </Badge>
                         </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>
-                            <strong>Current Stock:</strong> {alert.current_quantity} units
+                        <div className="text-sm space-y-1.5">
+                          <p className="text-foreground/80">
+                            <span className="font-medium text-foreground">
+                              Current Stock:
+                            </span>{" "}
+                            {alert.current_quantity} units
                           </p>
-                          <p>
-                            <strong>Threshold:</strong> {alert.threshold_quantity} units
+                          <p className="text-foreground/80">
+                            <span className="font-medium text-foreground">
+                              Threshold:
+                            </span>{" "}
+                            {alert.threshold_quantity} units
                           </p>
-                          <p>
-                            <strong>SKU:</strong> {alert.product_sku} {alert.variant_sku && `(${alert.variant_sku})`}
+                          <p className="text-foreground/80">
+                            <span className="font-medium text-foreground">
+                              SKU:
+                            </span>{" "}
+                            {alert.product_sku}{" "}
+                            {alert.variant_sku && `(${alert.variant_sku})`}
                           </p>
-                          <p>
-                            <strong>Created:</strong> {new Date(alert.created_at).toLocaleString()}
+                          <p className="text-foreground/70 text-xs">
+                            <span className="font-medium text-foreground/80">
+                              Created:
+                            </span>{" "}
+                            {new Date(alert.created_at).toLocaleString()}
                           </p>
                           {alert.resolved_at && (
-                            <p>
-                              <strong>Resolved:</strong> {new Date(alert.resolved_at).toLocaleString()}
+                            <p className="text-foreground/70 text-xs">
+                              <span className="font-medium text-foreground/80">
+                                Resolved:
+                              </span>{" "}
+                              {new Date(alert.resolved_at).toLocaleString()}
                             </p>
                           )}
                         </div>
@@ -278,5 +342,5 @@ export default function InventoryAlertsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

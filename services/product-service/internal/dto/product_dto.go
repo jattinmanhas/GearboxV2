@@ -158,6 +158,7 @@ type ProductVariantResponse struct {
 type ProductImageRequest struct {
 	URL       string `json:"url" validate:"required,url"`
 	Alt       string `json:"alt" validate:"omitempty,max=255"`
+	PublicID  string `json:"public_id"`
 	Position  int    `json:"position" validate:"omitempty,min=0"`
 	IsPrimary bool   `json:"is_primary"`
 }
@@ -168,6 +169,7 @@ type ProductImageResponse struct {
 	ProductID int64     `json:"product_id"`
 	URL       string    `json:"url"`
 	Alt       string    `json:"alt"`
+	PublicID  string    `json:"public_id"`
 	Position  int       `json:"position"`
 	IsPrimary bool      `json:"is_primary"`
 	CreatedAt time.Time `json:"created_at"`

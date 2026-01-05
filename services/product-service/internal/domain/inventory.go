@@ -59,12 +59,18 @@ type InventoryAlert struct {
 	ProductID        int64  `json:"product_id" db:"product_id"`
 	ProductVariantID *int64 `json:"product_variant_id" db:"product_variant_id"`
 
-	AlertType         string     `json:"alert_type" db:"alert_type"` // low_stock, out_of_stock, reorder_point
+	AlertType         string     `json:"alert_type" db:"alert_type"`
 	CurrentQuantity   int        `json:"current_quantity" db:"current_quantity"`
 	ThresholdQuantity int        `json:"threshold_quantity" db:"threshold_quantity"`
 	IsResolved        bool       `json:"is_resolved" db:"is_resolved"`
 	ResolvedAt        *time.Time `json:"resolved_at" db:"resolved_at"`
 	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
+
+	// Product information
+	ProductName string  `json:"product_name" db:"product_name"`
+	ProductSKU  string  `json:"product_sku" db:"product_sku"`
+	VariantName *string `json:"variant_name" db:"variant_name"`
+	VariantSKU  *string `json:"variant_sku" db:"variant_sku"`
 }
 
 // InventorySummary represents inventory summary statistics

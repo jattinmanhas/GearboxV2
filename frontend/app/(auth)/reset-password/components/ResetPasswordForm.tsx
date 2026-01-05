@@ -8,7 +8,7 @@ import { AlertMessage } from "@/components/ui/alert-message"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { authApi, ApiError } from "@/lib/api"
+import { authApi, ApiError } from "@/lib/apiFunctions"
 import { PasswordStrength } from "@/app/(auth)/register/components/password-strength"
 
 export function ResetPasswordForm({
@@ -48,11 +48,11 @@ export function ResetPasswordForm({
     const hasUpper = /[A-Z]/.test(password)
     const hasLower = /[a-z]/.test(password)
     const hasNumber = /[0-9]/.test(password)
-    
+
     if (!hasUpper || !hasLower || !hasNumber) {
-      setErrors(prev => ({ 
-        ...prev, 
-        password: "Password must contain at least one uppercase letter, one lowercase letter, and one number" 
+      setErrors(prev => ({
+        ...prev,
+        password: "Password must contain at least one uppercase letter, one lowercase letter, and one number"
       }))
       return false
     }
@@ -112,7 +112,7 @@ export function ResetPasswordForm({
 
     try {
       const response = await authApi.resetPassword(token, password)
-      
+
       if (response.message) {
         setSuccess(true)
         // Redirect to login after 3 seconds
@@ -135,22 +135,22 @@ export function ResetPasswordForm({
 
   if (success) {
     return (
-      <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <form className={cn("flex flex-col gap-6", className)} onSubmit={(e) => e.preventDefault()} {...props}>
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Password reset successful!</h1>
           <p className="text-muted-foreground text-sm text-balance">
             Your password has been reset successfully. Redirecting to login...
           </p>
         </div>
-        
+
         <AlertMessage type="success" message="Password reset successfully!" />
-        
+
         <div className="text-center text-sm">
           <Link href="/login" className="underline underline-offset-4">
             Go to login
           </Link>
         </div>
-      </div>
+      </form>
     )
   }
 
@@ -162,16 +162,16 @@ export function ResetPasswordForm({
           Enter your new password below.
         </p>
       </div>
-      
+
       <AlertMessage type="error" message={submitError} />
 
       <div className="grid gap-6">
         <div className="grid gap-3">
           <Label htmlFor="password">New Password</Label>
-          <Input 
+          <Input
             className={cn("inherit dark:bg-neutral-800/50", errors.password && "border-red-500")}
-            id="password" 
-            type="password" 
+            id="password"
+            type="password"
             value={password}
             onChange={(e) => handleInputChange("password", e.target.value)}
             disabled={isLoading}
@@ -184,10 +184,10 @@ export function ResetPasswordForm({
         </div>
         <div className="grid gap-3">
           <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input 
+          <Input
             className={cn("inherit dark:bg-neutral-800/50", errors.confirmPassword && "border-red-500")}
-            id="confirmPassword" 
-            type="password" 
+            id="confirmPassword"
+            type="password"
             value={confirmPassword}
             onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
             disabled={isLoading}

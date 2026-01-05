@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Loader2, ArrowRight } from "lucide-react"
-import { orderApi } from "@/lib/api"
+import { orderApi } from "@/lib/apiFunctions"
 import { formatCurrency } from "@/lib/currency"
+import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 
 export default function CheckoutSuccessPage() {
@@ -92,7 +93,7 @@ export default function CheckoutSuccessPage() {
                 <span className="font-medium">Order Number</span>
                 <span className="font-semibold">{order.order_number || `#${order.id}`}</span>
               </div>
-              
+
               <div className="flex justify-between items-center pb-2 border-b">
                 <span className="font-medium">Order Status</span>
                 <span className="capitalize">{order.status}</span>

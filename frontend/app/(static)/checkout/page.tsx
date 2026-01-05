@@ -8,10 +8,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { 
-  ShoppingCart, 
-  MapPin, 
-  CreditCard, 
+import {
+  ShoppingCart,
+  MapPin,
+  CreditCard,
   Check,
   Loader2,
   ArrowLeft,
@@ -19,7 +19,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { useCartStore, useHydrateCartStore } from "@/lib/stores/cart-store"
-import { profileApi, orderApi, paymentApi } from "@/lib/api"
+import { profileApi, orderApi, paymentApi } from "@/lib/apiFunctions"
 import { formatCurrency } from "@/lib/currency"
 import { Address, OrderAddressRequest } from "@/lib/types"
 import { showSuccess, showError, showLoading, updateLoading } from "@/lib/notifications"
@@ -29,25 +29,25 @@ import Image from "next/image"
 export default function CheckoutPage() {
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
-  
+
   // Hydrate the store on client side
   useHydrateCartStore()
-  
-  const { 
-    cart, 
-    items, 
+
+  const {
+    cart,
+    items,
     appliedCoupons,
-    isLoading, 
+    isLoading,
     loadCart,
-    getTotalPrice 
+    getTotalPrice
   } = useCartStore()
-  
+
   const [addresses, setAddresses] = useState<Address[]>([])
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [paymentGateways, setPaymentGateways] = useState<any[]>([])
   const [userEmail, setUserEmail] = useState<string>("")
   const [loadingAddresses, setLoadingAddresses] = useState(true)
-  
+
   const [selectedShippingAddress, setSelectedShippingAddress] = useState<number | null>(null)
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<number | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<number | null>(null)
@@ -66,7 +66,7 @@ export default function CheckoutPage() {
   // Load cart and addresses
   useEffect(() => {
     if (!isMounted) return
-    
+
     const loadData = async () => {
       try {
         // Load cart
@@ -83,7 +83,7 @@ export default function CheckoutPage() {
           const addressesData = await profileApi.getAddresses()
           // getAddresses() always returns an array
           setAddresses(addressesData)
-          
+
           // Set defaults
           if (addressesData.length > 0) {
             const defaultAddress = addressesData.find((a: Address) => a.is_default) || addressesData[0]
@@ -174,8 +174,8 @@ export default function CheckoutPage() {
     try {
       // Get selected addresses
       const shippingAddress = addresses.find(a => a.id === selectedShippingAddress)
-      const billingAddress = sameAsShipping 
-        ? shippingAddress 
+      const billingAddress = sameAsShipping
+        ? shippingAddress
         : addresses.find(a => a.id === selectedBillingAddress)
 
       if (!shippingAddress || !billingAddress) {
@@ -228,7 +228,7 @@ export default function CheckoutPage() {
         return_url: `${window.location.origin}/checkout/success`,
         cancel_url: `${window.location.origin}/checkout`,
       })
-      
+
       // Check if payment gateway requires redirect
       const processedPayment = processResponse?.data || processResponse
       if (processedPayment?.gateway_response?.redirect_url) {
@@ -238,7 +238,7 @@ export default function CheckoutPage() {
       }
 
       updateLoading(loadingToast, "Order placed successfully!", "success")
-      
+
       // Redirect to success page
       setTimeout(() => {
         router.push(`/checkout/success?order_id=${order.id}`)
@@ -283,8 +283,8 @@ export default function CheckoutPage() {
   }
 
   const shippingAddress = addresses.find(a => a.id === selectedShippingAddress)
-  const billingAddress = sameAsShipping 
-    ? shippingAddress 
+  const billingAddress = sameAsShipping
+    ? shippingAddress
     : addresses.find(a => a.id === selectedBillingAddress)
 
   return (
@@ -355,9 +355,8 @@ export default function CheckoutPage() {
                           <RadioGroupItem value={address.id.toString()} id={`shipping-${address.id}`} />
                           <Label
                             htmlFor={`shipping-${address.id}`}
-                            className={`flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50 transition-colors ${
-                              selectedShippingAddress === address.id ? 'border-primary bg-primary/5' : ''
-                            }`}
+                            className={`flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50 transition-colors ${selectedShippingAddress === address.id ? 'border-primary bg-primary/5' : ''
+                              }`}
                           >
                             <div className="flex items-start justify-between w-full">
                               <div className="flex-1">
@@ -452,9 +451,8 @@ export default function CheckoutPage() {
                               <RadioGroupItem value={address.id.toString()} id={`billing-${address.id}`} />
                               <Label
                                 htmlFor={`billing-${address.id}`}
-                                className={`flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50 transition-colors ${
-                                  selectedBillingAddress === address.id ? 'border-primary bg-primary/5' : ''
-                                }`}
+                                className={`flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50 transition-colors ${selectedBillingAddress === address.id ? 'border-primary bg-primary/5' : ''
+                                  }`}
                               >
                                 <div className="flex items-start justify-between w-full">
                                   <div className="flex-1">
@@ -590,9 +588,9 @@ export default function CheckoutPage() {
                     <div key={item.id} className="flex gap-3">
                       <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {item.image ? (
-                          <Image 
-                            src={item.image} 
-                            alt={item.name || 'Product'} 
+                          <Image
+                            src={item.image}
+                            alt={item.name || 'Product'}
                             width={64}
                             height={64}
                             className="w-full h-full object-cover"
@@ -649,8 +647,8 @@ export default function CheckoutPage() {
                   <span>{formatCurrency(cart.total || totalPrice)}</span>
                 </div>
 
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
                   onClick={handleCheckout}
                   disabled={isProcessing || !selectedShippingAddress || !selectedPaymentMethod || !selectedGateway}
