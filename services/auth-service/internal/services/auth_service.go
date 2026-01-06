@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/helpers"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -18,7 +19,7 @@ import (
 
 type IAuthService interface {
 	Login(ctx context.Context, username, password, userAgent, ipAddress string) (*domain.User, *domain.RefreshToken, string, error)
-	RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*domain.User, string, error) // Updated: no longer returns new refresh token
 	Logout(ctx context.Context, refreshToken string) error
 	LogoutAll(ctx context.Context, userID uint) error
 	ValidateAccessToken(ctx context.Context, tokenString string) (*jwt.Claims, error)
@@ -86,10 +87,13 @@ func (a *authService) Login(ctx context.Context, username, password, userAgent, 
 		return nil, nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
+	// Hash the refresh token before storing in database
+	hashedToken := helpers.HashToken(refreshTokenJWT)
+
 	// Create refresh token domain object
 	refreshToken := &domain.RefreshToken{
 		UserID:       user.ID,
-		RefreshToken: refreshTokenJWT,
+		RefreshToken: hashedToken, // Store hashed token
 		ExpiresAt:    time.Now().Add(a.jwtService.GetRefreshTokenExpiry()),
 		CreatedAt:    time.Now(),
 		IsRevoked:    false,
@@ -104,32 +108,39 @@ func (a *authService) Login(ctx context.Context, username, password, userAgent, 
 		return nil, nil, "", fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
+	// Return the plain JWT to be sent to client (not the hash)
+	refreshToken.RefreshToken = refreshTokenJWT
+
 	return user, refreshToken, accessToken, nil
 }
 
-// RefreshToken validates a refresh token and generates new access and refresh tokens
-func (a *authService) RefreshToken(ctx context.Context, refreshTokenString string) (*domain.User, *domain.RefreshToken, string, error) {
+// RefreshToken validates a refresh token and generates a new access token
+// Note: Refresh token is NOT rotated for performance reasons (no DB writes)
+func (a *authService) RefreshToken(ctx context.Context, refreshTokenString string) (*domain.User, string, error) {
 	// Validate refresh token JWT
 	claims, err := a.jwtService.ValidateRefreshToken(refreshTokenString)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("invalid refresh token: %w", err)
+		return nil, "", fmt.Errorf("invalid refresh token: %w", err)
 	}
 
-	// Get refresh token from database
-	dbToken, err := a.refreshTokenRepo.GetRefreshTokenByToken(ctx, refreshTokenString)
+	// Hash the token before looking it up in database
+	hashedToken := helpers.HashToken(refreshTokenString)
+
+	// Get refresh token from database using hashed value
+	dbToken, err := a.refreshTokenRepo.GetRefreshTokenByToken(ctx, hashedToken)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("refresh token not found or expired: %w", err)
+		return nil, "", fmt.Errorf("refresh token not found or expired: %w", err)
 	}
 
 	// Verify token belongs to the same user
 	if dbToken.UserID != claims.UserID {
-		return nil, nil, "", fmt.Errorf("token mismatch")
+		return nil, "", fmt.Errorf("token mismatch")
 	}
 
 	// Get user details
 	user, err := a.userRepo.GetUserByID(ctx, int(claims.UserID))
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("user not found: %w", err)
+		return nil, "", fmt.Errorf("user not found: %w", err)
 	}
 
 	roleName, ok := domain.RoleNames[int(user.RoleID)]
@@ -137,11 +148,6 @@ func (a *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 		user.RoleID, user.Role = domain.GetDefaultRole()
 	} else {
 		user.Role = roleName
-	}
-
-	// Revoke old refresh token
-	if err := a.refreshTokenRepo.RevokeRefreshToken(ctx, refreshTokenString); err != nil {
-		return nil, nil, "", fmt.Errorf("failed to revoke old token: %w", err)
 	}
 
 	// Convert domain user to shared JWT user
@@ -152,42 +158,21 @@ func (a *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 		Role:     user.Role,
 	}
 
-	// Generate new access token (stored in cookie by handler)
+	// Generate new access token only (no refresh token rotation)
 	accessToken, err := a.jwtService.GenerateAccessToken(jwtUser)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to generate access token: %w", err)
+		return nil, "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	// Generate new refresh token
-	refreshTokenJWT, err := a.jwtService.GenerateRefreshToken(jwtUser)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-
-	// Create refresh token domain object
-	newRefreshToken := &domain.RefreshToken{
-		UserID:       user.ID,
-		RefreshToken: refreshTokenJWT,
-		ExpiresAt:    time.Now().Add(a.jwtService.GetRefreshTokenExpiry()),
-		CreatedAt:    time.Now(),
-		IsRevoked:    false,
-	}
-
-	// Copy user agent and IP from old token
-	newRefreshToken.UserAgent = dbToken.UserAgent
-	newRefreshToken.IPAddress = dbToken.IPAddress
-
-	// Store new refresh token in database
-	if err := a.refreshTokenRepo.CreateRefreshToken(ctx, newRefreshToken); err != nil {
-		return nil, nil, "", fmt.Errorf("failed to store new refresh token: %w", err)
-	}
-
-	return user, newRefreshToken, accessToken, nil
+	// Return user and new access token (refresh token remains unchanged)
+	return user, accessToken, nil
 }
 
 // Logout revokes a specific refresh token
 func (a *authService) Logout(ctx context.Context, refreshToken string) error {
-	return a.refreshTokenRepo.RevokeRefreshToken(ctx, refreshToken)
+	// Hash the token before revoking
+	hashedToken := helpers.HashToken(refreshToken)
+	return a.refreshTokenRepo.RevokeRefreshToken(ctx, hashedToken)
 }
 
 // LogoutAll revokes all refresh tokens for a user
@@ -208,8 +193,11 @@ func (a *authService) ValidateRefreshToken(ctx context.Context, refreshTokenStri
 		return nil, fmt.Errorf("invalid refresh token: %w", err)
 	}
 
+	// Hash the token before looking it up in database
+	hashedToken := helpers.HashToken(refreshTokenString)
+
 	// Get refresh token from database to ensure it's not revoked
-	dbToken, err := a.refreshTokenRepo.GetRefreshTokenByToken(ctx, refreshTokenString)
+	dbToken, err := a.refreshTokenRepo.GetRefreshTokenByToken(ctx, hashedToken)
 	if err != nil {
 		return nil, fmt.Errorf("refresh token not found or expired: %w", err)
 	}

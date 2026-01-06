@@ -7,7 +7,71 @@ interface RequestOptions {
     body?: any;
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+// Global variable to track if we're currently refreshing
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+// Function to get access token from AuthContext
+// This will be set by the auth-provider
+let getAccessToken: (() => string | null) | null = null;
+let setAccessToken: ((token: string | null) => void) | null = null;
+
+export function setAuthTokenHandlers(
+    getToken: () => string | null,
+    setToken: (token: string | null) => void
+) {
+    getAccessToken = getToken;
+    setAccessToken = setToken;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+    // If already refreshing, return the existing promise
+    if (isRefreshing && refreshPromise) {
+        return refreshPromise;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                method: "POST",
+                credentials: "include", // Send refresh token cookie
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const newAccessToken = data.data?.access_token || data.access_token;
+
+                if (newAccessToken && setAccessToken) {
+                    setAccessToken(newAccessToken);
+                    return newAccessToken;
+                }
+            }
+
+            // Refresh failed, clear token
+            if (setAccessToken) {
+                setAccessToken(null);
+            }
+            return null;
+        } catch (error) {
+            console.error("Token refresh failed:", error);
+            if (setAccessToken) {
+                setAccessToken(null);
+            }
+            return null;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+}
+
+async function handleResponse<T>(
+    response: Response,
+    isRetry: boolean = false
+): Promise<T> {
     const contentType = response.headers.get("content-type");
     const isJson = contentType?.includes("application/json");
 
@@ -26,18 +90,19 @@ async function handleResponse<T>(response: Response): Promise<T> {
     }
 
     if (!response.ok) {
-        // Handle 401 Unauthorized - clear user state and redirect
-        if (response.status === 401) {
-            const { useUserStore } = await import("../stores/user-store");
-            const userStore = useUserStore.getState();
+        // Handle 401 Unauthorized - try to refresh token
+        if (response.status === 401 && !isRetry) {
+            const newToken = await refreshAccessToken();
 
-            if (userStore.isAuthenticated && userStore.user) {
-                const errorMessage = data?.message || "";
-                const isAuthFailure = errorMessage.toLowerCase().includes("token") ||
-                    errorMessage.toLowerCase().includes("unauthorized") ||
-                    errorMessage.toLowerCase().includes("authentication");
+            if (newToken) {
+                // Token refreshed successfully, throw a special error to retry
+                throw new ApiError("TOKEN_REFRESHED", 401, null, true);
+            } else {
+                // Refresh failed, clear user state and redirect
+                const { useUserStore } = await import("../stores/user-store");
+                const userStore = useUserStore.getState();
 
-                if (isAuthFailure) {
+                if (userStore.isAuthenticated) {
                     userStore.clearUser();
 
                     // Redirect to login if not already on public pages
@@ -71,9 +136,35 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return data as T;
 }
 
+async function makeRequest<T>(
+    url: string,
+    options: RequestInit,
+    isRetry: boolean = false
+): Promise<T> {
+    // Add Authorization header if access token exists
+    const token = getAccessToken?.();
+    if (token) {
+        options.headers = {
+            ...options.headers,
+            Authorization: `Bearer ${token}`,
+        };
+    }
+
+    try {
+        const response = await fetch(url, options);
+        return await handleResponse<T>(response, isRetry);
+    } catch (error) {
+        // If token was refreshed, retry the request once
+        if (error instanceof ApiError && error.shouldRetry && !isRetry) {
+            return makeRequest<T>(url, options, true);
+        }
+        throw error;
+    }
+}
+
 export const httpClient = {
     async get<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -81,8 +172,6 @@ export const httpClient = {
             },
             credentials: options.credentials || "include",
         });
-
-        return handleResponse<T>(response);
     },
 
     async post<T>(
@@ -90,7 +179,7 @@ export const httpClient = {
         body?: any,
         options: RequestOptions = {}
     ): Promise<T> {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -99,8 +188,6 @@ export const httpClient = {
             credentials: options.credentials || "include",
             body: body ? JSON.stringify(body) : undefined,
         });
-
-        return handleResponse<T>(response);
     },
 
     async put<T>(
@@ -108,7 +195,7 @@ export const httpClient = {
         body?: any,
         options: RequestOptions = {}
     ): Promise<T> {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -117,8 +204,6 @@ export const httpClient = {
             credentials: options.credentials || "include",
             body: body ? JSON.stringify(body) : undefined,
         });
-
-        return handleResponse<T>(response);
     },
 
     async delete<T>(
@@ -126,7 +211,7 @@ export const httpClient = {
         body?: any,
         options: RequestOptions = {}
     ): Promise<T> {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
@@ -135,7 +220,5 @@ export const httpClient = {
             credentials: options.credentials || "include",
             body: body ? JSON.stringify(body) : undefined,
         });
-
-        return handleResponse<T>(response);
     },
 };

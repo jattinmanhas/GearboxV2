@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/dto"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/helpers"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/services"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/validation"
 	"github.com/jattinmanhas/GearboxV2/services/shared/httpx"
@@ -55,78 +55,6 @@ func NewAuthHandler(userService services.IUserService, authService services.IAut
 		jwtService:   jwtService,
 		environment:  environment,
 	}
-}
-
-// setAccessTokenCookie sets the access token in an HTTP-only cookie
-func (h *authHandler) setAccessTokenCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.environment == "production", // Only secure in production
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetAccessTokenExpiry().Seconds()),
-	})
-}
-
-// setRefreshTokenCookie sets the refresh token in an HTTP-only cookie
-func (h *authHandler) setRefreshTokenCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.environment == "production", // Only secure in production
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtService.GetRefreshTokenExpiry().Seconds()),
-	})
-}
-
-// clearAuthCookies clears both access and refresh token cookies
-func (h *authHandler) clearAuthCookies(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.environment == "production", // Only secure in production
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.environment == "production", // Only secure in production
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
-}
-
-// extractClientIP extracts the client IP address from the request
-func (h *authHandler) extractClientIP(r *http.Request) string {
-	// Check for forwarded headers first (for proxy/load balancer scenarios)
-	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
-		// X-Forwarded-For can contain multiple IPs, take the first one
-		if commaIdx := strings.Index(forwardedFor, ","); commaIdx != -1 {
-			return strings.TrimSpace(forwardedFor[:commaIdx])
-		}
-		return strings.TrimSpace(forwardedFor)
-	}
-
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-		return realIP
-	}
-
-	// Fallback to RemoteAddr
-	ipAddress, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr // fallback, but may include port
-	}
-	return ipAddress
 }
 
 func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +105,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Get user agent and IP address
 	userAgent := r.UserAgent()
-	ipAddress := h.extractClientIP(r)
+	ipAddress := helpers.ExtractClientIP(r)
 
 	// Authenticate user and generate tokens
 	user, refreshToken, accessToken, err := h.authService.Login(r.Context(), req.Username, req.Password, userAgent, ipAddress)
@@ -186,11 +114,11 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set HTTP-only cookies
-	h.setAccessTokenCookie(w, accessToken)
-	h.setRefreshTokenCookie(w, refreshToken.RefreshToken)
+	// Set only refresh token in HTTP-only cookie
+	// Access token will be sent in response body for client to store in memory
+	helpers.SetRefreshTokenCookie(w, refreshToken.RefreshToken, h.jwtService.GetRefreshTokenExpiry(), h.environment)
 
-	// Return success response
+	// Return success response with access token in body
 	httpx.OK(w, "login successful", map[string]any{
 		"user": map[string]any{
 			"id":        user.ID,
@@ -201,7 +129,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"avatar":    user.Avatar.String,
 			"role":      user.Role,
 		},
-		"message": "Login successful. Tokens stored in HTTP-only cookies.",
+		"access_token": accessToken, // NEW: Access token in response body
+		"message":      "Login successful. Access token provided in response, refresh token in HTTP-only cookie.",
 	})
 }
 
@@ -213,25 +142,24 @@ func (h *authHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Refresh tokens
-	user, newRefreshToken, accessToken, err := h.authService.RefreshToken(r.Context(), refreshToken)
+	// Validate refresh token and generate new access token
+	// Note: Refresh token is NOT rotated (same token remains valid)
+	user, accessToken, err := h.authService.RefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		httpx.Error(w, http.StatusUnauthorized, "invalid refresh token", err)
 		return
 	}
 
-	// Set new HTTP-only cookies
-	h.setAccessTokenCookie(w, accessToken)
-	h.setRefreshTokenCookie(w, newRefreshToken.RefreshToken)
-
-	// Return success response
-	httpx.OK(w, "tokens refreshed successfully", map[string]any{
+	// Return success response with new access token in body
+	// Refresh token cookie remains unchanged (no rotation)
+	httpx.OK(w, "token refreshed successfully", map[string]any{
 		"user": map[string]any{
 			"id":       user.ID,
 			"username": user.Username,
 			"email":    user.Email,
 		},
-		"message": "Tokens refreshed successfully. New tokens stored in HTTP-only cookies.",
+		"access_token": accessToken, // NEW: Access token in response body
+		"message":      "Access token refreshed successfully. Refresh token remains valid.",
 	})
 }
 
@@ -250,7 +178,7 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookies
-	h.clearAuthCookies(w)
+	helpers.ClearAuthCookies(w, h.environment)
 
 	httpx.OK(w, "logout successful", map[string]any{
 		"message": "Logout successful. All tokens cleared.",
@@ -271,7 +199,7 @@ func (h *authHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear cookies
-	h.clearAuthCookies(w)
+	helpers.ClearAuthCookies(w, h.environment)
 
 	httpx.OK(w, "logout from all devices successful", map[string]any{
 		"message": "Logout from all devices successful. All tokens revoked.",
@@ -380,6 +308,19 @@ func (h *authHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	// Extract claims to check if user is admin
+	claims, ok := r.Context().Value(middleware.ClaimsContextKey).(*middleware.Claims)
+	if !ok || claims == nil {
+		httpx.Error(w, http.StatusUnauthorized, "invalid claims", nil)
+		return
+	}
+
+	// Only admins can update other users
+	if claims.Role != "admin" {
+		httpx.Error(w, http.StatusForbidden, "only admins can update users", nil)
+		return
+	}
+
 	userIdStr := chi.URLParam(r, "id")
 	if userIdStr == "" {
 		httpx.Error(w, http.StatusBadRequest, "id is required", nil)
@@ -485,7 +426,7 @@ func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Revoke http-only cookies
-	h.clearAuthCookies(w)
+	helpers.ClearAuthCookies(w, h.environment)
 
 	httpx.OK(w, "user deleted successfully", nil)
 }
@@ -508,8 +449,8 @@ func (h *authHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user profile
-	user, err := h.userService.GetProfile(r.Context(), int(claims.UserID))
+	// Get user profile using GetUserByID
+	user, err := h.userService.GetUserByID(r.Context(), int(claims.UserID))
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to get profile", err)
 		return
@@ -560,6 +501,7 @@ func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		MiddleName:  domain.NewNullString(strings.TrimSpace(req.MiddleName)),
 		LastName:    domain.NewNullString(strings.TrimSpace(req.LastName)),
 		PhoneNumber: domain.NewNullString(strings.TrimSpace(req.PhoneNumber)),
+		Gender:      domain.NewNullString(req.Gender),
 		Avatar:      domain.NewNullString(req.Avatar),
 	}
 
@@ -568,8 +510,8 @@ func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		updateData.DateOfBirth = domain.NewNullTime(*req.DateOfBirth)
 	}
 
-	// Call the service to update the profile
-	updatedUser, err := h.userService.UpdateProfile(r.Context(), int(claims.UserID), updateData)
+	// Call UpdateUser service method
+	updatedUser, err := h.userService.UpdateUser(r.Context(), int(claims.UserID), updateData)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "failed to update profile", err)
 		return

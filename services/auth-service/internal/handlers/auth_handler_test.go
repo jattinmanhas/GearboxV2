@@ -81,22 +81,6 @@ func (m *MockUserService) GetUsersCountWithFilters(ctx context.Context, search s
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockUserService) GetProfile(ctx context.Context, userID int) (*domain.User, error) {
-	args := m.Called(ctx, userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-
-func (m *MockUserService) UpdateProfile(ctx context.Context, userID int, updateData *domain.User) (*domain.User, error) {
-	args := m.Called(ctx, userID, updateData)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-
 func (m *MockUserService) GetUserAnalytics(ctx context.Context) (*domain.UserAnalytics, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
@@ -121,15 +105,12 @@ func (m *MockAuthService) Login(ctx context.Context, username, password, userAge
 	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
 }
 
-func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error) {
+func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, string, error) {
 	args := m.Called(ctx, refreshToken)
 	if args.Get(0) == nil {
-		return nil, nil, "", args.Error(3)
+		return nil, "", args.Error(2)
 	}
-	if args.Get(1) == nil {
-		return args.Get(0).(*domain.User), nil, "", args.Error(3)
-	}
-	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
+	return args.Get(0).(*domain.User), args.Get(1).(string), args.Error(2)
 }
 
 func (m *MockAuthService) ValidateRefreshToken(ctx context.Context, refreshTokenString string) (*jwt.RefreshTokenClaims, error) {
@@ -391,24 +372,16 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
-		// Create test user and refresh token
+		// Create test user
 		user := &domain.User{
 			ID:       1,
 			Username: "testuser",
 			Email:    "test@example.com",
 		}
-		newRefreshToken := &domain.RefreshToken{
-			ID:           2,
-			UserID:       1,
-			RefreshToken: "new-refresh-token",
-			ExpiresAt:    time.Now().Add(24 * time.Hour),
-			CreatedAt:    time.Now(),
-			IsRevoked:    false,
-		}
 
 		// 🎭 Mock Expectations: Auth service should handle refresh
 		mockAuthService.On("RefreshToken", mock.Anything, "old-refresh-token").
-			Return(user, newRefreshToken, "new-access-token", nil)
+			Return(user, "new-access-token", nil)
 
 		// Create request with refresh token cookie
 		req := httptest.NewRequest("POST", "/refresh", nil)
@@ -430,15 +403,8 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		assert.Equal(t, "tokens refreshed successfully", response["message"])
-
-		// Check cookies
-		cookies := w.Result().Cookies()
-		accessTokenCookie := findCookie(cookies, "access_token")
-		refreshTokenCookie := findCookie(cookies, "refresh_token")
-
-		assert.NotNil(t, accessTokenCookie)
-		assert.NotNil(t, refreshTokenCookie)
+		assert.Equal(t, "token refreshed successfully", response["message"])
+		assert.Equal(t, "new-access-token", response["access_token"])
 
 		// Verify service was called correctly
 		mockAuthService.AssertExpectations(t)

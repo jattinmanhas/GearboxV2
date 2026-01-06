@@ -12,6 +12,7 @@ import { authApi, ApiError } from "@/lib/apiFunctions"
 import { LoginFormData, FormErrors, formDataToLoginRequest, loginFormSchema } from "@/lib/types"
 import { useUserStore } from "@/lib/stores/user-store"
 import { OAuthButtonsGroup } from "@/components/auth/oauth-button"
+import { useAuth } from "@/lib/contexts/auth-context"
 
 export function LoginForm({
   className,
@@ -19,6 +20,7 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const router = useRouter()
   const { login, setLoading, setError } = useUserStore()
+  const { setAccessToken } = useAuth()
   const [formData, setFormData] = useState<LoginFormData>({
     username: "",
     password: "",
@@ -73,6 +75,13 @@ export function LoginForm({
 
       // Debug: Log the response to see the structure
       console.log("Login response:", response)
+
+      // Extract access token from response
+      const accessToken = response?.data?.access_token
+      if (accessToken) {
+        setAccessToken(accessToken)
+        console.log("Access token stored in context")
+      }
 
       // The API returns user data in response.data.user
       const userData = response?.data?.user

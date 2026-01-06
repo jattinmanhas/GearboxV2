@@ -53,6 +53,7 @@ type UpdateProfileRequest struct {
 	MiddleName  string     `json:"middle_name" validate:"omitempty,max=50"`
 	LastName    string     `json:"last_name" validate:"omitempty,min=1,max=50"`
 	PhoneNumber string     `json:"phone_number" validate:"omitempty,phone"`
+	Gender      string     `json:"gender" validate:"omitempty,oneof=male female other prefer_not_to_say"`
 	DateOfBirth *time.Time `json:"date_of_birth" validate:"omitempty,date_of_birth"`
 	Avatar      string     `json:"avatar" validate:"omitempty,url"`
 }

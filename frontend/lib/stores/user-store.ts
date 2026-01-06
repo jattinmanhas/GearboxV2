@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { authApi } from '../api'
+import { authApi } from '../apiFunctions/auth.api'
 import { useCartStore } from './cart-store'
 
 export interface User {
@@ -21,7 +21,7 @@ interface UserState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-  
+
   // Actions
   setUser: (user: User) => void
   clearUser: () => void
@@ -30,9 +30,6 @@ interface UserState {
   login: (userData: User) => void
   logout: () => void
   updateProfile: (profileData: Partial<User>) => void
-  validateToken: () => Promise<boolean>
-  checkAuthStatus: () => Promise<boolean>
-  initializeAuth: () => Promise<void>
   debugAuthState: () => UserState
 }
 
@@ -79,20 +76,20 @@ export const useUserStore = create<UserState>()(
           error: null,
         })
         console.log("Zustand state updated")
-        
+
         // Handle cart merging when user logs in
         try {
           const cartStore = useCartStore.getState()
-          
+
           // Get the current guest cart (if any)
           const guestCart = cartStore.cart
-          
+
           if (guestCart && guestCart.session_id && !guestCart.user_id) {
             console.log("Guest cart found, attempting to merge with user cart")
-            
+
             // Load/create user cart
             await cartStore.loadCart()
-            
+
             // If we have a guest cart and a user cart, merge them
             if (cartStore.cart && cartStore.cart.id !== guestCart.id) {
               console.log("Merging guest cart with user cart")
@@ -134,119 +131,6 @@ export const useUserStore = create<UserState>()(
           set({
             user: { ...currentUser, ...profileData }
           })
-        }
-      },
-
-      validateToken: async () => {
-        try {
-          // Try to get user profile to validate if token is still valid
-          const response = await fetch('/api/v1/auth/profile', {
-            method: 'GET',
-            credentials: 'include'
-          })
-          
-          if (response.ok) {
-            return true
-          }
-          
-          // If 401, check if it's a genuine auth failure
-          if (response.status === 401) {
-            const data = await response.json()
-            const errorMessage = data.message || data.error?.message || ''
-            const lowerErrorMessage = errorMessage.toLowerCase()
-            
-            // Check for patterns that indicate genuine auth failure
-            // Based on actual backend error messages from auth service and JWT library
-            const authFailurePatterns = [
-              // From auth service login failures
-              'invalid credentials',
-              
-              // From JWT validation errors (golang-jwt/jwt v5)
-              'invalid token',
-              'failed to parse token',
-              'token is expired',
-              'token is malformed',
-              'signature is invalid',
-              'unexpected signing method',
-              'token is not valid yet',
-              'token used before issued',
-              'token is unverifiable',
-              'key is of invalid type',
-              'claims are invalid',
-              'token is blacklisted',
-              'token is not active',
-              'token is not valid',
-              'token validation failed',
-              'token parse error',
-              'token verification failed',
-              
-              // From middleware auth failures
-              'refresh token required',
-              'invalid refresh token',
-              
-              // Generic auth failure patterns
-              'unauthorized',
-              'authentication failed',
-              'session expired',
-              'jwt expired',
-              'jwt invalid',
-              'token not found'
-            ]
-            
-            return !authFailurePatterns.some(pattern => lowerErrorMessage.includes(pattern))
-          }
-          
-          return false
-        } catch (error) {
-          console.log('Token validation failed:', error)
-          return false
-        }
-      },
-
-      checkAuthStatus: async () => {
-        const state = get()
-        
-        // If not authenticated, return false immediately
-        if (!state.isAuthenticated || !state.user) {
-          return false
-        }
-        
-        // Validate the token
-        const isValid = await state.validateToken()
-        
-        // If token is invalid, clear user state
-        if (!isValid) {
-          state.clearUser()
-          return false
-        }
-        
-        return true
-      },
-
-      initializeAuth: async () => {
-        const state = get()
-        
-        // Only validate if user appears to be authenticated
-        if (state.isAuthenticated && state.user) {
-          console.log('Validating persisted authentication state...')
-          
-          try {
-            const isValid = await state.validateToken()
-            
-            if (!isValid) {
-              console.log('Persisted authentication is invalid, clearing user state')
-              state.clearUser()
-            } else {
-              console.log('Authentication state is valid')
-            }
-          } catch (error) {
-            console.error('Error validating authentication:', error)
-            // Only clear user state if it's a genuine authentication error
-            // Don't clear on network errors or other issues
-            if (error instanceof Error && error.message.toLowerCase().includes('unauthorized')) {
-              state.clearUser()
-            }
-          }
         }
       },
 

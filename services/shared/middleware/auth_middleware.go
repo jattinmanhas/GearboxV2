@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,95 +37,43 @@ type User struct {
 type contextKey string
 
 const (
-	UserContextKey     contextKey = "user"
-	ClaimsContextKey   contextKey = "claims"
+	UserContextKey      contextKey = "user"
+	ClaimsContextKey    contextKey = "claims"
 	AuthTokenContextKey contextKey = "auth_token"
 )
 
 // AuthMiddleware validates JWT tokens and extracts user information
-// Implements smart token refresh: if access token is expired but refresh token is valid,
-// it will automatically refresh the access token
+// Simplified version: Only validates access tokens, no automatic refresh
+// Frontend is responsible for calling /refresh endpoint when access token expires
 func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract access token from Authorization header or cookie
+			// Extract access token from Authorization header (preferred)
 			accessToken := authService.ExtractTokenFromHeader(r)
+
+			// Fallback to cookie for backward compatibility during transition
 			if accessToken == "" {
 				accessToken = authService.ExtractTokenFromCookie(r, "access_token")
 			}
 
-			var claims *Claims
-			var err error
-
-			// Try to validate access token first
-			if accessToken != "" {
-				claims, err = authService.ValidateAccessToken(r.Context(), accessToken)
-				if err == nil {
-					// Access token is valid, proceed normally
-					ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
-					ctx = context.WithValue(ctx, AuthTokenContextKey, accessToken)
-					next.ServeHTTP(w, r.WithContext(ctx))
-					return
-				}
-			}
-
-			// Access token is invalid or expired, try refresh token
-			refreshToken := authService.ExtractTokenFromCookie(r, "refresh_token")
-			fmt.Println("refreshToken", refreshToken)
-			if refreshToken == "" {
-				httpx.Error(w, http.StatusUnauthorized, "refresh token required", nil)
+			// If no token found, return 401
+			if accessToken == "" {
+				httpx.Error(w, http.StatusUnauthorized, "access token required", nil)
 				return
 			}
 
-			// Refresh token is valid, generate new access token
-			// Use refresh token claims directly (no DB query needed)
-			refreshClaims, err := authService.ValidateRefreshToken(r.Context(), refreshToken)
+			// Validate access token
+			claims, err := authService.ValidateAccessToken(r.Context(), accessToken)
 			if err != nil {
-				fmt.Printf("DEBUG: Refresh token validation failed: %v\n", err)
-				httpx.Error(w, http.StatusUnauthorized, "invalid refresh token", err)
-				return
-			}
-			fmt.Printf("DEBUG: Refresh token validation successful for user %d\n", refreshClaims.UserID)
-
-			// Generate new access token using JWT service directly
-			// Create minimal user object from claims (no DB query)
-			minimalUser := &User{
-				ID:       refreshClaims.UserID,
-				Username: refreshClaims.Username,
-				Email:    refreshClaims.Email,
-				Role:     refreshClaims.Role,
-			}
-
-			newAccessToken, err := authService.GenerateAccessTokenFromUser(r.Context(), minimalUser)
-			if err != nil {
-				httpx.Error(w, http.StatusUnauthorized, "failed to generate new access token", err)
+				// Token is invalid or expired - return 401
+				// Frontend will detect this and call /refresh endpoint
+				httpx.Error(w, http.StatusUnauthorized, "invalid or expired access token", err)
 				return
 			}
 
-			// Set new access token in cookie
-			http.SetCookie(w, &http.Cookie{
-				Name:     "access_token",
-				Value:    newAccessToken,
-				Path:     "/",
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteStrictMode,
-				MaxAge:   900, // 15 minutes
-			})
-
-			// Use the claims from the minimal user object
-			claims = &Claims{
-				UserID:   minimalUser.ID,
-				Username: minimalUser.Username,
-				Email:    minimalUser.Email,
-				Role:     minimalUser.Role,
-			}
-
-			// Add claims and new access token to context (no user DB query needed)
+			// Token is valid, add claims to context and continue
 			ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
-			ctx = context.WithValue(ctx, AuthTokenContextKey, newAccessToken)
-
-			// Call next handler with updated context
+			ctx = context.WithValue(ctx, AuthTokenContextKey, accessToken)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

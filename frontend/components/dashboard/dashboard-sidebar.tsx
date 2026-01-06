@@ -4,11 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { useUserStore } from "@/lib/stores/user-store"
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  Package, 
-  Users, 
+import { useAuth } from "@/lib/contexts/auth-context"
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Users,
   Settings,
   LogOut,
   User,
@@ -81,6 +82,7 @@ const navigationSections = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const { user, logout } = useUserStore()
+  const { clearAuth } = useAuth()
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["Overview"]) // Start with Overview expanded
   )
@@ -100,10 +102,14 @@ export function DashboardSidebar() {
   const handleLogout = async () => {
     try {
       await logout()
+      // Clear access token from memory
+      clearAuth()
       // Redirect to home page after logout
       window.location.href = '/'
     } catch (error) {
       console.error("Logout error:", error)
+      // Clear access token even if logout fails
+      clearAuth()
       // Still redirect even if logout fails
       window.location.href = '/'
     }
@@ -122,15 +128,15 @@ export function DashboardSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent className="px-2">
         {navigationSections.map((section) => {
           const isExpanded = expandedSections.has(section.title)
           const hasActiveItem = section.items.some(item => pathname === item.href)
-          
+
           return (
             <SidebarGroup key={section.title}>
-              <SidebarGroupLabel 
+              <SidebarGroupLabel
                 className="cursor-pointer hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg px-3 transition-all duration-200 text-sm font-medium"
                 onClick={() => toggleSection(section.title)}
               >
@@ -141,18 +147,17 @@ export function DashboardSidebar() {
                   </div>
                 </div>
               </SidebarGroupLabel>
-              
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-              }`}>
+
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
                 <SidebarGroupContent className="pt-2">
                   <SidebarMenu className="space-y-1">
                     {section.items.map((item) => {
                       const isActive = pathname === item.href
                       return (
                         <SidebarMenuItem key={item.name}>
-                          <SidebarMenuButton 
-                            asChild 
+                          <SidebarMenuButton
+                            asChild
                             isActive={isActive}
                             className="h-9 text-sm font-normal ml-4 rounded-lg transition-all duration-200 hover:bg-sidebar-accent/50"
                           >
@@ -171,7 +176,7 @@ export function DashboardSidebar() {
           )
         })}
       </SidebarContent>
-      
+
       <SidebarFooter className="px-3 py-2">
         <SidebarMenu className="space-y-1">
           <SidebarMenuItem>
@@ -181,7 +186,7 @@ export function DashboardSidebar() {
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate text-xs font-medium">
-                  {user?.firstName && user?.lastName 
+                  {user?.firstName && user?.lastName
                     ? `${user.firstName} ${user.lastName}`
                     : user?.username || 'User'
                   }
@@ -195,8 +200,8 @@ export function DashboardSidebar() {
           <SidebarMenuItem>
             <div className="flex items-center justify-between px-2 py-1">
               <ThemeToggle />
-              <SidebarMenuButton 
-                size="sm" 
+              <SidebarMenuButton
+                size="sm"
                 className="h-7 w-7 p-0 rounded-md hover:bg-destructive/10 hover:text-destructive"
                 onClick={handleLogout}
               >

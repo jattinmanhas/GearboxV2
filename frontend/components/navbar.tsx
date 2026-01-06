@@ -19,6 +19,7 @@ import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart, Heart } from "l
 import { useUserStore } from "@/lib/stores/user-store"
 import { useCartStore } from "@/lib/stores/cart-store"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
+import { useAuth } from "@/lib/contexts/auth-context"
 
 export type NavItems = {
   label: string
@@ -74,12 +75,13 @@ export function Navbar() {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const pathname = usePathname()
-  
+
   // Get user data from Zustand store
   const { user, isAuthenticated, logout } = useUserStore()
   const { getItemCount } = useCartStore()
   const { getWishlistItemCount } = useWishlistStore()
-  
+  const { clearAuth } = useAuth()
+
   // Debug: Log user data
   useEffect(() => {
     console.log("Navbar - User data:", user)
@@ -93,10 +95,14 @@ export function Navbar() {
   const handleLogout = async () => {
     try {
       await logout()
+      // Clear access token from memory
+      clearAuth()
       // Redirect to home page after logout
       window.location.href = '/'
     } catch (error) {
       console.error("Logout error:", error)
+      // Clear access token even if logout fails
+      clearAuth()
       // Still redirect even if logout fails
       window.location.href = '/'
     }
@@ -106,16 +112,16 @@ export function Navbar() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
-      
+
       // Show navbar when scrolling up or at the top
       if (currentScrollY < lastScrollY || currentScrollY < 10) {
         setIsNavbarVisible(true)
-      } 
+      }
       // Hide navbar when scrolling down (but only after scrolling down a bit)
       else if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setIsNavbarVisible(false)
       }
-      
+
       setLastScrollY(currentScrollY)
     }
 
@@ -132,7 +138,7 @@ export function Navbar() {
     }
 
     window.addEventListener('scroll', throttledHandleScroll, { passive: true })
-    
+
     return () => {
       window.removeEventListener('scroll', throttledHandleScroll)
     }
@@ -208,7 +214,7 @@ export function Navbar() {
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.avatar} alt={`${user.firstName} ${user.lastName}`} />
                       <AvatarFallback>
-                        {user.firstName && user.lastName 
+                        {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`.split(' ').map(n => n[0]).join('').toUpperCase()
                           : user.username ? user.username.substring(0, 2).toUpperCase() : 'U'
                         }
@@ -220,7 +226,7 @@ export function Navbar() {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.firstName && user.lastName 
+                        {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
                           : user.username || 'User'
                         }
@@ -302,7 +308,7 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              
+
               {/* Mobile wishlist for authenticated users */}
               {isAuthenticated && (
                 <div className="pt-4 space-y-2">

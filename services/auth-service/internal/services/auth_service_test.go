@@ -41,15 +41,12 @@ func (m *MockAuthService) Login(ctx context.Context, username, password, userAge
 	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
 }
 
-func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, *domain.RefreshToken, string, error) {
+func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*domain.User, string, error) {
 	args := m.Called(ctx, refreshToken)
 	if args.Get(0) == nil {
-		return nil, nil, "", args.Error(3)
+		return nil, "", args.Error(2)
 	}
-	if args.Get(1) == nil {
-		return args.Get(0).(*domain.User), nil, "", args.Error(3)
-	}
-	return args.Get(0).(*domain.User), args.Get(1).(*domain.RefreshToken), args.Get(2).(string), args.Error(3)
+	return args.Get(0).(*domain.User), args.Get(1).(string), args.Error(2)
 }
 
 func (m *MockAuthService) Logout(ctx context.Context, refreshToken string) error {
@@ -1118,27 +1115,18 @@ func TestAuthService_RefreshToken(t *testing.T) {
 			CreatedAt:    time.Now(),
 			IsRevoked:    false,
 		}
-		mockRefreshTokenRepo.On("GetRefreshTokenByToken", mock.Anything, refreshToken).Return(mockRefreshToken, nil)
+		mockRefreshTokenRepo.On("GetRefreshTokenByToken", mock.Anything, mock.Anything).Return(mockRefreshToken, nil)
 
 		// Mock Expectations: User repository should return user
 		mockUserRepo.On("GetUserByID", mock.Anything, 1).Return(user, nil)
 
-		// Mock Expectations: Old token should be revoked
-		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, refreshToken).Return(nil)
-
-		// Mock Expectations: New refresh token should be stored
-		mockRefreshTokenRepo.On("CreateRefreshToken", mock.Anything, mock.MatchedBy(func(token *domain.RefreshToken) bool {
-			return token.UserID == user.ID && !token.IsRevoked
-		})).Return(nil)
-
 		// 🚀 Action: Refresh token
-		refreshedUser, newRefreshToken, _, err := service.RefreshToken(context.Background(), refreshToken)
+		refreshedUser, accessToken, err := service.RefreshToken(context.Background(), refreshToken)
 
 		// ✅ Assertions: Should succeed
 		assert.NoError(t, err)
 		assert.Equal(t, user, refreshedUser)
-		assert.NotNil(t, newRefreshToken)
-		assert.Equal(t, user.ID, newRefreshToken.UserID)
+		assert.NotEmpty(t, accessToken)
 
 		// Verify repositories were called correctly
 		mockUserRepo.AssertExpectations(t)
@@ -1155,12 +1143,12 @@ func TestAuthService_RefreshToken(t *testing.T) {
 		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🚀 Action: Refresh with invalid token
-		user, refreshToken, _, err := service.RefreshToken(context.Background(), "invalid-token")
+		user, accessToken, err := service.RefreshToken(context.Background(), "invalid-token")
 
 		// ✅ Assertions: Should fail
 		assert.Error(t, err)
 		assert.Nil(t, user)
-		assert.Nil(t, refreshToken)
+		assert.Empty(t, accessToken)
 		assert.Contains(t, err.Error(), "invalid refresh token")
 
 		// Verify no repositories were called
