@@ -11,8 +11,9 @@ interface RequestOptions {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-// Function to get access token from AuthContext
-// This will be set by the auth-provider
+// Local cache to avoid React state race conditions
+let localAccessToken: string | null = null;
+
 let getAccessToken: (() => string | null) | null = null;
 let setAccessToken: ((token: string | null) => void) | null = null;
 
@@ -20,8 +21,19 @@ export function setAuthTokenHandlers(
     getToken: () => string | null,
     setToken: (token: string | null) => void
 ) {
-    getAccessToken = getToken;
-    setAccessToken = setToken;
+    // Initialize local cache from external source
+    localAccessToken = getToken();
+
+    // Wrap the getter to check local cache first
+    getAccessToken = () => {
+        return localAccessToken || getToken();
+    };
+
+    // Wrap the setter to update local cache immediately
+    setAccessToken = (token: string | null) => {
+        localAccessToken = token;
+        setToken(token);
+    };
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -149,6 +161,7 @@ async function makeRequest<T>(
             Authorization: `Bearer ${token}`,
         };
     }
+    console.log(`[HTTPClient] Request to ${url} | Token present: ${!!token}`, token ? `(Length: ${token.length})` : '');
 
     try {
         const response = await fetch(url, options);

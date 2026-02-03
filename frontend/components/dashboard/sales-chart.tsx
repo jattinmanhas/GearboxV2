@@ -1,16 +1,14 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   BarChart3,
-  Calendar,
-  DollarSign
+  DollarSign,
+  ShoppingCart
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
+import { httpClient } from "@/lib/apiFunctions/http-client"
 
 interface ChartDataPoint {
   date: string
@@ -18,51 +16,43 @@ interface ChartDataPoint {
   orders: number
 }
 
-export function SalesChart() {
+interface SalesChartProps {
+  period?: string
+}
+
+export function SalesChart({ period }: SalesChartProps) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState('30d')
-  const [displayedData, setDisplayedData] = useState<ChartDataPoint[]>([])
-  const [currentPage, setCurrentPage] = useState(0)
+  const [selectedPeriod, setSelectedPeriod] = useState(period || '30d')
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (period) {
+      setSelectedPeriod(period)
+    }
+  }, [period])
 
   useEffect(() => {
     const fetchChartData = async () => {
       try {
         setLoading(true)
-        
-        const response = await fetch(`/api/v1/dashboard/sales-chart?period=${selectedPeriod}`, {
-          credentials: 'include',
-        })
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch chart data: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        
+
+        const result = await httpClient.get<{
+          success: boolean
+          message: string
+          data: ChartDataPoint[]
+        }>(`/dashboard/sales-chart?period=${selectedPeriod}`)
+
         if (result.success) {
           const data = result.data || []
           setChartData(data)
-          
-          // For very long periods, show only a subset of data
-          if (data.length > 60) {
-            setDisplayedData(data.slice(0, 60))
-          } else {
-            setDisplayedData(data)
-          }
-          setCurrentPage(0)
         } else {
           throw new Error(result.message || 'Failed to load chart data')
         }
       } catch (error) {
         console.error('Error loading chart data:', error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error('Full error details:', {
-          error,
-          message: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined
-        })
         setError(`Failed to load chart data: ${errorMessage}`)
       } finally {
         setLoading(false)
@@ -82,45 +72,22 @@ export function SalesChart() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     if (selectedPeriod === '7d') {
-      return date.toLocaleDateString('en-US', { weekday: 'short' })
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     } else if (selectedPeriod === '30d') {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     } else if (selectedPeriod === '90d') {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short' })
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
     }
   }
 
-  const formatDateCompact = (dateString: string) => {
-    const date = new Date(dateString)
-    if (selectedPeriod === '7d') {
-      return date.toLocaleDateString('en-US', { weekday: 'short' })
-    } else if (selectedPeriod === '30d') {
-      return `${date.getMonth() + 1}/${date.getDate()}`
-    } else if (selectedPeriod === '90d') {
-      return `${date.getMonth() + 1}/${date.getDate()}`
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short' })
-    }
-  }
-
-  const maxRevenue = Math.max(...displayedData.map(d => d.revenue), 1)
-  const maxOrders = Math.max(...displayedData.map(d => d.orders), 1)
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue), 1)
+  const maxOrders = Math.max(...chartData.map(d => d.orders), 1)
 
   const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0)
   const totalOrders = chartData.reduce((sum, d) => sum + d.orders, 0)
-
-  const itemsPerPage = 60
-  const totalPages = Math.ceil(chartData.length / itemsPerPage)
-  const hasPagination = chartData.length > itemsPerPage
-
-  const handlePageChange = (page: number) => {
-    const start = page * itemsPerPage
-    const end = start + itemsPerPage
-    setDisplayedData(chartData.slice(start, end))
-    setCurrentPage(page)
-  }
+  const avgRevenue = chartData.length > 0 ? totalRevenue / chartData.length : 0
 
   if (loading) {
     return (
@@ -130,7 +97,7 @@ export function SalesChart() {
           <CardDescription>Loading sales data...</CardDescription>
         </CardHeader>
         <CardContent className="pl-2">
-          <div className="h-[300px] flex items-center justify-center">
+          <div className="h-[350px] flex items-center justify-center">
             <div className="text-center">
               <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
               <p className="text-muted-foreground">Loading chart data...</p>
@@ -149,7 +116,7 @@ export function SalesChart() {
           <CardDescription>Failed to load sales data</CardDescription>
         </CardHeader>
         <CardContent className="pl-2">
-          <div className="h-[300px] flex items-center justify-center">
+          <div className="h-[350px] flex items-center justify-center">
             <div className="text-center text-destructive">
               <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>{error}</p>
@@ -173,130 +140,175 @@ export function SalesChart() {
               Revenue and orders over time
             </CardDescription>
           </div>
-          <div className="flex items-center space-x-2">
-            {periods.map((period) => (
-              <Badge
-                key={period.value}
-                variant={selectedPeriod === period.value ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setSelectedPeriod(period.value)}
-              >
-                {period.label}
-              </Badge>
-            ))}
-          </div>
+          {!period && (
+            <div className="flex items-center space-x-2">
+              {periods.map((periodOption) => (
+                <Badge
+                  key={periodOption.value}
+                  variant={selectedPeriod === periodOption.value ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedPeriod(periodOption.value)}
+                >
+                  {periodOption.label}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        {displayedData.length === 0 ? (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+        {chartData.length === 0 ? (
+          <div className="h-[350px] flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No sales data available for the selected period</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <DollarSign className="h-4 w-4 text-green-600" />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex items-center space-x-3 p-4 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-800">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">{formatCurrency(totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-xs text-green-600 dark:text-green-500">Total Revenue</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
+              <div className="flex items-center space-x-3 p-4 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border border-blue-200 dark:border-blue-800">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">{totalOrders}</p>
-                  <p className="text-xs text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{totalOrders}</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-500">Total Orders</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-4 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border border-purple-200 dark:border-purple-800">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{formatCurrency(avgRevenue)}</p>
+                  <p className="text-xs text-purple-600 dark:text-purple-500">Avg Daily Revenue</p>
                 </div>
               </div>
             </div>
 
-            {/* Chart Container with proper overflow handling */}
-            <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              <div className={`h-[200px] flex items-end px-2 ${
-                displayedData.length > 60 ? 'space-x-0' : 
-                displayedData.length > 30 ? 'space-x-0.5' : 
-                displayedData.length > 15 ? 'space-x-1' : 'space-x-2'
-              } ${displayedData.length <= 30 ? 'w-full' : ''}`}>
-                {displayedData.map((data, index) => (
-                  <div key={index} className={`flex flex-col items-center space-y-1 ${
-                    displayedData.length > 60 ? 'w-2' :
-                    displayedData.length > 30 ? 'w-3' :
-                    displayedData.length > 15 ? 'w-4' : 'flex-1'
-                  } min-w-0`}>
-                    <div className="w-full flex flex-col space-y-1">
-                      {/* Revenue Bar */}
-                      <div
-                        className="bg-green-500 rounded-t-sm transition-all duration-300 hover:bg-green-600"
-                        style={{
-                          height: `${(data.revenue / maxRevenue) * 120}px`,
-                          minHeight: '2px'
-                        }}
-                        title={`${formatDate(data.date)}: ${formatCurrency(data.revenue)}`}
+            {/* Chart */}
+            <div className="relative">
+              <div className="h-[280px] w-full">
+                <svg className="w-full h-full" viewBox="0 0 800 280" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="rgb(34, 197, 94)" stopOpacity="0.05" />
+                    </linearGradient>
+                    <linearGradient id="ordersGradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0.05" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Grid lines */}
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <line
+                      key={i}
+                      x1="0"
+                      y1={i * 70}
+                      x2="800"
+                      y2={i * 70}
+                      stroke="currentColor"
+                      strokeOpacity="0.1"
+                      strokeWidth="1"
+                    />
+                  ))}
+
+                  {/* Revenue Area Chart */}
+                  <path
+                    d={`M 0 280 ${chartData.map((point, i) => {
+                      const x = (i / (chartData.length - 1)) * 800
+                      const y = 280 - (point.revenue / maxRevenue) * 260
+                      return `L ${x} ${y}`
+                    }).join(' ')} L 800 280 Z`}
+                    fill="url(#revenueGradient)"
+                  />
+                  <path
+                    d={`M ${chartData.map((point, i) => {
+                      const x = (i / (chartData.length - 1)) * 800
+                      const y = 280 - (point.revenue / maxRevenue) * 260
+                      return `${i === 0 ? '' : 'L '}${x} ${y}`
+                    }).join(' ')}`}
+                    fill="none"
+                    stroke="rgb(34, 197, 94)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Data points */}
+                  {chartData.map((point, i) => {
+                    const x = (i / (chartData.length - 1)) * 800
+                    const y = 280 - (point.revenue / maxRevenue) * 260
+                    return (
+                      <circle
+                        key={i}
+                        cx={x}
+                        cy={y}
+                        r={hoveredIndex === i ? "6" : "4"}
+                        fill="rgb(34, 197, 94)"
+                        stroke="white"
+                        strokeWidth="2"
+                        className="cursor-pointer transition-all"
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex(null)}
                       />
-                      {/* Orders Bar */}
-                      <div
-                        className="bg-blue-500 rounded-b-sm transition-all duration-300 hover:bg-blue-600"
-                        style={{
-                          height: `${(data.orders / maxOrders) * 80}px`,
-                          minHeight: '2px'
-                        }}
-                        title={`${formatDate(data.date)}: ${data.orders} orders`}
-                      />
+                    )
+                  })}
+                </svg>
+              </div>
+
+              {/* Tooltip */}
+              {hoveredIndex !== null && (
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 bg-popover border rounded-lg shadow-lg p-3 z-10">
+                  <p className="text-xs font-medium mb-2">{formatDate(chartData[hoveredIndex].date)}</p>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full" />
+                      <span className="text-xs">Revenue: {formatCurrency(chartData[hoveredIndex].revenue)}</span>
                     </div>
-                    {/* Date labels - more compact and properly contained */}
-                    <div className="text-xs text-muted-foreground text-center leading-tight max-w-full overflow-hidden h-8 flex items-end justify-center">
-                      <div className="transform -rotate-45 origin-center whitespace-nowrap max-w-full">
-                        {formatDateCompact(data.date)}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                      <span className="text-xs">Orders: {chartData[hoveredIndex].orders}</span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
-            
-            {/* Pagination Controls for long periods */}
-            {hasPagination && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {currentPage * itemsPerPage + 1}-{Math.min((currentPage + 1) * itemsPerPage, chartData.length)} of {chartData.length} data points
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 0}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages - 1}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
+
+            {/* X-axis labels */}
+            <div className="flex justify-between text-xs text-muted-foreground px-2">
+              {chartData.length > 0 && (
+                <>
+                  <span>{formatDate(chartData[0].date)}</span>
+                  {chartData.length > 2 && (
+                    <span>{formatDate(chartData[Math.floor(chartData.length / 2)].date)}</span>
+                  )}
+                  <span>{formatDate(chartData[chartData.length - 1].date)}</span>
+                </>
+              )}
+            </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-center space-x-4 text-xs">
-              <div className="flex items-center space-x-1">
-                <div className="w-3 h-3 bg-green-500 rounded"></div>
+            <div className="flex items-center justify-center space-x-6 text-sm pt-2 border-t">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-500 rounded" />
                 <span>Revenue</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <div className="w-3 h-3 bg-blue-500 rounded"></div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-blue-500 rounded" />
                 <span>Orders</span>
               </div>
             </div>

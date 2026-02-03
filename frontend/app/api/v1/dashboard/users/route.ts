@@ -6,6 +6,7 @@ function getAuthHeaders(request: NextRequest) {
   return {
     'Content-Type': 'application/json',
     'Cookie': request.headers.get('cookie') || '',
+    'Authorization': request.headers.get('authorization') || '',
   }
 }
 
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const queryString = searchParams.toString()
-    
-    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/users/analytics${queryString ? `?${queryString}` : ''}`, {
+
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/users/analytics${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
       headers: getAuthHeaders(request),
     })
@@ -23,10 +24,10 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.text()
       return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Failed to fetch user analytics', 
-          error: errorData 
+        {
+          success: false,
+          message: 'Failed to fetch user analytics',
+          error: errorData
         },
         { status: response.status }
       )
@@ -37,8 +38,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('User analytics API error:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch user analytics',
         error: error instanceof Error ? error.message : 'Unknown error'
       },

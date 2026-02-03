@@ -32,6 +32,7 @@ export async function GET(
         headers: {
           'Content-Type': 'application/json',
           'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
         },
         credentials: 'include',
         redirect: 'manual', // Don't follow redirects, we'll handle it

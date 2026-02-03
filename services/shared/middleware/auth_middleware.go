@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -48,6 +49,10 @@ const (
 func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Debug logging
+			authHeader := r.Header.Get("Authorization")
+			fmt.Printf("[AuthMiddleware] Request: %s %s | Auth Header Present: %v\n", r.Method, r.URL.Path, authHeader != "")
+
 			// Extract access token from Authorization header (preferred)
 			accessToken := authService.ExtractTokenFromHeader(r)
 

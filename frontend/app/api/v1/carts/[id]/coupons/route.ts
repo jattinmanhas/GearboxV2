@@ -16,6 +16,7 @@ export async function POST(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })
@@ -91,6 +92,7 @@ export async function DELETE(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })
@@ -136,6 +138,7 @@ export async function GET(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

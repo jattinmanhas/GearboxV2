@@ -6,6 +6,8 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const authHeader = request.headers.get('authorization');
+    console.log(`[InventoryProxy] Received Auth Header: ${authHeader ? 'Yes' : 'No'}`, authHeader ? `(Length: ${authHeader.length})` : '');
 
     // Forward the request to the product service with cookies
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/inventory?${searchParams}`, {
@@ -13,6 +15,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 
@@ -40,6 +43,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })

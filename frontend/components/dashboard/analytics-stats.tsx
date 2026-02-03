@@ -14,11 +14,17 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Truck
+  Truck,
+  CreditCard,
+  Eye
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
 
-export function AnalyticsStats() {
+interface AnalyticsStatsProps {
+  period?: string
+}
+
+export function AnalyticsStats({ period = '30d' }: AnalyticsStatsProps) {
   const { 
     analytics, 
     isLoading, 
@@ -27,8 +33,8 @@ export function AnalyticsStats() {
   } = useAnalyticsStore()
 
   useEffect(() => {
-    loadAnalytics('30d')
-  }, [loadAnalytics])
+    loadAnalytics(period)
+  }, [loadAnalytics, period])
 
   if (isLoading) {
     return (
@@ -66,7 +72,7 @@ export function AnalyticsStats() {
     return null
   }
 
-  const { orders, products, users } = analytics
+  const { orders, products, users, payments, blog } = analytics
 
   const stats = [
     {
@@ -75,7 +81,7 @@ export function AnalyticsStats() {
       icon: DollarSign,
       description: `${orders?.new_orders_this_month || 0} orders this month`,
       color: "text-green-600",
-      trend: orders?.total_revenue ? "+12.5%" : "0%"
+      trend: orders?.total_revenue ? "Updated" : "No data"
     },
     {
       title: "Total Orders",
@@ -83,7 +89,7 @@ export function AnalyticsStats() {
       icon: ShoppingCart,
       description: `${orders?.new_orders_today || 0} new today`,
       color: "text-blue-600",
-      trend: orders?.new_orders_this_week ? "+8.2%" : "0%"
+      trend: orders?.new_orders_this_week ? "Growing" : "No data"
     },
     {
       title: "Active Products",
@@ -91,7 +97,7 @@ export function AnalyticsStats() {
       icon: Package,
       description: `${products?.low_stock_products || 0} low stock`,
       color: "text-purple-600",
-      trend: products?.active_products ? "+5.1%" : "0%"
+      trend: products?.active_products ? "Stable" : "No data"
     },
     {
       title: "Active Users",
@@ -99,7 +105,23 @@ export function AnalyticsStats() {
       icon: Users,
       description: `${users?.new_users_today || 0} new today`,
       color: "text-orange-600",
-      trend: users?.new_users_this_week ? "+15.3%" : "0%"
+      trend: users?.new_users_this_week ? "Rising" : "No data"
+    },
+    {
+      title: "Net Payments",
+      value: formatCurrency(payments?.net_amount || 0),
+      icon: CreditCard,
+      description: `${payments?.successful_payments || 0} successful`,
+      color: "text-emerald-600",
+      trend: payments?.total_payments ? "Live" : "No data"
+    },
+    {
+      title: "Blog Views",
+      value: blog?.total_views?.toLocaleString() || "0",
+      icon: Eye,
+      description: `${blog?.published_posts || 0} published posts`,
+      color: "text-sky-600",
+      trend: blog?.total_views ? "Active" : "No data"
     }
   ]
 
@@ -123,7 +145,7 @@ export function AnalyticsStats() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

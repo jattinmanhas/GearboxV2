@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })

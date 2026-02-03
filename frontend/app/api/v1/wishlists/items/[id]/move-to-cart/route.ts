@@ -13,6 +13,7 @@ export async function POST(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

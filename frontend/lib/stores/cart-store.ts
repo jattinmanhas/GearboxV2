@@ -2,9 +2,9 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { cartApi, productApi, couponApi } from '../api'
 import { useEffect } from 'react'
 import { showSuccess, showError, showLoading, updateLoading, NotificationMessages } from '../notifications'
+import { cartApi, couponApi, productApi } from '../apiFunctions'
 
 export interface CartItem {
   id: number
@@ -56,7 +56,7 @@ interface CartStore {
   isOpen: boolean
   isLoading: boolean
   error: string | null
-  
+
   // Actions
   setCart: (cart: Cart | null) => void
   setItems: (items: CartItem[]) => void
@@ -66,7 +66,7 @@ interface CartStore {
   setError: (error: string | null) => void
   toggleCart: () => void
   setCartOpen: (open: boolean) => void
-  
+
   // API Actions
   loadCart: () => Promise<void>
   addItem: (item: { product_id: number; product_variant_id?: number; quantity: number }) => Promise<void>
@@ -74,16 +74,16 @@ interface CartStore {
   updateQuantity: (itemId: number, quantity: number) => Promise<void>
   clearCart: () => Promise<void>
   mergeCarts: (sourceCartId: string) => Promise<void>
-  
+
   // Computed values
   getItemCount: () => number
   getTotalPrice: () => number
   getItemTotal: (id: number) => number
-  
+
   // Helper functions
   fetchProductDetails: (items: CartItem[]) => Promise<CartItem[]>
   recalculateCartTotals: () => void
-  
+
   // Coupon functions
   applyCoupon: (couponCode: string) => Promise<void>
   removeCoupon: (couponCode: string) => Promise<void>
@@ -116,23 +116,23 @@ export const useCartStore = create<CartStore>()(
       loadCart: async () => {
         try {
           set({ isLoading: true, error: null })
-          
+
           // First get the cart metadata
           const cartResponse = await cartApi.getOrCreateCart()
           const cart = cartResponse.data
-          
+
           // Then get the cart items via summary
           const summaryResponse = await cartApi.getCartSummary(cart.id.toString())
           const summary = summaryResponse.data
-          
+
           // Get applied coupons
           const couponsResponse = await cartApi.getCartCoupons(cart.id.toString())
           const appliedCoupons = couponsResponse.data || []
-          
-          
+
+
           // Fetch product details for items
           const itemsWithDetails = await get().fetchProductDetails(summary.items || [])
-          
+
           // Update cart with items from summary
           const cartWithItems = {
             ...cart,
@@ -144,35 +144,35 @@ export const useCartStore = create<CartStore>()(
             total: summary.total_amount || 0,
             applied_coupons: appliedCoupons
           }
-          
-          set({ 
-            cart: cartWithItems, 
-            items: itemsWithDetails, 
+
+          set({
+            cart: cartWithItems,
+            items: itemsWithDetails,
             appliedCoupons: appliedCoupons,
-            isLoading: false 
+            isLoading: false
           })
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to load cart',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
 
       addItem: async (itemData) => {
         const state = get()
-        
+
         // Ensure cart exists
         if (!state.cart) {
           await state.loadCart()
         }
-        
+
         const cart = get().cart
         if (!cart) {
           showError(NotificationMessages.cart.addError)
           return
         }
-        
+
         // Try to fetch product price for optimistic update
         let estimatedPrice = 0
         try {
@@ -190,7 +190,7 @@ export const useCartStore = create<CartStore>()(
         } catch (error) {
           console.warn('Failed to fetch price for optimistic update:', error)
         }
-        
+
         // Create optimistic item for immediate UI update
         const optimisticItem: CartItem = {
           id: Date.now(), // Temporary ID
@@ -203,7 +203,7 @@ export const useCartStore = create<CartStore>()(
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
-        
+
         // Optimistically update the UI immediately
         set(state => ({
           items: [...state.items, optimisticItem],
@@ -212,26 +212,26 @@ export const useCartStore = create<CartStore>()(
             items: [...state.cart.items, optimisticItem]
           } : null
         }))
-        
+
         // Recalculate totals immediately
         get().recalculateCartTotals()
-        
+
         // Show success notification immediately
         showSuccess(NotificationMessages.cart.itemAdded)
-        
+
         // Make API call in background
         try {
           await cartApi.addItemToCart(cart.id, itemData)
-          
+
           // Reload cart silently to get accurate data
           await get().loadCartSilently()
-          
+
           // If there are applied coupons, we need to recalculate percentage discounts
           const currentState = get()
           if (currentState.appliedCoupons.length > 0) {
             await get().recalculatePercentageDiscounts()
           }
-          
+
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
@@ -244,7 +244,7 @@ export const useCartStore = create<CartStore>()(
             error: error instanceof Error ? error.message : 'Failed to add item to cart',
             isLoading: false
           }))
-          
+
           // Show error notification
           showError(NotificationMessages.cart.addError)
         }
@@ -252,11 +252,11 @@ export const useCartStore = create<CartStore>()(
 
       removeItem: async (itemId) => {
         const state = get()
-        
+
         // Store the item for potential rollback
         const itemToRemove = state.items.find(item => item.id === itemId)
         if (!itemToRemove) return
-        
+
         // Optimistically remove item from UI
         set(state => ({
           items: state.items.filter(item => item.id !== itemId),
@@ -265,20 +265,20 @@ export const useCartStore = create<CartStore>()(
             items: state.cart.items.filter(item => item.id !== itemId)
           } : null
         }))
-        
+
         // Recalculate totals immediately
         get().recalculateCartTotals()
-        
+
         // Show success notification immediately
         showSuccess(NotificationMessages.cart.itemRemoved)
-        
+
         // Make API call in background
         try {
           await cartApi.deleteCartItem(itemId.toString())
-          
+
           // Reload cart silently to get accurate totals
           await get().loadCartSilently()
-          
+
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
@@ -291,7 +291,7 @@ export const useCartStore = create<CartStore>()(
             error: error instanceof Error ? error.message : 'Failed to remove item from cart',
             isLoading: false
           }))
-          
+
           // Show error notification
           showError(NotificationMessages.cart.removeError)
         }
@@ -302,46 +302,46 @@ export const useCartStore = create<CartStore>()(
           await get().removeItem(itemId)
           return
         }
-        
+
         const state = get()
-        
+
         // Store the old item for potential rollback
         const oldItem = state.items.find(item => item.id === itemId)
         if (!oldItem) return
-        
+
         // Optimistically update quantity in UI
         set(state => ({
-          items: state.items.map(item => 
-            item.id === itemId 
+          items: state.items.map(item =>
+            item.id === itemId
               ? { ...item, quantity, total_price: item.unit_price * quantity }
               : item
           ),
           cart: state.cart ? {
             ...state.cart,
-            items: state.cart.items.map(item => 
-              item.id === itemId 
+            items: state.cart.items.map(item =>
+              item.id === itemId
                 ? { ...item, quantity, total_price: item.unit_price * quantity }
                 : item
             )
           } : null
         }))
-        
+
         // Recalculate totals immediately
         get().recalculateCartTotals()
-        
+
         // Make API call in background
         try {
           await cartApi.updateCartItem(itemId.toString(), { quantity })
-          
+
           // Reload cart silently to get accurate totals
           await get().loadCartSilently()
-          
+
           // If there are applied coupons, we need to recalculate percentage discounts
           const currentState = get()
           if (currentState.appliedCoupons.length > 0) {
             await get().recalculatePercentageDiscounts()
           }
-          
+
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
@@ -354,37 +354,37 @@ export const useCartStore = create<CartStore>()(
             error: error instanceof Error ? error.message : 'Failed to update item quantity',
             isLoading: false
           }))
-          
+
           showError('Failed to update quantity')
         }
       },
 
       clearCart: async () => {
         const state = get()
-        
+
         // Store cart for potential rollback
         const oldCart = state.cart
         const oldItems = state.items
         const oldAppliedCoupons = state.appliedCoupons
-        
+
         // Optimistically clear cart in UI
         set({ items: [], appliedCoupons: [] })
-        
+
         // Recalculate totals immediately (will set to 0)
         get().recalculateCartTotals()
-        
+
         // Show success notification immediately
         showSuccess(NotificationMessages.cart.cartCleared)
-        
+
         // Make API call in background
         try {
           if (state.cart) {
             await cartApi.clearCartItems(state.cart.id)
           }
-          
+
           // Reload cart silently to ensure sync
           await get().loadCartSilently()
-          
+
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
@@ -395,7 +395,7 @@ export const useCartStore = create<CartStore>()(
             error: error instanceof Error ? error.message : 'Failed to clear cart',
             isLoading: false
           })
-          
+
           showError('Failed to clear cart')
         }
       },
@@ -404,19 +404,19 @@ export const useCartStore = create<CartStore>()(
         try {
           set({ isLoading: true, error: null })
           const state = get()
-          
+
           if (!state.cart) {
             throw new Error('No target cart available for merging')
           }
-          
+
           await cartApi.mergeCarts(state.cart.id, sourceCartId)
-          
+
           // Reload cart to get merged items
           await get().loadCart()
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to merge carts',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -440,7 +440,7 @@ export const useCartStore = create<CartStore>()(
             try {
               // Fetch product details
               const product = await productApi.getProduct(item.product_id)
-              
+
               // Fetch variant details if variant exists
               let variant = null
               if (item.product_variant_id) {
@@ -450,8 +450,8 @@ export const useCartStore = create<CartStore>()(
                   console.warn(`Failed to fetch variant ${item.product_variant_id}:`, error)
                 }
               }
-              
-              
+
+
               return {
                 ...item,
                 name: product.name,
@@ -472,7 +472,7 @@ export const useCartStore = create<CartStore>()(
             }
           })
         )
-        
+
         return itemsWithDetails
       },
 
@@ -508,15 +508,15 @@ export const useCartStore = create<CartStore>()(
 
       applyCoupon: async (couponCode) => {
         const state = get()
-        
+
         if (!state.cart) {
           showError('No cart available')
           return
         }
-        
+
         // Store old coupons for potential rollback
         const oldAppliedCoupons = state.appliedCoupons
-        
+
         // Optimistically show coupon as applied (we don't know the discount yet)
         const optimisticCoupon: AppliedCoupon = {
           id: Date.now(),
@@ -525,16 +525,16 @@ export const useCartStore = create<CartStore>()(
           discount_amount: 0, // Will be updated from API
           created_at: new Date().toISOString()
         }
-        
+
         // If there's already a coupon, replace it
         set({ appliedCoupons: [optimisticCoupon] })
-        
+
         // Recalculate totals immediately (will use coupon info from availableCoupons)
         get().recalculateCartTotals()
-        
+
         // Show loading notification
         const loadingToast = showLoading('Applying coupon...')
-        
+
         // Make API call in background
         try {
           // If there's already a coupon applied, remove it first
@@ -546,29 +546,29 @@ export const useCartStore = create<CartStore>()(
               console.warn('Failed to remove existing coupon:', removeError)
             }
           }
-          
+
           await cartApi.applyCouponToCart(state.cart.id, couponCode)
-          
+
           // Reload cart silently to get accurate discount
           await get().loadCartSilently()
-          
+
           updateLoading(loadingToast, 'Coupon applied successfully!', 'success')
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
           let errorMessage = 'Failed to apply coupon'
-          
+
           if (error instanceof Error) {
             // Error message is already parsed by handleResponse, use it directly
             errorMessage = error.message
           }
-          
-          set({ 
+
+          set({
             appliedCoupons: oldAppliedCoupons,
             error: errorMessage,
-            isLoading: false 
+            isLoading: false
           })
-          
+
           updateLoading(loadingToast, 'Failed to apply coupon', 'error', {
             description: errorMessage
           })
@@ -577,42 +577,42 @@ export const useCartStore = create<CartStore>()(
 
       removeCoupon: async (couponCode) => {
         const state = get()
-        
+
         if (!state.cart) {
           showError('No cart available')
           return
         }
-        
+
         // Store old coupons for potential rollback
         const oldAppliedCoupons = state.appliedCoupons
-        
+
         // Optimistically remove coupon from UI
-        set({ 
+        set({
           appliedCoupons: state.appliedCoupons.filter(c => c.coupon_code !== couponCode)
         })
-        
+
         // Recalculate totals immediately (will remove discount)
         get().recalculateCartTotals()
-        
+
         // Show success notification immediately
         showSuccess('Coupon removed')
-        
+
         // Make API call in background
         try {
           await cartApi.removeCouponFromCart(state.cart.id, couponCode)
-          
+
           // Reload cart silently to get updated totals
           await get().loadCartSilently()
-          
+
           set({ isLoading: false })
         } catch (error) {
           // Revert optimistic update on error
-          set({ 
+          set({
             appliedCoupons: oldAppliedCoupons,
             error: error instanceof Error ? error.message : 'Failed to remove coupon',
-            isLoading: false 
+            isLoading: false
           })
-          
+
           showError('Failed to remove coupon')
         }
       },
@@ -623,7 +623,7 @@ export const useCartStore = create<CartStore>()(
           if (!state.cart) {
             return
           }
-          
+
           const response = await cartApi.getCartCoupons(state.cart.id)
           set({ appliedCoupons: response.data || [] })
         } catch (error) {
@@ -638,7 +638,7 @@ export const useCartStore = create<CartStore>()(
             limit: 20,
             status: 'active'
           })
-          
+
           // Filter out expired coupons
           const now = new Date()
           const validCoupons = (response.data?.coupons || []).filter((coupon: any) => {
@@ -646,12 +646,12 @@ export const useCartStore = create<CartStore>()(
             if (!coupon.expires_at) {
               return true
             }
-            
+
             // Check if coupon has expired
             const expiresAt = new Date(coupon.expires_at)
             return expiresAt > now
           })
-          
+
           set({ availableCoupons: validCoupons })
         } catch (error) {
           console.error('Failed to load available coupons:', error)
@@ -669,7 +669,7 @@ export const useCartStore = create<CartStore>()(
 
           // Get the current applied coupon codes
           const appliedCouponCodes = state.appliedCoupons.map(coupon => coupon.coupon_code)
-          
+
           if (appliedCouponCodes.length === 0) {
             return
           }
@@ -680,7 +680,7 @@ export const useCartStore = create<CartStore>()(
             try {
               // Remove the coupon first
               await cartApi.removeCouponFromCart(state.cart.id, couponCode)
-              
+
               // Reapply the coupon (this will recalculate the discount with new cart total)
               await cartApi.applyCouponToCart(state.cart.id, couponCode)
             } catch (error) {
@@ -690,7 +690,7 @@ export const useCartStore = create<CartStore>()(
 
           // Use silent reload to avoid double loading states
           await get().loadCartSilently()
-          
+
         } catch (error) {
           console.error('Failed to recalculate percentage discounts:', error)
           // Fallback: silent reload
@@ -703,18 +703,18 @@ export const useCartStore = create<CartStore>()(
           // First get the cart metadata
           const cartResponse = await cartApi.getOrCreateCart()
           const cart = cartResponse.data
-          
+
           // Then get the cart items via summary
           const summaryResponse = await cartApi.getCartSummary(cart.id.toString())
           const summary = summaryResponse.data
-          
+
           // Get applied coupons
           const couponsResponse = await cartApi.getCartCoupons(cart.id.toString())
           const appliedCoupons = couponsResponse.data || []
-          
+
           // Fetch product details for items
           const itemsWithDetails = await get().fetchProductDetails(summary.items || [])
-          
+
           // Update cart with items from summary
           const cartWithItems = {
             ...cart,
@@ -726,10 +726,10 @@ export const useCartStore = create<CartStore>()(
             total: summary.total_amount || 0,
             applied_coupons: appliedCoupons
           }
-          
-          set({ 
-            cart: cartWithItems, 
-            items: itemsWithDetails, 
+
+          set({
+            cart: cartWithItems,
+            items: itemsWithDetails,
             appliedCoupons: appliedCoupons
             // Note: Not setting isLoading to false here to avoid UI flicker
           })
@@ -740,7 +740,7 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'cart-storage',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         cart: state.cart,
         items: state.items,
         appliedCoupons: state.appliedCoupons

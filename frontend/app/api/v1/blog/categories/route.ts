@@ -7,6 +7,7 @@ function getAuthHeaders(request: NextRequest) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Cookie': request.headers.get('cookie') || '',
+  'Authorization': request.headers.get('authorization') || '',
   };
 
 

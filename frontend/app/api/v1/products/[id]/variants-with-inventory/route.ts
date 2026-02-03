@@ -13,6 +13,7 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

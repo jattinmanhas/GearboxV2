@@ -51,10 +51,56 @@ export interface UserAnalytics {
   }>
 }
 
+export interface PaymentSummary {
+  total_payments: number
+  successful_payments: number
+  failed_payments: number
+  pending_payments: number
+  total_amount: number
+  refunded_amount: number
+  net_amount: number
+}
+
+export interface BlogAnalytics {
+  total_posts: number
+  published_posts: number
+  draft_posts: number
+  archived_posts: number
+  total_views: number
+  average_read_time: number
+  top_posts: Array<{
+    id: string
+    title: string
+    slug: string
+    viewCount: number
+    authorName: string
+    publishedAt: string | null
+  }>
+  recent_posts: Array<{
+    id: string
+    title: string
+    slug: string
+    viewCount: number
+    authorName: string
+    publishedAt: string | null
+  }>
+}
+
 export interface DashboardAnalytics {
   orders: OrderAnalytics | null
   products: ProductAnalytics | null
   users: UserAnalytics | null
+  payments: PaymentSummary | null
+  blog: BlogAnalytics | null
+  top_products: Array<{
+    product_id: number
+    product_name: string
+    sku: string
+    total_quantity: number
+    total_revenue: number
+    order_count: number
+    average_price?: number
+  }> | null
   period: string
   lastUpdated: string
 }

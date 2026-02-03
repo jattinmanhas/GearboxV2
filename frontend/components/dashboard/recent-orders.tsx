@@ -1,12 +1,10 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
-  ShoppingCart, 
-  Eye, 
+import {
+  ShoppingCart,
+  Eye,
   Clock,
   CheckCircle,
   XCircle,
@@ -14,6 +12,7 @@ import {
   Package
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
+import { httpClient } from "@/lib/apiFunctions/http-client"
 import Link from "next/link"
 
 interface RecentOrder {
@@ -35,16 +34,12 @@ export function RecentOrders() {
     const fetchRecentOrders = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/v1/dashboard/recent-orders?limit=5&sort=created_at&order=desc', {
-          credentials: 'include',
-        })
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch orders: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        
+        const result = await httpClient.get<{
+          success: boolean
+          message: string
+          data: { orders: RecentOrder[] }
+        }>('/dashboard/recent-orders?limit=5&sort=created_at&order=desc')
+
         if (result.success) {
           setOrders(result.data.orders || [])
         } else {
@@ -198,7 +193,7 @@ export function RecentOrders() {
                     </Link>
                   </Button>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div>
                     <p className="text-sm font-medium truncate">
@@ -208,15 +203,15 @@ export function RecentOrders() {
                       {order.customer_email || 'No email'}
                     </p>
                   </div>
-                  
+
                   <div className="text-xs text-muted-foreground">
                     #{order.order_number}
                   </div>
-                  
+
                   <div className="text-xs text-muted-foreground">
                     {formatDate(order.created_at)}
                   </div>
-                  
+
                   <div className="pt-2 border-t">
                     <p className="text-sm font-semibold">
                       {formatCurrency(order.total_amount)}
@@ -227,7 +222,7 @@ export function RecentOrders() {
             ))}
           </div>
         )}
-        
+
         {orders.length > 0 && (
           <div className="mt-6 pt-4 border-t">
             <Button variant="outline" className="w-full" asChild>

@@ -23,6 +23,7 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 
@@ -69,6 +70,7 @@ export async function PUT(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+      'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })

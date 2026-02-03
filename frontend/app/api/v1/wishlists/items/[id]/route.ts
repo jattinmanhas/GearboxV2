@@ -15,6 +15,7 @@ export async function PUT(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })
@@ -48,6 +49,7 @@ export async function DELETE(
       method: 'DELETE',
       headers: {
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

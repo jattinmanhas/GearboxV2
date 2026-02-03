@@ -16,6 +16,7 @@ export async function PUT(
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

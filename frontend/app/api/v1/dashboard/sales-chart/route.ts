@@ -6,93 +6,120 @@ function getAuthHeaders(request: NextRequest) {
   return {
     'Content-Type': 'application/json',
     'Cookie': request.headers.get('cookie') || '',
+    'Authorization': request.headers.get('authorization') || '',
   }
+}
+
+function getDateRange(period: string) {
+  const endDate = new Date()
+  const startDate = new Date()
+
+  switch (period) {
+    case '7d':
+      startDate.setDate(endDate.getDate() - 7)
+      break
+    case '30d':
+      startDate.setDate(endDate.getDate() - 30)
+      break
+    case '90d':
+      startDate.setDate(endDate.getDate() - 90)
+      break
+    case '1y':
+      startDate.setFullYear(endDate.getFullYear() - 1)
+      break
+    default:
+      startDate.setDate(endDate.getDate() - 30)
+  }
+
+  const toDateString = (date: Date) => date.toISOString().split('T')[0]
+
+  return {
+    startDate,
+    endDate,
+    startDateStr: toDateString(startDate),
+    endDateStr: toDateString(endDate),
+  }
+}
+
+function buildEmptySeries(startDate: Date, endDate: Date) {
+  const points: Array<{ date: string; revenue: number; orders: number }> = []
+  const current = new Date(startDate)
+
+  while (current <= endDate) {
+    points.push({
+      date: current.toISOString().split('T')[0],
+      revenue: 0,
+      orders: 0,
+    })
+    current.setDate(current.getDate() + 1)
+  }
+
+  return points
 }
 
 // GET /api/v1/dashboard/sales-chart - Get sales chart data for a specific period
 export async function GET(request: NextRequest) {
   try {
-    console.log('Sales chart API called')
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || '30d'
-    console.log('Period requested:', period)
+    const { startDate, endDate, startDateStr, endDateStr } = getDateRange(period)
 
-    // Convert period to date range
-    const endDate = new Date()
-    const startDate = new Date()
-    
-    switch (period) {
-      case '7d':
-        startDate.setDate(endDate.getDate() - 7)
-        break
-      case '30d':
-        startDate.setDate(endDate.getDate() - 30)
-        break
-      case '90d':
-        startDate.setDate(endDate.getDate() - 90)
-        break
-      case '1y':
-        startDate.setFullYear(endDate.getFullYear() - 1)
-        break
-      default:
-        startDate.setDate(endDate.getDate() - 30)
-    }
-    
-    const startDateStr = startDate.toISOString().split('T')[0]
-    const endDateStr = endDate.toISOString().split('T')[0]
+    const limit = 200
+    const maxPages = 25
+    let page = 1
+    let totalPages = 1
+    const orders: Array<{ created_at: string; total_amount: number }> = []
 
-    // Try to fetch analytics data from product service
-    let analytics = null
-    try {
-      console.log('Attempting to fetch from product service:', `${PRODUCT_SERVICE_URL}/api/v1/orders/analytics/date-range?start_date=${startDateStr}&end_date=${endDateStr}`)
-      const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/orders/analytics/date-range?start_date=${startDateStr}&end_date=${endDateStr}`, {
-        method: 'GET',
-        headers: getAuthHeaders(request),
-      })
-
-      console.log('Product service response status:', response.status)
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Product service response:', result)
-        if (result.success) {
-          analytics = result.data
-          console.log('Using real analytics data')
+    while (page <= totalPages && page <= maxPages) {
+      const response = await fetch(
+        `${PRODUCT_SERVICE_URL}/api/v1/orders?date_from=${startDateStr}&date_to=${endDateStr}&page=${page}&limit=${limit}&sort=created_at&order=asc`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(request),
         }
-      } else {
-        console.warn('Product service returned error:', response.status, response.statusText)
+      )
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Failed to fetch orders for sales chart',
+            error: errorData,
+          },
+          { status: response.status }
+        )
       }
-    } catch (error) {
-      console.warn('Product service unavailable, using mock data:', error)
+
+      const result = await response.json()
+      const data = result?.data
+      const pageOrders = data?.orders || []
+
+      pageOrders.forEach((order: any) => {
+        orders.push({
+          created_at: order.created_at,
+          total_amount: Number(order.total_amount) || 0,
+        })
+      })
+
+      totalPages = data?.pages || 1
+      page += 1
     }
 
-    // If product service is unavailable or returns no data, use mock data
-    if (!analytics) {
-      analytics = {
-        total_revenue: 50000 + Math.random() * 20000, // Mock revenue
-        total_orders: 150 + Math.floor(Math.random() * 50), // Mock orders
+    const chartData = buildEmptySeries(startDate, endDate)
+    const indexByDate = new Map<string, number>()
+    chartData.forEach((point, index) => {
+      indexByDate.set(point.date, index)
+    })
+
+    orders.forEach((order) => {
+      const dateKey = new Date(order.created_at).toISOString().split('T')[0]
+      const idx = indexByDate.get(dateKey)
+      if (idx !== undefined) {
+        chartData[idx].revenue += order.total_amount
+        chartData[idx].orders += 1
       }
-    }
-    
-    // Convert analytics data to chart data format
-    const chartData = []
-    const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365
-    const dailyRevenue = analytics.total_revenue / days
-    const dailyOrders = analytics.total_orders / days
-    
-    for (let i = 0; i < days; i++) {
-      const date = new Date(startDate)
-      date.setDate(startDate.getDate() + i)
-      
-      // Add some realistic variation to the data
-      const revenueVariation = (Math.random() - 0.5) * dailyRevenue * 0.3
-      const ordersVariation = (Math.random() - 0.5) * dailyOrders * 0.3
-      
-      chartData.push({
-        date: date.toISOString().split('T')[0],
-        revenue: Math.max(0, dailyRevenue + revenueVariation),
-        orders: Math.max(0, Math.round(dailyOrders + ordersVariation))
-      })
-    }
+    })
 
     return NextResponse.json({
       success: true,
@@ -102,10 +129,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Sales chart API error:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch sales chart data',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )

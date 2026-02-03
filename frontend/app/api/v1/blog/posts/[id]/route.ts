@@ -6,6 +6,7 @@ const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/
 function getAuthHeaders(request: NextRequest, includeContentType: boolean = true) {
   const headers: Record<string, string> = {
     'Cookie': request.headers.get('cookie') || '',
+  'Authorization': request.headers.get('authorization') || '',
   };
 
   if (includeContentType) {
@@ -18,11 +19,11 @@ function getAuthHeaders(request: NextRequest, includeContentType: boolean = true
 // GET /api/v1/blog/posts/[id] - Get blog post by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
-    
+    const { id } = await params;
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/${id}`, {
       method: 'GET',
       headers: {
@@ -31,13 +32,13 @@ export async function GET(
     });
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch blog post',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -49,12 +50,12 @@ export async function GET(
 // PUT /api/v1/blog/posts/[id] - Update blog post
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(request),
@@ -62,13 +63,13 @@ export async function PUT(
     });
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error updating blog post:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to update blog post',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -80,11 +81,11 @@ export async function PUT(
 // DELETE /api/v1/blog/posts/[id] - Delete blog post
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
-    
+    const { id } = await params;
+
     // First, get the blog post data to extract image URLs
     const getResponse = await fetch(`${BLOG_SERVICE_URL}/posts/${id}`, {
       method: 'GET',
@@ -95,7 +96,7 @@ export async function DELETE(
     if (getResponse.ok) {
       postData = await getResponse.json()
     }
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(request, false), // Don't include Content-Type for DELETE
@@ -108,11 +109,11 @@ export async function DELETE(
       try {
         const { cleanupEntityImages } = await import('@/lib/cloudinary-cleanup')
         const cleanupResult = await cleanupEntityImages(postData.data || postData)
-        
+
         if (cleanupResult.deleted > 0) {
           console.log(`Cleaned up ${cleanupResult.deleted} images for deleted blog post ${id}`)
         }
-        
+
         if (cleanupResult.errors.length > 0) {
           console.warn('Some images could not be deleted:', cleanupResult.errors)
         }
@@ -121,13 +122,13 @@ export async function DELETE(
         // Don't fail the delete operation if image cleanup fails
       }
     }
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error deleting blog post:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to delete blog post',
         error: error instanceof Error ? error.message : 'Unknown error'
       },

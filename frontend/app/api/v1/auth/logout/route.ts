@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         // Forward cookies from the original request
         'Cookie': request.headers.get('cookie') || '',
+      'Authorization': request.headers.get('authorization') || '',
       },
     })
 

@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { OAuthProvider } from '@/lib/types'
-import { oauthApi } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 import { showError } from '@/lib/notifications'
+import { oauthApi } from '@/lib/apiFunctions'
 
 // OAuth provider icons using their brand logos
 const OAuthIcons = {

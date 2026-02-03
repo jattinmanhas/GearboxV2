@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AuthProvider as AuthContextProvider, useAuth } from '@/lib/contexts/auth-context'
 import { setAuthTokenHandlers } from '@/lib/apiFunctions/http-client'
 
@@ -19,13 +19,49 @@ import { setAuthTokenHandlers } from '@/lib/apiFunctions/http-client'
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const { accessToken, setAccessToken } = useAuth()
 
+  const tokenRef = useRef(accessToken)
+
+  // Update ref synchronously during render so it's available immediately to children
+  tokenRef.current = accessToken
+
   useEffect(() => {
     // Set up token handlers for http-client
+    // We use a ref so the closure always has access to the current token
+    // without needing to re-register the handler when the token changes
     setAuthTokenHandlers(
-      () => accessToken,
+      () => tokenRef.current,
       (token) => setAccessToken(token)
     )
-  }, [accessToken, setAccessToken])
+  }, [setAccessToken])
+
+  useEffect(() => {
+    // Automatically refresh access token on app initialization
+    // This restores the session if a valid refresh token cookie exists
+    const initializeAuth = async () => {
+      // Skip if we already have an access token
+      if (accessToken) return
+
+      try {
+        // Import authApi dynamically to avoid circular dependencies
+        const { authApi } = await import('@/lib/apiFunctions')
+
+        // Try to refresh token using HTTP-only cookie
+        const response = await authApi.refreshToken()
+        const newAccessToken = response?.data?.access_token
+
+        if (newAccessToken) {
+          setAccessToken(newAccessToken)
+          console.log('Access token restored from refresh token')
+        }
+      } catch (error) {
+        // Refresh failed - user needs to log in again
+        // This is normal if no refresh token exists or it's expired
+        console.log('No valid session found, user needs to log in')
+      }
+    }
+
+    initializeAuth()
+  }, []) // Run once on mount, empty dependency array
 
   return <>{children}</>
 }

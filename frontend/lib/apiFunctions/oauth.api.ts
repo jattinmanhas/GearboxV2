@@ -9,7 +9,9 @@ import type {
 export const oauthApi = {
     // Initiate OAuth flow
     async initiateOAuth(provider: OAuthProvider): Promise<OAuthInitiateResponse> {
-        return httpClient.get<OAuthInitiateResponse>(`/auth/oauth/${provider}`);
+        const response = await httpClient.get<any>(`/auth/oauth/${provider}`);
+        // Backend wraps responses in { data: ... }; fall back to raw response for non-wrapped cases
+        return response?.data ?? response;
     },
 
     // Get linked OAuth providers

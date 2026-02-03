@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { wishlistApi, productApi } from '../api'
+import { wishlistApi } from '../apiFunctions'
 
 export interface WishlistItem {
   id: number
@@ -29,24 +29,24 @@ interface WishlistStore {
   currentWishlist: Wishlist | null
   isLoading: boolean
   error: string | null
-  
+
   // Actions
   setWishlists: (wishlists: Wishlist[]) => void
   setCurrentWishlist: (wishlist: Wishlist | null) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
-  
+
   // API Actions
   loadWishlists: () => Promise<void>
   createWishlist: (data: { name: string; description?: string; is_public?: boolean }) => Promise<void>
   updateWishlist: (id: number, data: { name?: string; description?: string; is_public?: boolean }) => Promise<void>
   deleteWishlist: (id: number) => Promise<void>
-  
+
   // Wishlist Items
   addItemToWishlist: (wishlistId: number, productId: number) => Promise<void>
   removeItemFromWishlist: (wishlistId: number, itemId: number) => Promise<void>
   moveItemToCart: (itemId: number) => Promise<void>
-  
+
   // Utility
   isProductInWishlist: (productId: number, wishlistId?: number) => boolean
   getWishlistItemCount: (wishlistId?: number) => number
@@ -71,17 +71,17 @@ export const useWishlistStore = create<WishlistStore>()(
           const response = await wishlistApi.getWishlists()
           // Handle different response structures
           const wishlistsData = response.data?.wishlists || response.wishlists || response.data || []
-          
+
           // Fetch items for each wishlist
           const wishlistsWithItems = await Promise.all(
             wishlistsData.map(async (wishlist: any) => {
               try {
                 // Fetch items for this wishlist with product details
                 const itemsResponse = await wishlistApi.getWishlistItems(wishlist.id.toString())
-                
+
                 // Handle different response structures for items
                 const items = itemsResponse.data?.items || itemsResponse.items || itemsResponse.data || []
-                
+
                 // Map items with product details (no need for additional API calls)
                 const itemsWithProductDetails = items.map((item: any) => ({
                   id: item.id,
@@ -93,7 +93,7 @@ export const useWishlistStore = create<WishlistStore>()(
                   added_at: item.created_at,
                   notes: item.notes || ''
                 }))
-                
+
                 return {
                   ...wishlist,
                   items: itemsWithProductDetails || []
@@ -107,8 +107,8 @@ export const useWishlistStore = create<WishlistStore>()(
               }
             })
           )
-          
-          set({ 
+
+          set({
             wishlists: wishlistsWithItems,
             currentWishlist: wishlistsWithItems.length > 0 ? wishlistsWithItems[0] : null
           })
@@ -116,7 +116,7 @@ export const useWishlistStore = create<WishlistStore>()(
           console.error('Wishlist load error:', error)
           // Silently fail - set empty arrays without error state to not break the UI
           // This is expected if user is not authenticated or wishlist service is not available
-          set({ 
+          set({
             wishlists: [],
             currentWishlist: null,
             error: null
@@ -134,14 +134,14 @@ export const useWishlistStore = create<WishlistStore>()(
             ...response.data,
             items: response.data.items || []
           }
-          set(state => ({ 
+          set(state => ({
             wishlists: [...state.wishlists, newWishlist],
-            isLoading: false 
+            isLoading: false
           }))
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to create wishlist',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -157,9 +157,9 @@ export const useWishlistStore = create<WishlistStore>()(
             isLoading: false
           }))
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to update wishlist',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -174,9 +174,9 @@ export const useWishlistStore = create<WishlistStore>()(
             isLoading: false
           }))
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to delete wishlist',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -185,13 +185,13 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           set({ isLoading: true, error: null })
           await wishlistApi.addItemToWishlist(wishlistId.toString(), { product_id: productId })
-          
+
           // Reload wishlists to get updated data
           await get().loadWishlists()
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to add item to wishlist',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -200,23 +200,23 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           set({ isLoading: true, error: null })
           await wishlistApi.deleteWishlistItem(itemId.toString())
-          
+
           // Update local state
           set(state => ({
-            wishlists: state.wishlists.map(w => 
-              w.id === wishlistId 
+            wishlists: state.wishlists.map(w =>
+              w.id === wishlistId
                 ? { ...w, items: w.items.filter(item => item.id !== itemId) }
                 : w
             ),
-            currentWishlist: state.currentWishlist?.id === wishlistId 
+            currentWishlist: state.currentWishlist?.id === wishlistId
               ? { ...state.currentWishlist, items: state.currentWishlist.items.filter(item => item.id !== itemId) }
               : state.currentWishlist,
             isLoading: false
           }))
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to remove item from wishlist',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
@@ -225,29 +225,29 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           set({ isLoading: true, error: null })
           await wishlistApi.moveItemToCart(itemId.toString())
-          
+
           // Reload wishlists to get updated data
           await get().loadWishlists()
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to move item to cart',
-            isLoading: false 
+            isLoading: false
           })
         }
       },
 
       isProductInWishlist: (productId, wishlistId) => {
         const state = get()
-        const targetWishlist = wishlistId 
+        const targetWishlist = wishlistId
           ? state.wishlists.find(w => w.id === wishlistId)
           : state.currentWishlist
-        
+
         return targetWishlist?.items.some(item => item.product_id === productId) || false
       },
 
       getWishlistItemCount: (wishlistId) => {
         const state = get()
-        
+
         if (wishlistId) {
           // Count items in a specific wishlist
           const targetWishlist = state.wishlists.find(w => w.id === wishlistId)
