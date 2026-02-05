@@ -45,8 +45,6 @@ type PaymentGateway struct {
 	Code       string    `json:"code" db:"code"`
 	IsActive   bool      `json:"is_active" db:"is_active"`
 	IsTestMode bool      `json:"is_test_mode" db:"is_test_mode"`
-	Config     string    `json:"config" db:"config"`                     // JSON configuration
-	WebhookURL *string   `json:"webhook_url,omitempty" db:"webhook_url"` // Nullable webhook URL
 	SortOrder  int       `json:"sort_order" db:"sort_order"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
@@ -144,9 +142,7 @@ const (
 
 // Payment Gateway Codes
 const (
-	GatewayStripe   = "stripe"
-	GatewayPayPal   = "paypal"
-	GatewayRazorpay = "razorpay"
+	GatewayStripe = "stripe"
 )
 
 // Refund Status Constants

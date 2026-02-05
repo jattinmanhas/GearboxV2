@@ -5,15 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function OAuthErrorPage() {
+function OAuthErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('message') || 'An unknown error occurred'
 
   // Parse the error message to make it more user-friendly
   const getErrorMessage = (errorStr: string) => {
     const lowerError = errorStr.toLowerCase()
-    
+
     if (lowerError.includes('invalid_provider')) {
       return 'The authentication provider is not supported.'
     }
@@ -29,7 +30,7 @@ export default function OAuthErrorPage() {
     if (lowerError.includes('already linked')) {
       return 'This account is already linked to another user.'
     }
-    
+
     // Default: return the original error message
     return errorStr.replace(/%20/g, ' ')
   }
@@ -74,6 +75,14 @@ export default function OAuthErrorPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function OAuthErrorPage() {
+  return (
+    <Suspense>
+      <OAuthErrorContent />
+    </Suspense>
   )
 }
 

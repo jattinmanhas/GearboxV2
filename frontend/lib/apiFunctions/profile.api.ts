@@ -11,11 +11,13 @@ import type {
 export const profileApi = {
     // User Profile
     async getProfile(): Promise<UserProfile> {
-        return httpClient.get<UserProfile>("/auth/profile");
+        const response = await httpClient.get<ApiResponse<UserProfile>>("/auth/profile");
+        return response.data as UserProfile;
     },
 
     async updateProfile(profileData: UpdateProfileRequest): Promise<UserProfile> {
-        return httpClient.put<UserProfile>("/auth/profile", profileData);
+        const response = await httpClient.put<ApiResponse<UserProfile>>("/auth/profile", profileData);
+        return response.data as UserProfile;
     },
 
     // Addresses
@@ -53,7 +55,8 @@ export const profileApi = {
     },
 
     async getAddress(id: number): Promise<Address> {
-        const addr = await httpClient.get<any>(`/auth/addresses/${id}`);
+        const response = await httpClient.get<any>(`/auth/addresses/${id}`);
+        const addr = response.data || response;
 
         // Map backend address structure to frontend Address type
         return {
@@ -93,7 +96,8 @@ export const profileApi = {
             is_default: addressData.is_default,
         };
 
-        const addr = await httpClient.post<any>("/auth/addresses", backendData);
+        const response = await httpClient.post<any>("/auth/addresses", backendData);
+        const addr = response.data || response;
 
         // Map backend address structure to frontend Address type
         return {
@@ -145,10 +149,11 @@ export const profileApi = {
         if (addressData.is_default !== undefined)
             backendData.is_default = addressData.is_default;
 
-        const addr = await httpClient.put<any>(
+        const response = await httpClient.put<any>(
             `/auth/addresses/${id}`,
             backendData
         );
+        const addr = response.data || response;
 
         // Map backend address structure to frontend Address type
         return {

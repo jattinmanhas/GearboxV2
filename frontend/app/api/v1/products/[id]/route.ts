@@ -23,7 +23,8 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      'Authorization': request.headers.get('authorization') || '',
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 
@@ -70,7 +71,8 @@ export async function PUT(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-      'Authorization': request.headers.get('authorization') || '',
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })
@@ -106,7 +108,10 @@ export async function DELETE(
     // First, get the product data to extract image URLs
     const getResponse = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/${productId}`, {
       method: 'GET',
-      headers: {},
+      headers: {
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
+      },
     })
 
     let productData = null
@@ -117,7 +122,10 @@ export async function DELETE(
     // Forward the delete request to the product service
     const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products/${productId}`, {
       method: 'DELETE',
-      headers: {},
+      headers: {
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
+      },
     })
 
     const data = await response.json()
@@ -127,11 +135,11 @@ export async function DELETE(
       try {
         const { cleanupEntityImages } = await import('@/lib/cloudinary-cleanup')
         const cleanupResult = await cleanupEntityImages(productData.data || productData)
-        
+
         if (cleanupResult.deleted > 0) {
           console.log(`Cleaned up ${cleanupResult.deleted} images for deleted product ${productId}`)
         }
-        
+
         if (cleanupResult.errors.length > 0) {
           console.warn('Some images could not be deleted:', cleanupResult.errors)
         }

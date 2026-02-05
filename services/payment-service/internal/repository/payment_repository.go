@@ -170,8 +170,8 @@ func (r *PaymentRepository) DeletePaymentMethod(ctx context.Context, id int64) e
 // CreatePaymentGateway creates a new payment gateway
 func (r *PaymentRepository) CreatePaymentGateway(ctx context.Context, pg *domain.PaymentGateway) error {
 	query := `
-		INSERT INTO payment_gateways (name, code, is_active, is_test_mode, config, webhook_url, sort_order, created_at, updated_at)
-		VALUES (:name, :code, :is_active, :is_test_mode, :config, :webhook_url, :sort_order, :created_at, :updated_at)
+		INSERT INTO payment_gateways (name, code, is_active, is_test_mode, sort_order, created_at, updated_at)
+		VALUES (:name, :code, :is_active, :is_test_mode, :sort_order, :created_at, :updated_at)
 		RETURNING id`
 
 	rows, err := r.db.NamedQueryContext(ctx, query, pg)
@@ -192,7 +192,7 @@ func (r *PaymentRepository) CreatePaymentGateway(ctx context.Context, pg *domain
 // GetPaymentGatewayByID retrieves a payment gateway by ID
 func (r *PaymentRepository) GetPaymentGatewayByID(ctx context.Context, id int64) (*domain.PaymentGateway, error) {
 	query := `
-		SELECT id, name, code, is_active, is_test_mode, config, webhook_url, sort_order, created_at, updated_at
+		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
 		FROM payment_gateways WHERE id = $1`
 
 	pg := &domain.PaymentGateway{}
@@ -210,7 +210,7 @@ func (r *PaymentRepository) GetPaymentGatewayByID(ctx context.Context, id int64)
 // GetPaymentGatewayByCode retrieves a payment gateway by code
 func (r *PaymentRepository) GetPaymentGatewayByCode(ctx context.Context, code string) (*domain.PaymentGateway, error) {
 	query := `
-		SELECT id, name, code, is_active, is_test_mode, config, webhook_url, sort_order, created_at, updated_at
+		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
 		FROM payment_gateways WHERE code = $1`
 
 	pg := &domain.PaymentGateway{}
@@ -228,7 +228,7 @@ func (r *PaymentRepository) GetPaymentGatewayByCode(ctx context.Context, code st
 // ListPaymentGateways retrieves payment gateways with filtering
 func (r *PaymentRepository) ListPaymentGateways(ctx context.Context, filter *domain.PaymentGatewayFilter) ([]*domain.PaymentGateway, error) {
 	query := `
-		SELECT id, name, code, is_active, is_test_mode, config, webhook_url, sort_order, created_at, updated_at
+		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
 		FROM payment_gateways WHERE 1=1`
 	args := []interface{}{}
 	argIndex := 1
@@ -273,7 +273,7 @@ func (r *PaymentRepository) UpdatePaymentGateway(ctx context.Context, pg *domain
 	query := `
 		UPDATE payment_gateways 
 		SET name = :name, code = :code, is_active = :is_active, is_test_mode = :is_test_mode, 
-		    config = :config, webhook_url = :webhook_url, sort_order = :sort_order, updated_at = :updated_at
+		    sort_order = :sort_order, updated_at = :updated_at
 		WHERE id = :id`
 
 	result, err := r.db.NamedExecContext(ctx, query, pg)

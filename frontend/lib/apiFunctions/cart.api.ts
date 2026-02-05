@@ -1,21 +1,25 @@
 import { httpClient } from "./http-client";
+import type { ApiResponse } from "../types";
 
 export const cartApi = {
     // Cart Management
     async getCartBySession(currency: string = "INR"): Promise<any> {
-        return httpClient.get<any>(
+        const response = await httpClient.get<ApiResponse<any>>(
             `/carts?endpoint=session&currency=${currency}`
         );
+        return response.data;
     },
 
     async getOrCreateCart(currency: string = "INR"): Promise<any> {
-        return httpClient.get<any>(
+        const response = await httpClient.get<ApiResponse<any>>(
             `/carts?endpoint=get-or-create&currency=${currency}`
         );
+        return response.data;
     },
 
     async getCart(cartId: string): Promise<any> {
-        return httpClient.get<any>(`/carts/${cartId}`);
+        const response = await httpClient.get<ApiResponse<any>>(`/carts/${cartId}`);
+        return response.data;
     },
 
     async updateCart(cartId: string, data: any): Promise<any> {
@@ -49,7 +53,8 @@ export const cartApi = {
 
     // Cart Summary
     async getCartSummary(cartId: string): Promise<any> {
-        return httpClient.get<any>(`/carts/${cartId}/summary`);
+        const response = await httpClient.get<ApiResponse<any>>(`/carts/${cartId}/summary`);
+        return response.data;
     },
 
     // Cart Merging

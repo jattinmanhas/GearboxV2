@@ -55,8 +55,6 @@ type PaymentGatewayRequest struct {
 	Code       string `json:"code" validate:"required,min=1,max=50"`
 	IsActive   bool   `json:"is_active"`
 	IsTestMode bool   `json:"is_test_mode"`
-	Config     string `json:"config" validate:"required"`
-	WebhookURL string `json:"webhook_url" validate:"max=500"`
 	SortOrder  int    `json:"sort_order" validate:"min=0,max=999"`
 }
 
@@ -96,14 +94,12 @@ type PaymentMethodResponse struct {
 
 // PaymentGatewayResponse represents a payment gateway response
 type PaymentGatewayResponse struct {
-	ID         int64   `json:"id"`
-	Name       string  `json:"name"`
-	Code       string  `json:"code"`
-	IsActive   bool    `json:"is_active"`
-	IsTestMode bool    `json:"is_test_mode"`
-	Config     string  `json:"config"`
-	WebhookURL *string `json:"webhook_url,omitempty"` // Nullable webhook URL
-	SortOrder  int     `json:"sort_order"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Code       string `json:"code"`
+	IsActive   bool   `json:"is_active"`
+	IsTestMode bool   `json:"is_test_mode"`
+	SortOrder  int    `json:"sort_order"`
 }
 
 // PaymentRefundResponse represents a refund response
@@ -177,13 +173,6 @@ type StripePaymentRequest struct {
 	CustomerID         string `json:"customer_id,omitempty"`
 	ConfirmationMethod string `json:"confirmation_method,omitempty"`
 	ReturnURL          string `json:"return_url,omitempty"`
-}
-
-// PayPalPaymentRequest represents PayPal-specific payment data
-type PayPalPaymentRequest struct {
-	ApprovalURL string `json:"approval_url,omitempty"`
-	PaymentID   string `json:"payment_id,omitempty"`
-	PayerID     string `json:"payer_id,omitempty"`
 }
 
 // Webhook Event DTOs

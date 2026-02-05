@@ -9,8 +9,9 @@ import { orderApi } from "@/lib/apiFunctions"
 import { formatCurrency } from "@/lib/currency"
 import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
+import { Suspense } from "react"
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const orderId = searchParams.get("order_id")
@@ -169,6 +170,21 @@ export default function CheckoutSuccessPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Loading order details...</p>
+        </div>
+      </div>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
   )
 }
 

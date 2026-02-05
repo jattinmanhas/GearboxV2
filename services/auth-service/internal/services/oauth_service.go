@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/domain"
+	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/helpers"
 	"github.com/jattinmanhas/GearboxV2/services/auth-service/internal/repository"
 	"github.com/jattinmanhas/GearboxV2/services/shared/jwt"
 	"golang.org/x/oauth2"
@@ -209,10 +210,13 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 		return nil, nil, "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
+	// Hash the refresh token before storing in database
+	hashedToken := helpers.HashToken(refreshTokenJWT)
+
 	// Create refresh token in database
 	refreshToken := &domain.RefreshToken{
 		UserID:       user.ID,
-		RefreshToken: refreshTokenJWT,
+		RefreshToken: hashedToken, // Use hashed token
 		ExpiresAt:    time.Now().Add(s.jwtService.GetRefreshTokenExpiry()),
 		CreatedAt:    time.Now(),
 		IsRevoked:    false,
@@ -223,6 +227,9 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 	if err := s.refreshTokenRepo.CreateRefreshToken(ctx, refreshToken); err != nil {
 		return nil, nil, "", fmt.Errorf("failed to store refresh token: %w", err)
 	}
+
+	// Return the plain JWT to be sent to client (not the hash)
+	refreshToken.RefreshToken = refreshTokenJWT
 
 	return user, refreshToken, accessToken, nil
 }

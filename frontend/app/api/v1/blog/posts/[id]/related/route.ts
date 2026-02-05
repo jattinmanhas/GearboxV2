@@ -16,7 +16,8 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      'Authorization': request.headers.get('authorization') || '',
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     });
 

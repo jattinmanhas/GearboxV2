@@ -47,15 +47,13 @@ type DatabaseConfig struct {
 
 // JWTConfig holds JWT-related configuration
 type JWTConfig struct {
-	Secret        string        `json:"secret"`
-	RefreshSecret string        `json:"refresh_secret"`
+	Secret        string `json:"secret"`
+	RefreshSecret string `json:"refresh_secret"`
 }
 
-// PaymentGatewayConfig holds payment gateway configuration
+// PaymentGatewayConfig holds payment gateway configuration (Stripe only)
 type PaymentGatewayConfig struct {
-	Stripe   StripeConfig   `json:"stripe"`
-	PayPal   PayPalConfig   `json:"paypal"`
-	Razorpay RazorpayConfig `json:"razorpay"`
+	Stripe StripeConfig `json:"stripe"`
 }
 
 // StripeConfig holds Stripe-specific configuration
@@ -63,20 +61,6 @@ type StripeConfig struct {
 	SecretKey      string `json:"secret_key"`
 	PublishableKey string `json:"publishable_key"`
 	WebhookSecret  string `json:"webhook_secret"`
-}
-
-// PayPalConfig holds PayPal-specific configuration
-type PayPalConfig struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	Mode         string `json:"mode"` // sandbox or live
-}
-
-// RazorpayConfig holds Razorpay-specific configuration
-type RazorpayConfig struct {
-	KeyID         string `json:"key_id"`
-	KeySecret     string `json:"key_secret"`
-	WebhookSecret string `json:"webhook_secret"`
 }
 
 // ServiceURLsConfig holds URLs for other services
@@ -121,14 +105,6 @@ func LoadConfig() (*Config, error) {
 	config.PaymentGateways.Stripe.SecretKey = getEnv("STRIPE_SECRET_KEY", "")
 	config.PaymentGateways.Stripe.PublishableKey = getEnv("STRIPE_PUBLISHABLE_KEY", "")
 	config.PaymentGateways.Stripe.WebhookSecret = getEnv("STRIPE_WEBHOOK_SECRET", "")
-
-	config.PaymentGateways.PayPal.ClientID = getEnv("PAYPAL_CLIENT_ID", "")
-	config.PaymentGateways.PayPal.ClientSecret = getEnv("PAYPAL_CLIENT_SECRET", "")
-	config.PaymentGateways.PayPal.Mode = getEnv("PAYPAL_MODE", "sandbox")
-
-	config.PaymentGateways.Razorpay.KeyID = getEnv("RAZORPAY_KEY_ID", "")
-	config.PaymentGateways.Razorpay.KeySecret = getEnv("RAZORPAY_KEY_SECRET", "")
-	config.PaymentGateways.Razorpay.WebhookSecret = getEnv("RAZORPAY_WEBHOOK_SECRET", "")
 
 	// Service URLs
 	config.ServiceURLs.AuthService = getEnv("AUTH_SERVICE_URL", "http://localhost:8081")

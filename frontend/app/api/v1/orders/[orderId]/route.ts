@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8082'
 
-export async function GET(request: NextRequest) {
+// GET /api/v1/orders/[orderId] - Get order by ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { orderId } = await params
 
-    // Forward the request to the product service
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products?${searchParams}`, {
+    if (!orderId || isNaN(Number(orderId))) {
+      return NextResponse.json(
+        { message: 'Invalid order ID' },
+        { status: 400 }
+      )
+    }
+
+    // Forward the request to the product service with cookies
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/orders/${orderId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -21,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Return the same status and data from the product service
     return NextResponse.json(data, { status: response.status })
   } catch (error) {
-    console.error('Product proxy error:', error)
+    console.error('Order proxy error:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -29,13 +40,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// PUT /api/v1/orders/[orderId] - Update order
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
   try {
+    const { orderId } = await params
     const body = await request.json()
 
-    // Forward the request to the product service
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/products`, {
-      method: 'POST',
+    if (!orderId || isNaN(Number(orderId))) {
+      return NextResponse.json(
+        { message: 'Invalid order ID' },
+        { status: 400 }
+      )
+    }
+
+    // Forward the request to the product service with cookies
+    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/orders/${orderId}`, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
@@ -49,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Return the same status and data from the product service
     return NextResponse.json(data, { status: response.status })
   } catch (error) {
-    console.error('Product proxy error:', error)
+    console.error('Order update proxy error:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

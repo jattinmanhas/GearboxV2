@@ -66,12 +66,14 @@ export const userApi = {
 
     // Get user by ID
     async getUser(id: number): Promise<User> {
-        return httpClient.get<User>(`/auth/user/${id}`);
+        const response = await httpClient.get<ApiResponse<User>>(`/auth/user/${id}`);
+        return response.data as User;
     },
 
     // Update user
     async updateUser(id: number, userData: UpdateUserRequest): Promise<User> {
-        return httpClient.put<User>(`/auth/user/${id}`, userData);
+        const response = await httpClient.put<ApiResponse<User>>(`/auth/user/${id}`, userData);
+        return response.data as User;
     },
 
     // Delete user

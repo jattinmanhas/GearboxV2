@@ -38,21 +38,24 @@ export const productApi = {
     },
 
     async getCategory(id: number): Promise<Category> {
-        return httpClient.get<Category>(`/products/categories/${id}`);
+        const response = await httpClient.get<ApiResponse<Category>>(`/products/categories/${id}`);
+        return response.data as Category;
     },
 
     async createCategory(categoryData: CreateCategoryRequest): Promise<Category> {
-        return httpClient.post<Category>("/products/categories", categoryData);
+        const response = await httpClient.post<ApiResponse<Category>>("/products/categories", categoryData);
+        return response.data as Category;
     },
 
     async updateCategory(
         id: number,
         categoryData: UpdateCategoryRequest
     ): Promise<Category> {
-        return httpClient.put<Category>(
+        const response = await httpClient.put<ApiResponse<Category>>(
             `/products/categories/${id}`,
             categoryData
         );
+        return response.data as Category;
     },
 
     async deleteCategory(id: number): Promise<ApiResponse> {
@@ -94,20 +97,23 @@ export const productApi = {
     },
 
     async getProduct(id: number): Promise<Product> {
-        return httpClient.get<Product>(`/products/${id}`);
+        const response = await httpClient.get<ApiResponse<Product>>(`/products/${id}`);
+        return response.data as Product;
     },
 
     async createProduct(productData: CreateProductRequest): Promise<Product> {
         console.log("[API] Creating product with data:", productData);
         console.log("[API] Images being sent:", productData.images);
-        return httpClient.post<Product>("/products", productData);
+        const response = await httpClient.post<ApiResponse<Product>>("/products", productData);
+        return response.data as Product;
     },
 
     async updateProduct(
         id: number,
         productData: UpdateProductRequest
     ): Promise<Product> {
-        return httpClient.put<Product>(`/products/${id}`, productData);
+        const response = await httpClient.put<ApiResponse<Product>>(`/products/${id}`, productData);
+        return response.data as Product;
     },
 
     async deleteProduct(id: number): Promise<ApiResponse> {

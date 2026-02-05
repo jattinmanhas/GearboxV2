@@ -6,7 +6,7 @@ const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/
 function getAuthHeaders(request: NextRequest, includeContentType: boolean = true) {
   const headers: Record<string, string> = {
     'Cookie': request.headers.get('cookie') || '',
-  'Authorization': request.headers.get('authorization') || '',
+    'Authorization': request.headers.get('authorization') || '',
   };
 
   if (includeContentType) {
@@ -26,9 +26,7 @@ export async function GET(
 
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/${id}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(request),
     });
 
     const data = await response.json();

@@ -100,7 +100,7 @@ export function ForgotPasswordForm({
 
   if (success) {
     return (
-      <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <form className={cn("flex flex-col gap-6", className)} onSubmit={(e) => e.preventDefault()} {...props}>
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Check your email</h1>
           <p className="text-muted-foreground text-sm text-balance">
@@ -115,7 +115,7 @@ export function ForgotPasswordForm({
             Back to login
           </Link>
         </div>
-      </div>
+      </form>
     )
   }
 

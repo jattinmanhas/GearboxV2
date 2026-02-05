@@ -402,7 +402,7 @@ func (s *orderService) ListOrders(ctx context.Context, req *dto.ListOrdersReques
 			ID:                order.ID,
 			OrderNumber:       order.OrderNumber,
 			UserID:            order.UserID,
-			CustomerName:     customerName,
+			CustomerName:      customerName,
 			CustomerEmail:     customerEmail,
 			Status:            order.Status,
 			PaymentStatus:     order.PaymentStatus,
@@ -971,13 +971,14 @@ func (s *orderService) CreatePaymentForOrder(ctx context.Context, orderID int64,
 	}
 
 	// Check if order already has a payment
-	existingPayment, err := s.paymentClient.GetOrderPayment(ctx, orderID, "")
+	// Get auth token from context first
+	authToken := middleware.GetAuthTokenFromContext(ctx)
+	existingPayment, err := s.paymentClient.GetOrderPayment(ctx, orderID, authToken)
 	if err == nil && existingPayment != nil {
 		return nil, fmt.Errorf("order already has a payment")
 	}
 
 	// Get auth token from context
-	authToken := middleware.GetAuthTokenFromContext(ctx)
 	if authToken == "" {
 		return nil, fmt.Errorf("authentication required")
 	}

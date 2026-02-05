@@ -7,23 +7,24 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/search?${queryString}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      'Authorization': request.headers.get('authorization') || '',
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     });
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error searching posts:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to search posts',
         error: error instanceof Error ? error.message : 'Unknown error'
       },

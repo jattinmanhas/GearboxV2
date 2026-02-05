@@ -45,6 +45,7 @@ async function refreshAccessToken(): Promise<string | null> {
     isRefreshing = true;
     refreshPromise = (async () => {
         try {
+            console.log("[HTTPClient] Attempting to refresh access token using HTTP-only cookie...");
             const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
                 method: "POST",
                 credentials: "include", // Send refresh token cookie
@@ -55,21 +56,26 @@ async function refreshAccessToken(): Promise<string | null> {
                 const newAccessToken = data.data?.access_token || data.access_token;
 
                 if (newAccessToken && setAccessToken) {
+                    console.log("[HTTPClient] Access token refreshed successfully");
                     setAccessToken(newAccessToken);
                     return newAccessToken;
                 }
-            }
+                console.warn("[HTTPClient] Refresh succeeded but no access token was returned");
+            } else {
+                console.error(`[HTTPClient] Token refresh failed with status: ${response.status}`);
 
-            // Refresh failed, clear token
-            if (setAccessToken) {
-                setAccessToken(null);
+                // Only clear token if we got a specific 401/403 (unauthorized/forbidden)
+                // If it's a 500 or other error, we don't want to forcefully log the user out 
+                // as it might be a transient server issue.
+                if ((response.status === 401 || response.status === 403) && setAccessToken) {
+                    console.warn("[HTTPClient] Session expired or invalid, clearing access token");
+                    setAccessToken(null);
+                }
             }
             return null;
         } catch (error) {
-            console.error("Token refresh failed:", error);
-            if (setAccessToken) {
-                setAccessToken(null);
-            }
+            console.error("[HTTPClient] Token refresh catch block error:", error);
+            // Don't clear access token on network/other errors to avoid unintended logouts
             return null;
         } finally {
             isRefreshing = false;
@@ -104,17 +110,27 @@ async function handleResponse<T>(
     if (!response.ok) {
         // Handle 401 Unauthorized - try to refresh token
         if (response.status === 401 && !isRetry) {
+            console.log("[HTTPClient] 401 Unauthorized detected, attempting refresh...");
             const newToken = await refreshAccessToken();
 
             if (newToken) {
+                console.log("[HTTPClient] Refresh successful, retrying original request");
                 // Token refreshed successfully, throw a special error to retry
                 throw new ApiError("TOKEN_REFRESHED", 401, null, true);
             } else {
-                // Refresh failed, clear user state and redirect
+                console.warn("[HTTPClient] Refresh failed or not possible");
+
+                // Only clear user state and redirect if the store thinks we are authenticated
+                // and we've confirmed the refresh token is truly invalid/expired.
+                // We import dynamically to avoid circular dependencies.
                 const { useUserStore } = await import("../stores/user-store");
                 const userStore = useUserStore.getState();
 
-                if (userStore.isAuthenticated) {
+                // IMPORTANT: We only clear the user if the refresh attempt confirmed 
+                // the session is invalid. If refreshAccessToken returned null without 
+                // clearing setAccessToken(null), we treat it as a transient error.
+                if (userStore.isAuthenticated && localAccessToken === null) {
+                    console.warn("[HTTPClient] Forcefully logging out user due to invalid session");
                     userStore.clearUser();
 
                     // Redirect to login if not already on public pages
@@ -210,6 +226,22 @@ export const httpClient = {
     ): Promise<T> {
         return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
             method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                ...options.headers,
+            },
+            credentials: options.credentials || "include",
+            body: body ? JSON.stringify(body) : undefined,
+        });
+    },
+
+    async patch<T>(
+        endpoint: string,
+        body?: any,
+        options: RequestOptions = {}
+    ): Promise<T> {
+        return makeRequest<T>(`${API_BASE_URL}${endpoint}`, {
+            method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
                 ...options.headers,

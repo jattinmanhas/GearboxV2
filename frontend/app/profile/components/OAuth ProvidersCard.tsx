@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { oauthApi } from '@/lib/api'
+import { oauthApi } from '@/lib/apiFunctions'
 import { OAuthProviderLink, OAuthProvider } from '@/lib/types'
 import { Loader2, Link2, Unlink, AlertCircle, CheckCircle2 } from 'lucide-react'
 
@@ -207,7 +207,7 @@ export function OAuthProvidersCard() {
 
         <div className="mt-4 rounded-lg bg-muted p-3">
           <p className="text-xs text-muted-foreground">
-            <strong>Note:</strong> You must have at least one authentication method (password or OAuth provider) 
+            <strong>Note:</strong> You must have at least one authentication method (password or OAuth provider)
             to access your account. Set a password before unlinking your last OAuth provider.
           </p>
         </div>

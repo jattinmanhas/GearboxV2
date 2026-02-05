@@ -6,7 +6,7 @@ const BLOG_SERVICE_URL = process.env.BLOG_SERVICE_URL || 'http://localhost:3003/
 function getAuthHeaders(request: NextRequest, includeContentType: boolean = true) {
   const headers: Record<string, string> = {
     'Cookie': request.headers.get('cookie') || '',
-  'Authorization': request.headers.get('authorization') || '',
+    'Authorization': request.headers.get('authorization') || '',
   };
 
   if (includeContentType) {
@@ -21,20 +21,18 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts?${queryString}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(request),
     });
 
     // Check if response is ok and has content
     if (!response.ok) {
       console.error('Blog service error:', response.status, response.statusText);
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: `Blog service error: ${response.status} ${response.statusText}`,
           error: 'Service unavailable'
         },
@@ -47,8 +45,8 @@ export async function GET(request: NextRequest) {
     if (!contentType || !contentType.includes('application/json')) {
       console.error('Non-JSON response from blog service:', contentType);
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Invalid response format from blog service',
           error: 'Service returned non-JSON response'
         },
@@ -57,13 +55,13 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error fetching blog posts:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch blog posts',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -76,7 +74,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts`, {
       method: 'POST',
       headers: getAuthHeaders(request),
@@ -84,13 +82,13 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error creating blog post:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to create blog post',
         error: error instanceof Error ? error.message : 'Unknown error'
       },

@@ -6,15 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  Package, 
-  TrendingUp, 
+import {
+  Package,
+  TrendingUp,
   TrendingDown,
   MoreHorizontal,
   Plus,
@@ -26,7 +26,7 @@ import {
   ArrowDown,
   RotateCcw
 } from "lucide-react"
-import { 
+import {
   StockMovement,
   ListStockMovementsRequest,
   Product,
@@ -50,7 +50,7 @@ export default function StockMovementsPage() {
     try {
       setLoading(true)
       const params = new URLSearchParams()
-      
+
       if (filters.product_id) params.append('product_id', filters.product_id.toString())
       if (filters.movement_type) params.append('movement_type', filters.movement_type)
       if (filters.start_date) params.append('start_date', filters.start_date)
@@ -62,7 +62,7 @@ export default function StockMovementsPage() {
         credentials: 'include'
       })
       const data = await response.json()
-      
+
       if (response.ok) {
         setMovements(data.data?.movements || [])
       }
@@ -80,7 +80,7 @@ export default function StockMovementsPage() {
         credentials: 'include'
       })
       const data = await response.json()
-      
+
       if (response.ok) {
         setProducts(data.data?.products || [])
       }
@@ -113,7 +113,7 @@ export default function StockMovementsPage() {
   }
 
   // Filter movements based on search term
-  const filteredMovements = movements.filter(movement => 
+  const filteredMovements = movements.filter(movement =>
     movement.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     movement.product_sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     movement.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -341,7 +341,6 @@ export default function StockMovementsPage() {
       {/* Stock Movement Form Modal */}
       {showMovementForm && (
         <StockMovementForm
-          products={products}
           onSave={handleSaveStockMovement}
           onCancel={() => setShowMovementForm(false)}
         />

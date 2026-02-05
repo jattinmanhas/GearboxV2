@@ -20,7 +20,8 @@ import {
   BarChart3,
   FolderTree,
   Warehouse,
-  Ticket
+  Ticket,
+  CreditCard
 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
@@ -61,6 +62,7 @@ const navigationSections = [
       { name: "Categories", href: "/dashboard/categories", icon: FolderTree },
       { name: "Inventory", href: "/dashboard/inventory", icon: Warehouse },
       { name: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
+      { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
       { name: "Coupons", href: "/dashboard/coupons", icon: Ticket },
     ]
   },

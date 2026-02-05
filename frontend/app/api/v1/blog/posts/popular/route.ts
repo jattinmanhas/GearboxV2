@@ -7,23 +7,24 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit') || '10';
-    
+
     const response = await fetch(`${BLOG_SERVICE_URL}/posts/popular?limit=${limit}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      'Authorization': request.headers.get('authorization') || '',
+        'Cookie': request.headers.get('cookie') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     });
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('Error fetching popular posts:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch popular posts',
         error: error instanceof Error ? error.message : 'Unknown error'
       },

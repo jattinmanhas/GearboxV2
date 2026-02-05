@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useUserStore } from '@/lib/stores/user-store'
-import { profileApi } from '@/lib/api'
 import { showError } from '@/lib/notifications'
+import { profileApi } from '@/lib/apiFunctions'
 
 export default function OAuthSuccessPage() {
   const router = useRouter()

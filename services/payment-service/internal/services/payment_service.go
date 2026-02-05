@@ -176,19 +176,11 @@ func (s *PaymentService) CreatePaymentGateway(ctx context.Context, req *dto.Paym
 		return nil, fmt.Errorf("payment gateway with code %s already exists", req.Code)
 	}
 
-	// Convert WebhookURL from string to *string (nil if empty)
-	var webhookURL *string
-	if req.WebhookURL != "" {
-		webhookURL = &req.WebhookURL
-	}
-
 	pg := &domain.PaymentGateway{
 		Name:       req.Name,
 		Code:       req.Code,
 		IsActive:   req.IsActive,
 		IsTestMode: req.IsTestMode,
-		Config:     req.Config,
-		WebhookURL: webhookURL,
 		SortOrder:  req.SortOrder,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -250,18 +242,10 @@ func (s *PaymentService) UpdatePaymentGateway(ctx context.Context, id int64, req
 		}
 	}
 
-	// Convert WebhookURL from string to *string (nil if empty)
-	var webhookURL *string
-	if req.WebhookURL != "" {
-		webhookURL = &req.WebhookURL
-	}
-
 	pg.Name = req.Name
 	pg.Code = req.Code
 	pg.IsActive = req.IsActive
 	pg.IsTestMode = req.IsTestMode
-	pg.Config = req.Config
-	pg.WebhookURL = webhookURL
 	pg.SortOrder = req.SortOrder
 	pg.UpdatedAt = time.Now()
 
@@ -631,8 +615,6 @@ func (s *PaymentService) paymentGatewayToResponse(pg *domain.PaymentGateway) *dt
 		Code:       pg.Code,
 		IsActive:   pg.IsActive,
 		IsTestMode: pg.IsTestMode,
-		Config:     pg.Config,
-		WebhookURL: pg.WebhookURL,
 		SortOrder:  pg.SortOrder,
 	}
 }
