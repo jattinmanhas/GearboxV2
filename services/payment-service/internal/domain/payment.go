@@ -8,7 +8,7 @@ import (
 type Payment struct {
 	ID              int64                  `json:"id" db:"id"`
 	OrderID         int64                  `json:"order_id" db:"order_id"`
-	PaymentMethodID int64                  `json:"payment_method_id" db:"payment_method_id"`
+	PaymentMethod   string                 `json:"payment_method" db:"payment_method"`
 	TransactionID   string                 `json:"transaction_id" db:"transaction_id"`
 	GatewayID       string                 `json:"gateway_id" db:"gateway_id"`
 	Amount          float64                `json:"amount" db:"amount"`
@@ -21,33 +21,6 @@ type Payment struct {
 	CreatedAt       time.Time              `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time              `json:"updated_at" db:"updated_at"`
 	Metadata        map[string]interface{} `json:"metadata" db:"metadata"`
-}
-
-// PaymentMethod represents available payment methods
-type PaymentMethod struct {
-	ID          int64     `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Code        string    `json:"code" db:"code"`
-	Type        string    `json:"type" db:"type"` // credit_card, debit_card, paypal, bank_transfer, digital_wallet
-	IsActive    bool      `json:"is_active" db:"is_active"`
-	IsDefault   bool      `json:"is_default" db:"is_default"`
-	SortOrder   int       `json:"sort_order" db:"sort_order"`
-	Description string    `json:"description" db:"description"`
-	Icon        string    `json:"icon" db:"icon"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
-}
-
-// PaymentGateway represents payment gateway configurations
-type PaymentGateway struct {
-	ID         int64     `json:"id" db:"id"`
-	Name       string    `json:"name" db:"name"`
-	Code       string    `json:"code" db:"code"`
-	IsActive   bool      `json:"is_active" db:"is_active"`
-	IsTestMode bool      `json:"is_test_mode" db:"is_test_mode"`
-	SortOrder  int       `json:"sort_order" db:"sort_order"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // PaymentRefund represents refund transactions
@@ -92,33 +65,18 @@ type PaymentSummary struct {
 
 // PaymentFilter represents filters for payment queries
 type PaymentFilter struct {
-	OrderID         *int64     `json:"order_id"`
-	PaymentMethodID *int64     `json:"payment_method_id"`
-	Status          *string    `json:"status"`
-	GatewayID       *string    `json:"gateway_id"`
-	Currency        *string    `json:"currency"`
-	DateFrom        *time.Time `json:"date_from"`
-	DateTo          *time.Time `json:"date_to"`
-	Search          string     `json:"search"`
-	Page            int        `json:"page"`
-	Limit           int        `json:"limit"`
-	SortBy          string     `json:"sort_by"`
-	SortOrder       string     `json:"sort_order"`
-}
-
-// PaymentMethodFilter represents filters for payment method queries
-type PaymentMethodFilter struct {
-	Type     *string `json:"type"`
-	IsActive *bool   `json:"is_active"`
-	Search   string  `json:"search"`
-}
-
-// PaymentGatewayFilter represents filters for payment gateway queries
-type PaymentGatewayFilter struct {
-	Code       *string `json:"code"`
-	IsActive   *bool   `json:"is_active"`
-	IsTestMode *bool   `json:"is_test_mode"`
-	Search     string  `json:"search"`
+	OrderID       *int64     `json:"order_id"`
+	PaymentMethod *string    `json:"payment_method"`
+	Status        *string    `json:"status"`
+	GatewayID     *string    `json:"gateway_id"`
+	Currency      *string    `json:"currency"`
+	DateFrom      *time.Time `json:"date_from"`
+	DateTo        *time.Time `json:"date_to"`
+	Search        string     `json:"search"`
+	Page          int        `json:"page"`
+	Limit         int        `json:"limit"`
+	SortBy        string     `json:"sort_by"`
+	SortOrder     string     `json:"sort_order"`
 }
 
 // Payment Status Constants
@@ -129,15 +87,6 @@ const (
 	PaymentStatusFailed     = "failed"
 	PaymentStatusCancelled  = "cancelled"
 	PaymentStatusRefunded   = "refunded"
-)
-
-// Payment Method Types
-const (
-	PaymentMethodTypeCreditCard    = "credit_card"
-	PaymentMethodTypeDebitCard     = "debit_card"
-	PaymentMethodTypePayPal        = "paypal"
-	PaymentMethodTypeBankTransfer  = "bank_transfer"
-	PaymentMethodTypeDigitalWallet = "digital_wallet"
 )
 
 // Payment Gateway Codes

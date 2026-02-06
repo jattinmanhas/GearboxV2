@@ -50,8 +50,8 @@ export default function CheckoutPage() {
 
   const [selectedShippingAddress, setSelectedShippingAddress] = useState<number | null>(null)
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<number | null>(null)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<number | null>(null)
-  const [selectedGateway, setSelectedGateway] = useState<string | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("card")
+  const [selectedGateway, setSelectedGateway] = useState<string>("stripe")
   const [sameAsShipping, setSameAsShipping] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,26 +99,9 @@ export default function CheckoutPage() {
           setLoadingAddresses(false)
         }
 
-        // Load payment methods
-        const methodsResponse = await paymentApi.getPaymentMethods()
-        const methods = Array.isArray(methodsResponse) ? methodsResponse : (methodsResponse?.data || [])
-        setPaymentMethods(methods.filter((m: any) => m.is_active))
-
-        // Load payment gateways
-        const gatewaysResponse = await paymentApi.getPaymentGateways()
-        const gateways = Array.isArray(gatewaysResponse) ? gatewaysResponse : (gatewaysResponse?.data || [])
-        setPaymentGateways(gateways.filter((g: any) => g.is_active))
-
-
-        if (methods.length > 0) {
-          const defaultMethod = methods.find((m: any) => m.is_default) || methods[0]
-          setSelectedPaymentMethod(defaultMethod.id)
-        }
-
-        if (gateways.length > 0) {
-          const defaultGateway = gateways.find((g: any) => g.is_default) || gateways[0]
-          setSelectedGateway(defaultGateway.code)
-        }
+        // Initialize payment defaults (static now)
+        setSelectedPaymentMethod("card")
+        setSelectedGateway("stripe")
       } catch (err) {
         console.error("Failed to load checkout data:", err)
         setError(err instanceof Error ? err.message : "Failed to load checkout data")
@@ -192,7 +175,7 @@ export default function CheckoutPage() {
         billing_address: sameAsShipping ? undefined : addressToOrderAddress(billingAddress, userEmail),
         user_shipping_address_id: selectedShippingAddress,
         user_billing_address_id: sameAsShipping ? selectedShippingAddress : (selectedBillingAddress || null),
-        payment_method_id: selectedPaymentMethod,
+        payment_method: selectedPaymentMethod,
         currency: "INR", // Get from cart or user preference
         apply_coupons: appliedCoupons.map(c => c.coupon_code),
       }
@@ -208,7 +191,7 @@ export default function CheckoutPage() {
       // Create payment
       const paymentData = {
         order_id: order.id,
-        payment_method_id: selectedPaymentMethod,
+        payment_method: selectedPaymentMethod,
         amount: order.total_amount || totalPrice,
         currency: order.currency || "INR",
         gateway_id: selectedGateway,
@@ -497,80 +480,27 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
-            {/* Payment Method */}
+            {/* Payment & Gateway Selection (Simplified) */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
-                  Payment Method
+                  Payment Details
                 </CardTitle>
                 <CardDescription>
-                  Select a payment method
+                  Secure payment via Stripe
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup
-                  value={selectedPaymentMethod?.toString() || ""}
-                  onValueChange={(value) => setSelectedPaymentMethod(parseInt(value))}
-                >
-                  <div className="space-y-3">
-                    {paymentMethods.map((method) => (
-                      <div key={method.id} className="flex items-start space-x-3">
-                        <RadioGroupItem value={method.id.toString()} id={`method-${method.id}`} />
-                        <Label
-                          htmlFor={`method-${method.id}`}
-                          className="flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50"
-                        >
-                          <div>
-                            <div className="font-medium">{method.name}</div>
-                            {method.description && (
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {method.description}
-                              </div>
-                            )}
-                          </div>
-                        </Label>
-                      </div>
-                    ))}
+                <div className="p-4 border rounded-lg bg-primary/5 border-primary flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Credit / Debit Card</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Processed securely by Stripe
+                    </div>
                   </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            {/* Payment Gateway */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Gateway</CardTitle>
-                <CardDescription>
-                  Select a payment gateway
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup
-                  value={selectedGateway || ""}
-                  onValueChange={setSelectedGateway}
-                >
-                  <div className="space-y-3">
-                    {paymentGateways.map((gateway) => (
-                      <div key={gateway.id} className="flex items-start space-x-3">
-                        <RadioGroupItem value={gateway.code} id={`gateway-${gateway.id}`} />
-                        <Label
-                          htmlFor={`gateway-${gateway.id}`}
-                          className="flex-1 cursor-pointer p-4 border rounded-lg hover:bg-muted/50"
-                        >
-                          <div>
-                            <div className="font-medium">{gateway.name}</div>
-                            {gateway.is_test_mode && (
-                              <div className="text-sm text-yellow-600 mt-1">
-                                Test Mode
-                              </div>
-                            )}
-                          </div>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
+                  <Badge>Selected</Badge>
+                </div>
               </CardContent>
             </Card>
           </div>

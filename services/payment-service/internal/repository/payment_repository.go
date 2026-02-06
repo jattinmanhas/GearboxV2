@@ -20,308 +20,14 @@ func NewPaymentRepository(db *sqlx.DB) *PaymentRepository {
 	return &PaymentRepository{db: db}
 }
 
-// Payment Methods
-
-// CreatePaymentMethod creates a new payment method
-func (r *PaymentRepository) CreatePaymentMethod(ctx context.Context, pm *domain.PaymentMethod) error {
-	query := `
-		INSERT INTO payment_methods (name, code, type, is_active, is_default, sort_order, description, icon, created_at, updated_at)
-		VALUES (:name, :code, :type, :is_active, :is_default, :sort_order, :description, :icon, :created_at, :updated_at)
-		RETURNING id`
-
-	rows, err := r.db.NamedQueryContext(ctx, query, pm)
-	if err != nil {
-		return fmt.Errorf("failed to create payment method: %w", err)
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		if err := rows.Scan(&pm.ID); err != nil {
-			return fmt.Errorf("failed to scan payment method ID: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// GetPaymentMethodByID retrieves a payment method by ID
-func (r *PaymentRepository) GetPaymentMethodByID(ctx context.Context, id int64) (*domain.PaymentMethod, error) {
-	query := `
-		SELECT id, name, code, type, is_active, is_default, sort_order, description, icon, created_at, updated_at
-		FROM payment_methods WHERE id = $1`
-
-	pm := &domain.PaymentMethod{}
-	err := r.db.GetContext(ctx, pm, query, id)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get payment method: %w", err)
-	}
-
-	return pm, nil
-}
-
-// GetPaymentMethodByCode retrieves a payment method by code
-func (r *PaymentRepository) GetPaymentMethodByCode(ctx context.Context, code string) (*domain.PaymentMethod, error) {
-	query := `
-		SELECT id, name, code, type, is_active, is_default, sort_order, description, icon, created_at, updated_at
-		FROM payment_methods WHERE code = $1`
-
-	pm := &domain.PaymentMethod{}
-	err := r.db.GetContext(ctx, pm, query, code)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get payment method: %w", err)
-	}
-
-	return pm, nil
-}
-
-// ListPaymentMethods retrieves payment methods with filtering and pagination
-func (r *PaymentRepository) ListPaymentMethods(ctx context.Context, filter *domain.PaymentMethodFilter, offset, limit int) ([]*domain.PaymentMethod, error) {
-	query := `
-		SELECT id, name, code, type, is_active, is_default, sort_order, description, icon, created_at, updated_at
-		FROM payment_methods WHERE 1=1`
-	args := []interface{}{}
-	argIndex := 1
-
-	if filter.Type != nil {
-		query += fmt.Sprintf(" AND type = $%d", argIndex)
-		args = append(args, *filter.Type)
-		argIndex++
-	}
-
-	if filter.IsActive != nil {
-		query += fmt.Sprintf(" AND is_active = $%d", argIndex)
-		args = append(args, *filter.IsActive)
-		argIndex++
-	}
-
-	if filter.Search != "" {
-		query += fmt.Sprintf(" AND (name ILIKE $%d OR code ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex, argIndex)
-		args = append(args, "%"+filter.Search+"%")
-		argIndex++
-	}
-
-	query += " ORDER BY sort_order ASC, name ASC"
-	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
-	args = append(args, limit, offset)
-
-	var methods []*domain.PaymentMethod
-	err := r.db.SelectContext(ctx, &methods, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list payment methods: %w", err)
-	}
-
-	return methods, nil
-}
-
-// UpdatePaymentMethod updates a payment method
-func (r *PaymentRepository) UpdatePaymentMethod(ctx context.Context, pm *domain.PaymentMethod) error {
-	query := `
-		UPDATE payment_methods 
-		SET name = :name, code = :code, type = :type, is_active = :is_active, is_default = :is_default, 
-		    sort_order = :sort_order, description = :description, icon = :icon, updated_at = :updated_at
-		WHERE id = :id`
-
-	result, err := r.db.NamedExecContext(ctx, query, pm)
-	if err != nil {
-		return fmt.Errorf("failed to update payment method: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("payment method not found")
-	}
-
-	return nil
-}
-
-// DeletePaymentMethod deletes a payment method
-func (r *PaymentRepository) DeletePaymentMethod(ctx context.Context, id int64) error {
-	query := `DELETE FROM payment_methods WHERE id = $1`
-
-	result, err := r.db.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete payment method: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("payment method not found")
-	}
-
-	return nil
-}
-
-// Payment Gateways
-
-// CreatePaymentGateway creates a new payment gateway
-func (r *PaymentRepository) CreatePaymentGateway(ctx context.Context, pg *domain.PaymentGateway) error {
-	query := `
-		INSERT INTO payment_gateways (name, code, is_active, is_test_mode, sort_order, created_at, updated_at)
-		VALUES (:name, :code, :is_active, :is_test_mode, :sort_order, :created_at, :updated_at)
-		RETURNING id`
-
-	rows, err := r.db.NamedQueryContext(ctx, query, pg)
-	if err != nil {
-		return fmt.Errorf("failed to create payment gateway: %w", err)
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		if err := rows.Scan(&pg.ID); err != nil {
-			return fmt.Errorf("failed to scan payment gateway ID: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// GetPaymentGatewayByID retrieves a payment gateway by ID
-func (r *PaymentRepository) GetPaymentGatewayByID(ctx context.Context, id int64) (*domain.PaymentGateway, error) {
-	query := `
-		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
-		FROM payment_gateways WHERE id = $1`
-
-	pg := &domain.PaymentGateway{}
-	err := r.db.GetContext(ctx, pg, query, id)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-
-	return pg, nil
-}
-
-// GetPaymentGatewayByCode retrieves a payment gateway by code
-func (r *PaymentRepository) GetPaymentGatewayByCode(ctx context.Context, code string) (*domain.PaymentGateway, error) {
-	query := `
-		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
-		FROM payment_gateways WHERE code = $1`
-
-	pg := &domain.PaymentGateway{}
-	err := r.db.GetContext(ctx, pg, query, code)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-
-	return pg, nil
-}
-
-// ListPaymentGateways retrieves payment gateways with filtering
-func (r *PaymentRepository) ListPaymentGateways(ctx context.Context, filter *domain.PaymentGatewayFilter) ([]*domain.PaymentGateway, error) {
-	query := `
-		SELECT id, name, code, is_active, is_test_mode, sort_order, created_at, updated_at
-		FROM payment_gateways WHERE 1=1`
-	args := []interface{}{}
-	argIndex := 1
-
-	if filter.Code != nil {
-		query += fmt.Sprintf(" AND code = $%d", argIndex)
-		args = append(args, *filter.Code)
-		argIndex++
-	}
-
-	if filter.IsActive != nil {
-		query += fmt.Sprintf(" AND is_active = $%d", argIndex)
-		args = append(args, *filter.IsActive)
-		argIndex++
-	}
-
-	if filter.IsTestMode != nil {
-		query += fmt.Sprintf(" AND is_test_mode = $%d", argIndex)
-		args = append(args, *filter.IsTestMode)
-		argIndex++
-	}
-
-	if filter.Search != "" {
-		query += fmt.Sprintf(" AND (name ILIKE $%d OR code ILIKE $%d)", argIndex, argIndex)
-		args = append(args, "%"+filter.Search+"%")
-		argIndex++
-	}
-
-	query += " ORDER BY sort_order ASC, name ASC"
-
-	var gateways []*domain.PaymentGateway
-	err := r.db.SelectContext(ctx, &gateways, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list payment gateways: %w", err)
-	}
-
-	return gateways, nil
-}
-
-// UpdatePaymentGateway updates a payment gateway
-func (r *PaymentRepository) UpdatePaymentGateway(ctx context.Context, pg *domain.PaymentGateway) error {
-	query := `
-		UPDATE payment_gateways 
-		SET name = :name, code = :code, is_active = :is_active, is_test_mode = :is_test_mode, 
-		    sort_order = :sort_order, updated_at = :updated_at
-		WHERE id = :id`
-
-	result, err := r.db.NamedExecContext(ctx, query, pg)
-	if err != nil {
-		return fmt.Errorf("failed to update payment gateway: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("payment gateway not found")
-	}
-
-	return nil
-}
-
-// DeletePaymentGateway deletes a payment gateway
-func (r *PaymentRepository) DeletePaymentGateway(ctx context.Context, id int64) error {
-	query := `DELETE FROM payment_gateways WHERE id = $1`
-
-	result, err := r.db.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete payment gateway: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("payment gateway not found")
-	}
-
-	return nil
-}
-
 // Payments
 
 // CreatePayment creates a new payment
 func (r *PaymentRepository) CreatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `
-		INSERT INTO payments (order_id, payment_method_id, transaction_id, gateway_id, amount, currency, 
+		INSERT INTO payments (order_id, payment_method, transaction_id, gateway_id, amount, currency, 
 		                     status, gateway_status, gateway_response, failure_reason, processed_at, metadata, created_at, updated_at)
-		VALUES (:order_id, :payment_method_id, :transaction_id, :gateway_id, :amount, :currency, 
+		VALUES (:order_id, :payment_method, :transaction_id, :gateway_id, :amount, :currency, 
 		        :status, :gateway_status, :gateway_response, :failure_reason, :processed_at, :metadata, :created_at, :updated_at)
 		RETURNING id`
 
@@ -359,7 +65,7 @@ func (r *PaymentRepository) CreatePayment(ctx context.Context, payment *domain.P
 // GetPaymentByID retrieves a payment by ID
 func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id int64) (*domain.Payment, error) {
 	query := `
-		SELECT id, order_id, payment_method_id, transaction_id, gateway_id, amount, currency,
+		SELECT id, order_id, payment_method, transaction_id, gateway_id, amount, currency,
 		       status, gateway_status, gateway_response, failure_reason, processed_at, metadata, created_at, updated_at
 		FROM payments WHERE id = $1`
 
@@ -371,7 +77,7 @@ func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id int64) (*doma
 	err := row.Scan(
 		&payment.ID,
 		&payment.OrderID,
-		&payment.PaymentMethodID,
+		&payment.PaymentMethod,
 		&payment.TransactionID,
 		&payment.GatewayID,
 		&payment.Amount,
@@ -405,7 +111,7 @@ func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id int64) (*doma
 // GetPaymentByTransactionID retrieves a payment by transaction ID
 func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, transactionID string) (*domain.Payment, error) {
 	query := `
-		SELECT id, order_id, payment_method_id, transaction_id, gateway_id, amount, currency,
+		SELECT id, order_id, payment_method, transaction_id, gateway_id, amount, currency,
 		       status, gateway_status, gateway_response, failure_reason, processed_at, metadata, created_at, updated_at
 		FROM payments WHERE transaction_id = $1`
 
@@ -417,7 +123,7 @@ func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, trans
 	err := row.Scan(
 		&payment.ID,
 		&payment.OrderID,
-		&payment.PaymentMethodID,
+		&payment.PaymentMethod,
 		&payment.TransactionID,
 		&payment.GatewayID,
 		&payment.Amount,
@@ -451,7 +157,7 @@ func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, trans
 // ListPayments retrieves payments with filtering and pagination
 func (r *PaymentRepository) ListPayments(ctx context.Context, filter *domain.PaymentFilter, offset, limit int) ([]*domain.Payment, error) {
 	query := `
-		SELECT id, order_id, payment_method_id, transaction_id, gateway_id, amount, currency,
+		SELECT id, order_id, payment_method, transaction_id, gateway_id, amount, currency,
 		       status, gateway_status, gateway_response, failure_reason, processed_at, metadata, created_at, updated_at
 		FROM payments WHERE 1=1`
 	args := []interface{}{}
@@ -463,9 +169,9 @@ func (r *PaymentRepository) ListPayments(ctx context.Context, filter *domain.Pay
 		argIndex++
 	}
 
-	if filter.PaymentMethodID != nil {
-		query += fmt.Sprintf(" AND payment_method_id = $%d", argIndex)
-		args = append(args, *filter.PaymentMethodID)
+	if filter.PaymentMethod != nil {
+		query += fmt.Sprintf(" AND payment_method = $%d", argIndex)
+		args = append(args, *filter.PaymentMethod)
 		argIndex++
 	}
 
@@ -534,7 +240,7 @@ func (r *PaymentRepository) ListPayments(ctx context.Context, filter *domain.Pay
 		err := rows.Scan(
 			&payment.ID,
 			&payment.OrderID,
-			&payment.PaymentMethodID,
+			&payment.PaymentMethod,
 			&payment.TransactionID,
 			&payment.GatewayID,
 			&payment.Amount,
@@ -581,9 +287,9 @@ func (r *PaymentRepository) CountPayments(ctx context.Context, filter *domain.Pa
 		argIndex++
 	}
 
-	if filter.PaymentMethodID != nil {
-		query += fmt.Sprintf(" AND payment_method_id = $%d", argIndex)
-		args = append(args, *filter.PaymentMethodID)
+	if filter.PaymentMethod != nil {
+		query += fmt.Sprintf(" AND payment_method = $%d", argIndex)
+		args = append(args, *filter.PaymentMethod)
 		argIndex++
 	}
 
@@ -636,7 +342,7 @@ func (r *PaymentRepository) CountPayments(ctx context.Context, filter *domain.Pa
 func (r *PaymentRepository) UpdatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `
 		UPDATE payments 
-		SET order_id = :order_id, payment_method_id = :payment_method_id, transaction_id = :transaction_id, gateway_id = :gateway_id,
+		SET order_id = :order_id, payment_method = :payment_method, transaction_id = :transaction_id, gateway_id = :gateway_id,
 		    amount = :amount, currency = :currency, status = :status, gateway_status = :gateway_status,
 		    gateway_response = :gateway_response, failure_reason = :failure_reason, processed_at = :processed_at, 
 		    metadata = :metadata, updated_at = :updated_at

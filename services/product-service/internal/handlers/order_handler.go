@@ -146,143 +146,15 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.orderService.GetOrderByID(r.Context(), id)
+	// Get enriched order details
+	response, err := h.orderService.GetOrderDetails(r.Context(), id)
 	if err != nil {
 		if err.Error() == "order with ID not found" {
 			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 		} else {
-			httpx.Error(w, http.StatusInternalServerError, "Failed to get order", err)
+			httpx.Error(w, http.StatusInternalServerError, "Failed to get order details", err)
 		}
 		return
-	}
-
-	// Get order items
-	items, err := h.orderService.GetOrderItems(r.Context(), order.ID)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "Failed to get order items", err)
-		return
-	}
-
-	// Get order addresses
-	addresses, err := h.orderService.GetOrderAddresses(r.Context(), order.ID)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "Failed to get order addresses", err)
-		return
-	}
-
-	// Get order status history
-	statusHistory, err := h.orderService.GetOrderStatusHistory(r.Context(), order.ID)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "Failed to get order status history", err)
-		return
-	}
-
-	// Get order fulfillment
-	fulfillment, err := h.orderService.GetOrderFulfillment(r.Context(), order.ID)
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "Failed to get order fulfillment", err)
-		return
-	}
-
-	// Convert items to response DTOs
-	itemResponses := make([]dto.OrderItemResponse, len(items))
-	for i, item := range items {
-		itemResponses[i] = dto.OrderItemResponse{
-			ID:               item.ID,
-			OrderID:          item.OrderID,
-			ProductID:        item.ProductID,
-			ProductVariantID: item.ProductVariantID,
-			ProductName:      item.ProductName,
-			ProductSKU:       item.ProductSKU,
-			Quantity:         item.Quantity,
-			UnitPrice:        item.UnitPrice,
-			TotalPrice:       item.TotalPrice,
-			TaxAmount:        item.TaxAmount,
-			DiscountAmount:   item.DiscountAmount,
-			IsDigital:        item.IsDigital,
-			RequiresShipping: item.RequiresShipping,
-		}
-	}
-
-	// Convert addresses to response DTOs
-	addressResponses := make([]dto.OrderAddressResponse, len(addresses))
-	for i, address := range addresses {
-		addressResponses[i] = dto.OrderAddressResponse{
-			ID:         address.ID,
-			OrderID:    address.OrderID,
-			Type:       address.Type,
-			FirstName:  address.FirstName,
-			LastName:   address.LastName,
-			Company:    address.Company,
-			Address1:   address.Address1,
-			Address2:   address.Address2,
-			City:       address.City,
-			State:      address.State,
-			Country:    address.Country,
-			PostalCode: address.PostalCode,
-			Phone:      address.Phone,
-			Email:      address.Email,
-		}
-	}
-
-	// Convert status history to response DTOs
-	statusHistoryResponses := make([]dto.OrderStatusHistoryResponse, len(statusHistory))
-	for i, history := range statusHistory {
-		statusHistoryResponses[i] = dto.OrderStatusHistoryResponse{
-			ID:             history.ID,
-			OrderID:        history.OrderID,
-			Status:         history.Status,
-			PreviousStatus: history.PreviousStatus,
-			Notes:          history.Notes,
-			CreatedBy:      history.CreatedBy,
-			CreatedAt:      history.CreatedAt,
-		}
-	}
-
-	// Convert fulfillment to response DTO
-	var fulfillmentResponse *dto.OrderFulfillmentResponse
-	if fulfillment != nil {
-		fulfillmentResponse = &dto.OrderFulfillmentResponse{
-			ID:                fulfillment.ID,
-			OrderID:           fulfillment.OrderID,
-			TrackingNumber:    fulfillment.TrackingNumber,
-			Carrier:           fulfillment.Carrier,
-			Service:           fulfillment.Service,
-			Status:            fulfillment.Status,
-			ShippedAt:         fulfillment.ShippedAt,
-			DeliveredAt:       fulfillment.DeliveredAt,
-			EstimatedDelivery: fulfillment.EstimatedDelivery,
-			Notes:             fulfillment.Notes,
-			CreatedAt:         fulfillment.CreatedAt,
-			UpdatedAt:         fulfillment.UpdatedAt,
-		}
-	}
-
-	response := dto.OrderResponse{
-		ID:                order.ID,
-		OrderNumber:       order.OrderNumber,
-		UserID:            order.UserID,
-		Status:            order.Status,
-		PaymentStatus:     order.PaymentStatus,
-		FulfillmentStatus: order.FulfillmentStatus,
-		Subtotal:          order.Subtotal,
-		TaxAmount:         order.TaxAmount,
-		ShippingAmount:    order.ShippingAmount,
-		DiscountAmount:    order.DiscountAmount,
-		TotalAmount:       order.TotalAmount,
-		Currency:          order.Currency,
-		Notes:             order.Notes,
-		InternalNotes:     order.InternalNotes,
-		Items:             itemResponses,
-		Addresses:         addressResponses,
-		StatusHistory:     statusHistoryResponses,
-		Fulfillment:       fulfillmentResponse,
-		CreatedAt:         order.CreatedAt,
-		UpdatedAt:         order.UpdatedAt,
-		ConfirmedAt:       order.ConfirmedAt,
-		ShippedAt:         order.ShippedAt,
-		DeliveredAt:       order.DeliveredAt,
-		CancelledAt:       order.CancelledAt,
 	}
 
 	httpx.OK(w, "Order retrieved successfully", response)
@@ -292,37 +164,14 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 func (h *orderHandler) GetOrderByNumber(w http.ResponseWriter, r *http.Request) {
 	orderNumber := chi.URLParam(r, "orderNumber")
 
-	order, err := h.orderService.GetOrderByNumber(r.Context(), orderNumber)
+	response, err := h.orderService.GetOrderDetailsByNumber(r.Context(), orderNumber)
 	if err != nil {
 		if err.Error() == "order with number not found" {
 			httpx.Error(w, http.StatusNotFound, err.Error(), nil)
 		} else {
-			httpx.Error(w, http.StatusInternalServerError, "Failed to get order", err)
+			httpx.Error(w, http.StatusInternalServerError, "Failed to get order details", err)
 		}
 		return
-	}
-
-	response := dto.OrderResponse{
-		ID:                order.ID,
-		OrderNumber:       order.OrderNumber,
-		UserID:            order.UserID,
-		Status:            order.Status,
-		PaymentStatus:     order.PaymentStatus,
-		FulfillmentStatus: order.FulfillmentStatus,
-		Subtotal:          order.Subtotal,
-		TaxAmount:         order.TaxAmount,
-		ShippingAmount:    order.ShippingAmount,
-		DiscountAmount:    order.DiscountAmount,
-		TotalAmount:       order.TotalAmount,
-		Currency:          order.Currency,
-		Notes:             order.Notes,
-		InternalNotes:     order.InternalNotes,
-		CreatedAt:         order.CreatedAt,
-		UpdatedAt:         order.UpdatedAt,
-		ConfirmedAt:       order.ConfirmedAt,
-		ShippedAt:         order.ShippedAt,
-		DeliveredAt:       order.DeliveredAt,
-		CancelledAt:       order.CancelledAt,
 	}
 
 	httpx.OK(w, "Order retrieved successfully", response)
@@ -551,20 +400,20 @@ func (h *orderHandler) GetOrderAddresses(w http.ResponseWriter, r *http.Request)
 	addressResponses := make([]dto.OrderAddressResponse, len(addresses))
 	for i, address := range addresses {
 		addressResponses[i] = dto.OrderAddressResponse{
-			ID:         address.ID,
-			OrderID:    address.OrderID,
-			Type:       address.Type,
-			FirstName:  address.FirstName,
-			LastName:   address.LastName,
-			Company:    address.Company,
-			Address1:   address.Address1,
-			Address2:   address.Address2,
-			City:       address.City,
-			State:      address.State,
-			Country:    address.Country,
-			PostalCode: address.PostalCode,
-			Phone:      address.Phone,
-			Email:      address.Email,
+			ID:           address.ID,
+			OrderID:      address.OrderID,
+			Type:         address.Type,
+			FirstName:    address.FirstName,
+			LastName:     address.LastName,
+			Company:      address.Company,
+			AddressLine1: address.Address1,
+			AddressLine2: address.Address2,
+			City:         address.City,
+			State:        address.State,
+			Country:      address.Country,
+			PostalCode:   address.PostalCode,
+			Phone:        address.Phone,
+			Email:        address.Email,
 		}
 	}
 

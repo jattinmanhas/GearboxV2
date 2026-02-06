@@ -46,11 +46,11 @@ func TestUserRepository_RegisterNewUser_Success(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  domain.NewNullString("M"),
-		LastName:    domain.NewNullString("Doe"),
-		Avatar:      domain.NewNullString("avatar.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("M"),
+		LastName:    domain.StringPtr("Doe"),
+		Avatar:      domain.StringPtr("avatar.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	expectedID := uint(1)
@@ -58,13 +58,13 @@ func TestUserRepository_RegisterNewUser_Success(t *testing.T) {
 	// Mock the INSERT query with RETURNING clause
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expectedID))
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -85,23 +85,23 @@ func TestUserRepository_RegisterNewUser_DatabaseError(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  domain.NewNullString("M"),
-		LastName:    domain.NewNullString("Doe"),
-		Avatar:      domain.NewNullString("avatar.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("M"),
+		LastName:    domain.StringPtr("Doe"),
+		Avatar:      domain.StringPtr("avatar.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Mock database error
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
 	).WillReturnError(sql.ErrConnDone)
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -122,23 +122,23 @@ func TestUserRepository_RegisterNewUser_ScanError(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  domain.NewNullString("M"),
-		LastName:    domain.NewNullString("Doe"),
-		Avatar:      domain.NewNullString("avatar.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("M"),
+		LastName:    domain.StringPtr("Doe"),
+		Avatar:      domain.StringPtr("avatar.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Mock the query but return invalid data that can't be scanned
 	mock.ExpectQuery(`
 		INSERT INTO users \(
-			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth, role_id
+			username, password, email, first_name, middle_name, last_name, avatar, gender, date_of_birth
 		\) VALUES \(
-			\?, \?, \?, \?, \?, \?, \?, \?, \?, \?
+			\?, \?, \?, \?, \?, \?, \?, \?, \?
 		\) RETURNING id;
 	`).WithArgs(
 		user.Username, user.Password, user.Email, user.FirstName,
-		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth, user.RoleID,
+		user.MiddleName, user.LastName, user.Avatar, user.Gender, user.DateOfBirth,
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("invalid_id"))
 
 	err := repo.RegisterNewUser(context.Background(), user)
@@ -159,12 +159,12 @@ func TestUserRepository_GetUserByID_Success(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  domain.NewNullString("M"),
-		LastName:    domain.NewNullString("Doe"),
-		PhoneNumber: domain.NewNullString("+1234567890"),
-		Avatar:      domain.NewNullString("avatar.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("M"),
+		LastName:    domain.StringPtr("Doe"),
+		PhoneNumber: domain.StringPtr("+1234567890"),
+		Avatar:      domain.StringPtr("avatar.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		IsDeleted:   false,
@@ -245,12 +245,12 @@ func TestUserRepository_GetAllUsers_Success(t *testing.T) {
 			Password:    "hash1",
 			Email:       "user1@example.com",
 			FirstName:   "John",
-			MiddleName:  domain.NewNullString("M"),
-			LastName:    domain.NewNullString("Doe"),
-			PhoneNumber: domain.NewNullString("+1234567890"),
-			Avatar:      domain.NewNullString("avatar1.jpg"),
-			Gender:      domain.NewNullString("male"),
-			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+			MiddleName:  domain.StringPtr("M"),
+			LastName:    domain.StringPtr("Doe"),
+			PhoneNumber: domain.StringPtr("+1234567890"),
+			Avatar:      domain.StringPtr("avatar1.jpg"),
+			Gender:      domain.StringPtr("male"),
+			DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			IsDeleted:   false,
@@ -263,12 +263,12 @@ func TestUserRepository_GetAllUsers_Success(t *testing.T) {
 			Password:    "hash2",
 			Email:       "user2@example.com",
 			FirstName:   "Jane",
-			MiddleName:  domain.NewNullString("K"),
-			LastName:    domain.NewNullString("Smith"),
-			PhoneNumber: domain.NewNullString("+1234567891"),
-			Avatar:      domain.NewNullString("avatar2.jpg"),
-			Gender:      domain.NewNullString("female"),
-			DateOfBirth: domain.NewNullTime(time.Date(1992, 5, 15, 0, 0, 0, 0, time.UTC)),
+			MiddleName:  domain.StringPtr("K"),
+			LastName:    domain.StringPtr("Smith"),
+			PhoneNumber: domain.StringPtr("+1234567891"),
+			Avatar:      domain.StringPtr("avatar2.jpg"),
+			Gender:      domain.StringPtr("female"),
+			DateOfBirth: domain.TimePtr(time.Date(1992, 5, 15, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 			IsDeleted:   false,
@@ -356,12 +356,12 @@ func TestUserRepository_GetAllUsers_WithPagination(t *testing.T) {
 		Password:    "hash3",
 		Email:       "user3@example.com",
 		FirstName:   "Bob",
-		MiddleName:  domain.NewNullString("L"),
-		LastName:    domain.NewNullString("Johnson"),
-		PhoneNumber: domain.NewNullString("+1234567892"),
-		Avatar:      domain.NewNullString("avatar3.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1988, 12, 25, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("L"),
+		LastName:    domain.StringPtr("Johnson"),
+		PhoneNumber: domain.StringPtr("+1234567892"),
+		Avatar:      domain.StringPtr("avatar3.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1988, 12, 25, 0, 0, 0, 0, time.UTC)),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		IsDeleted:   false,
@@ -405,11 +405,11 @@ func TestUserRepository_ContextCancellation(t *testing.T) {
 		Password:    "hashedpassword",
 		Email:       "test@example.com",
 		FirstName:   "John",
-		MiddleName:  domain.NewNullString("M"),
-		LastName:    domain.NewNullString("Doe"),
-		Avatar:      domain.NewNullString("avatar.jpg"),
-		Gender:      domain.NewNullString("male"),
-		DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+		MiddleName:  domain.StringPtr("M"),
+		LastName:    domain.StringPtr("Doe"),
+		Avatar:      domain.StringPtr("avatar.jpg"),
+		Gender:      domain.StringPtr("male"),
+		DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 
 	// Test RegisterNewUser with cancelled context

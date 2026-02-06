@@ -34,6 +34,8 @@ import {
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
 import Link from "next/link"
+import { paymentApi } from "@/lib/apiFunctions/payment.api"
+import { toast } from "sonner"
 
 interface Payment {
     id: number
@@ -84,40 +86,38 @@ export default function PaymentsPage() {
             setLoading(true)
             setError(null)
 
-            const params = new URLSearchParams({
-                page: page.toString(),
-                limit: limit.toString(),
+            const params: any = {
+                page,
+                limit,
                 sort_by: sortBy,
                 sort_order: sortOrder,
-            })
+            }
 
             if (statusFilter !== "all") {
-                params.append("status", statusFilter)
+                params.status = statusFilter
             }
             if (gatewayFilter !== "all") {
-                params.append("gateway_id", gatewayFilter)
+                params.gateway_id = gatewayFilter
             }
             if (search) {
-                params.append("search", search)
+                params.search = search
             }
 
-            const response = await fetch(`/api/v1/payments?${params.toString()}`, {
-                credentials: 'include',
-            })
+            const response = await paymentApi.listPayments(params)
 
-            if (!response.ok) {
-                throw new Error(`Failed to fetch payments: ${response.statusText}`)
+            if (response.error) {
+                throw new Error(response.message || 'Failed to fetch payments')
             }
-
-            const result = await response.json()
 
             // The backend returns { payments: [], total: 0, page: 1, limit: 10, pages: 1 }
-            setPayments(result.payments || [])
-            setTotal(result.total || 0)
-            setTotalPages(result.pages || 0)
+            setPayments(response.payments || [])
+            setTotal(response.total || 0)
+            setTotalPages(response.pages || 0)
         } catch (error) {
             console.error('Error loading payments:', error)
-            setError(error instanceof Error ? error.message : 'Unknown error')
+            const msg = error instanceof Error ? error.message : 'Unknown error'
+            setError(msg)
+            toast.error(msg)
         } finally {
             setLoading(false)
         }
@@ -125,12 +125,11 @@ export default function PaymentsPage() {
 
     const fetchSummary = async () => {
         try {
-            const response = await fetch('/api/v1/payments/summary', {
-                credentials: 'include',
-            })
-            if (response.ok) {
-                const result = await response.json()
-                setSummary(result)
+            const response = await paymentApi.getPaymentSummary()
+            if (!response.error) {
+                setSummary(response)
+            } else {
+                console.warn('Failed to fetch summary:', response.message)
             }
         } catch (error) {
             console.error('Error loading summary:', error)
@@ -142,8 +141,9 @@ export default function PaymentsPage() {
         fetchPayments()
     }
 
-    const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
+    const getStatusColor = (status: any) => {
+        const s = (typeof status === 'string' ? status : "").toLowerCase()
+        switch (s) {
             case 'completed':
             case 'processed':
                 return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -377,7 +377,9 @@ export default function PaymentsPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge className={getStatusColor(payment.status)}>
-                                                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                                                        {typeof payment.status === 'string' && payment.status.length > 0
+                                                            ? payment.status.charAt(0).toUpperCase() + payment.status.slice(1)
+                                                            : "Unknown"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">

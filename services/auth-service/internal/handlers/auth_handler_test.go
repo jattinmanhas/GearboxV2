@@ -195,7 +195,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			Username:  "testuser",
 			Email:     "test@example.com",
 			FirstName: "Test",
-			LastName:  domain.NewNullString("User"),
+			LastName:  domain.StringPtr("User"),
 		}
 		refreshToken := &domain.RefreshToken{
 			ID:           1,
@@ -235,15 +235,20 @@ func TestAuthHandler_Login(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 		assert.Equal(t, "login successful", response["message"])
+		assert.True(t, response["success"].(bool))
 
-		// Check cookies
+		// Check data field for access token
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "test-access-token", data["access_token"])
+		assert.Equal(t, "testuser", data["user"].(map[string]interface{})["username"])
+
+		// Check cookies (refresh token only)
 		cookies := w.Result().Cookies()
 		accessTokenCookie := findCookie(cookies, "access_token")
 		refreshTokenCookie := findCookie(cookies, "refresh_token")
 
-		assert.NotNil(t, accessTokenCookie)
+		assert.Nil(t, accessTokenCookie)
 		assert.NotNil(t, refreshTokenCookie)
-		assert.True(t, accessTokenCookie.HttpOnly)
 		assert.True(t, refreshTokenCookie.HttpOnly)
 
 		// Verify service was called correctly
@@ -404,7 +409,10 @@ func TestAuthHandler_RefreshToken(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 		assert.Equal(t, "token refreshed successfully", response["message"])
-		assert.Equal(t, "new-access-token", response["access_token"])
+
+		// Check data field for access token
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "new-access-token", data["access_token"])
 
 		// Verify service was called correctly
 		mockAuthService.AssertExpectations(t)
@@ -448,16 +456,14 @@ func TestAuthHandler_Logout(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "logout successful", response["message"])
 
-		// Check that cookies are cleared
+		// Check that refresh token cookie is cleared
 		cookies := w.Result().Cookies()
 		accessTokenCookie := findCookie(cookies, "access_token")
 		refreshTokenCookie := findCookie(cookies, "refresh_token")
 
-		assert.NotNil(t, accessTokenCookie)
+		assert.Nil(t, accessTokenCookie)
 		assert.NotNil(t, refreshTokenCookie)
-		assert.Equal(t, "", accessTokenCookie.Value)
 		assert.Equal(t, "", refreshTokenCookie.Value)
-		assert.Equal(t, -1, accessTokenCookie.MaxAge)
 		assert.Equal(t, -1, refreshTokenCookie.MaxAge)
 
 		// Verify service was called correctly
@@ -507,22 +513,12 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 		jwtService := jwt.NewJWTService("test-secret", "test-refresh-secret")
 		handler := NewAuthHandler(mockUserService, mockAuthService, mockEmailService, jwtService, "development")
 
-		// Create test user and access token
-		user := &domain.User{ID: 1, Username: "testuser", Email: "test@example.com"}
-		jwtUser := &jwt.User{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role}
-		accessToken, err := jwtService.GenerateAccessToken(jwtUser)
-		require.NoError(t, err)
-
 		// 🎭 Mock Expectations: Auth service should handle logout
 		claims := &middleware.Claims{UserID: 1, Username: "testuser", Email: "test@example.com"}
 		mockAuthService.On("LogoutAll", mock.Anything, uint(1)).Return(nil)
 
-		// Create request with access token cookie
+		// Create request without access token cookie
 		req := httptest.NewRequest("POST", "/logout-all", nil)
-		req.AddCookie(&http.Cookie{
-			Name:  "access_token",
-			Value: accessToken,
-		})
 
 		// Set claims in context (as middleware would do)
 		ctx := context.WithValue(req.Context(), middleware.ClaimsContextKey, claims)
@@ -539,18 +535,17 @@ func TestAuthHandler_LogoutAll(t *testing.T) {
 
 		// Check response body
 		var response map[string]interface{}
-		err = json.Unmarshal(w.Body.Bytes(), &response)
+		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 		assert.Equal(t, "logout from all devices successful", response["message"])
 
-		// Check that cookies are cleared
+		// Check that refresh token cookie is cleared
 		cookies := w.Result().Cookies()
 		accessTokenCookie := findCookie(cookies, "access_token")
 		refreshTokenCookie := findCookie(cookies, "refresh_token")
 
-		assert.NotNil(t, accessTokenCookie)
+		assert.Nil(t, accessTokenCookie)
 		assert.NotNil(t, refreshTokenCookie)
-		assert.Equal(t, "", accessTokenCookie.Value)
 		assert.Equal(t, "", refreshTokenCookie.Value)
 
 		// Verify service was called correctly

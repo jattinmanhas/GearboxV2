@@ -17,19 +17,19 @@ type PaymentServiceClient struct {
 
 // PaymentServiceRequest represents a request to create a payment
 type PaymentServiceRequest struct {
-	OrderID         int64                  `json:"order_id"`
-	PaymentMethodID int64                  `json:"payment_method_id"`
-	Amount          float64                `json:"amount"`
-	Currency        string                 `json:"currency"`
-	GatewayID       string                 `json:"gateway_id"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	OrderID       int64                  `json:"order_id"`
+	PaymentMethod string                 `json:"payment_method"`
+	Amount        float64                `json:"amount"`
+	Currency      string                 `json:"currency"`
+	GatewayID     string                 `json:"gateway_id"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // PaymentServiceResponse represents a response from payment service
 type PaymentServiceResponse struct {
 	ID              int64                  `json:"id"`
 	OrderID         int64                  `json:"order_id"`
-	PaymentMethodID int64                  `json:"payment_method_id"`
+	PaymentMethod   string                 `json:"payment_method"`
 	TransactionID   string                 `json:"transaction_id"`
 	GatewayID       string                 `json:"gateway_id"`
 	Amount          float64                `json:"amount"`

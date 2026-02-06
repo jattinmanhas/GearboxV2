@@ -27,288 +27,13 @@ func NewPaymentService(paymentRepo *repository.PaymentRepository, gatewayService
 	}
 }
 
-// Payment Methods
-
-// CreatePaymentMethod creates a new payment method
-func (s *PaymentService) CreatePaymentMethod(ctx context.Context, req *dto.PaymentMethodRequest) (*dto.PaymentMethodResponse, error) {
-	// Check if payment method with same code already exists
-	existing, err := s.paymentRepo.GetPaymentMethodByCode(ctx, req.Code)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing payment method: %w", err)
-	}
-	if existing != nil {
-		return nil, fmt.Errorf("payment method with code %s already exists", req.Code)
-	}
-
-	// If this is set as default, unset other defaults
-	if req.IsDefault {
-		if err := s.unsetDefaultPaymentMethod(ctx); err != nil {
-			return nil, fmt.Errorf("failed to unset default payment method: %w", err)
-		}
-	}
-
-	pm := &domain.PaymentMethod{
-		Name:        req.Name,
-		Code:        req.Code,
-		Type:        req.Type,
-		IsActive:    req.IsActive,
-		IsDefault:   req.IsDefault,
-		SortOrder:   req.SortOrder,
-		Description: req.Description,
-		Icon:        req.Icon,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if err := s.paymentRepo.CreatePaymentMethod(ctx, pm); err != nil {
-		return nil, fmt.Errorf("failed to create payment method: %w", err)
-	}
-
-	return s.paymentMethodToResponse(pm), nil
-}
-
-// GetPaymentMethod retrieves a payment method by ID
-func (s *PaymentService) GetPaymentMethod(ctx context.Context, id int64) (*dto.PaymentMethodResponse, error) {
-	pm, err := s.paymentRepo.GetPaymentMethodByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment method: %w", err)
-	}
-	if pm == nil {
-		return nil, fmt.Errorf("payment method not found")
-	}
-
-	return s.paymentMethodToResponse(pm), nil
-}
-
-// ListPaymentMethods retrieves payment methods with filtering
-func (s *PaymentService) ListPaymentMethods(ctx context.Context, filter *domain.PaymentMethodFilter, page, limit int) ([]*dto.PaymentMethodResponse, error) {
-	offset := (page - 1) * limit
-	if offset < 0 {
-		offset = 0
-	}
-
-	methods, err := s.paymentRepo.ListPaymentMethods(ctx, filter, offset, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list payment methods: %w", err)
-	}
-
-	var responses []*dto.PaymentMethodResponse
-	for _, method := range methods {
-		responses = append(responses, s.paymentMethodToResponse(method))
-	}
-
-	return responses, nil
-}
-
-// UpdatePaymentMethod updates a payment method
-func (s *PaymentService) UpdatePaymentMethod(ctx context.Context, id int64, req *dto.PaymentMethodRequest) (*dto.PaymentMethodResponse, error) {
-	pm, err := s.paymentRepo.GetPaymentMethodByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment method: %w", err)
-	}
-	if pm == nil {
-		return nil, fmt.Errorf("payment method not found")
-	}
-
-	// Check if code is being changed and if new code already exists
-	if pm.Code != req.Code {
-		existing, err := s.paymentRepo.GetPaymentMethodByCode(ctx, req.Code)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check existing payment method: %w", err)
-		}
-		if existing != nil {
-			return nil, fmt.Errorf("payment method with code %s already exists", req.Code)
-		}
-	}
-
-	// If this is set as default, unset other defaults
-	if req.IsDefault && !pm.IsDefault {
-		if err := s.unsetDefaultPaymentMethod(ctx); err != nil {
-			return nil, fmt.Errorf("failed to unset default payment method: %w", err)
-		}
-	}
-
-	pm.Name = req.Name
-	pm.Code = req.Code
-	pm.Type = req.Type
-	pm.IsActive = req.IsActive
-	pm.IsDefault = req.IsDefault
-	pm.SortOrder = req.SortOrder
-	pm.Description = req.Description
-	pm.Icon = req.Icon
-	pm.UpdatedAt = time.Now()
-
-	if err := s.paymentRepo.UpdatePaymentMethod(ctx, pm); err != nil {
-		return nil, fmt.Errorf("failed to update payment method: %w", err)
-	}
-
-	return s.paymentMethodToResponse(pm), nil
-}
-
-// DeletePaymentMethod deletes a payment method
-func (s *PaymentService) DeletePaymentMethod(ctx context.Context, id int64) error {
-	// Check if payment method is being used in any payments
-	payments, err := s.paymentRepo.ListPayments(ctx, &domain.PaymentFilter{PaymentMethodID: &id}, 0, 1)
-	if err != nil {
-		return fmt.Errorf("failed to check payment method usage: %w", err)
-	}
-	if len(payments) > 0 {
-		return fmt.Errorf("cannot delete payment method: it is being used in existing payments")
-	}
-
-	if err := s.paymentRepo.DeletePaymentMethod(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete payment method: %w", err)
-	}
-
-	return nil
-}
-
-// Payment Gateways
-
-// CreatePaymentGateway creates a new payment gateway
-func (s *PaymentService) CreatePaymentGateway(ctx context.Context, req *dto.PaymentGatewayRequest) (*dto.PaymentGatewayResponse, error) {
-	// Check if payment gateway with same code already exists
-	existing, err := s.paymentRepo.GetPaymentGatewayByCode(ctx, req.Code)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing payment gateway: %w", err)
-	}
-	if existing != nil {
-		return nil, fmt.Errorf("payment gateway with code %s already exists", req.Code)
-	}
-
-	pg := &domain.PaymentGateway{
-		Name:       req.Name,
-		Code:       req.Code,
-		IsActive:   req.IsActive,
-		IsTestMode: req.IsTestMode,
-		SortOrder:  req.SortOrder,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-
-	if err := s.paymentRepo.CreatePaymentGateway(ctx, pg); err != nil {
-		return nil, fmt.Errorf("failed to create payment gateway: %w", err)
-	}
-
-	return s.paymentGatewayToResponse(pg), nil
-}
-
-// GetPaymentGateway retrieves a payment gateway by ID
-func (s *PaymentService) GetPaymentGateway(ctx context.Context, id int64) (*dto.PaymentGatewayResponse, error) {
-	pg, err := s.paymentRepo.GetPaymentGatewayByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-	if pg == nil {
-		return nil, fmt.Errorf("payment gateway not found")
-	}
-
-	return s.paymentGatewayToResponse(pg), nil
-}
-
-// ListPaymentGateways retrieves payment gateways with filtering
-func (s *PaymentService) ListPaymentGateways(ctx context.Context, filter *domain.PaymentGatewayFilter) ([]*dto.PaymentGatewayResponse, error) {
-	gateways, err := s.paymentRepo.ListPaymentGateways(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list payment gateways: %w", err)
-	}
-
-	var responses []*dto.PaymentGatewayResponse
-	for _, gateway := range gateways {
-		responses = append(responses, s.paymentGatewayToResponse(gateway))
-	}
-
-	return responses, nil
-}
-
-// UpdatePaymentGateway updates a payment gateway
-func (s *PaymentService) UpdatePaymentGateway(ctx context.Context, id int64, req *dto.PaymentGatewayRequest) (*dto.PaymentGatewayResponse, error) {
-	pg, err := s.paymentRepo.GetPaymentGatewayByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-	if pg == nil {
-		return nil, fmt.Errorf("payment gateway not found")
-	}
-
-	// Check if code is being changed and if new code already exists
-	if pg.Code != req.Code {
-		existing, err := s.paymentRepo.GetPaymentGatewayByCode(ctx, req.Code)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check existing payment gateway: %w", err)
-		}
-		if existing != nil {
-			return nil, fmt.Errorf("payment gateway with code %s already exists", req.Code)
-		}
-	}
-
-	pg.Name = req.Name
-	pg.Code = req.Code
-	pg.IsActive = req.IsActive
-	pg.IsTestMode = req.IsTestMode
-	pg.SortOrder = req.SortOrder
-	pg.UpdatedAt = time.Now()
-
-	if err := s.paymentRepo.UpdatePaymentGateway(ctx, pg); err != nil {
-		return nil, fmt.Errorf("failed to update payment gateway: %w", err)
-	}
-
-	return s.paymentGatewayToResponse(pg), nil
-}
-
-// DeletePaymentGateway deletes a payment gateway
-func (s *PaymentService) DeletePaymentGateway(ctx context.Context, id int64) error {
-	// Check if payment gateway is being used in any payments
-	// Get gateway first to get the code
-	gateway, err := s.paymentRepo.GetPaymentGatewayByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-	if gateway == nil {
-		return fmt.Errorf("payment gateway not found")
-	}
-
-	payments, err := s.paymentRepo.ListPayments(ctx, &domain.PaymentFilter{GatewayID: &gateway.Code}, 0, 1)
-	if err != nil {
-		return fmt.Errorf("failed to check payment gateway usage: %w", err)
-	}
-	if len(payments) > 0 {
-		return fmt.Errorf("cannot delete payment gateway: it is being used in existing payments")
-	}
-
-	if err := s.paymentRepo.DeletePaymentGateway(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete payment gateway: %w", err)
-	}
-
-	return nil
-}
-
 // Payments
 
 // CreatePayment creates a new payment
 func (s *PaymentService) CreatePayment(ctx context.Context, req *dto.CreatePaymentRequest) (*dto.PaymentResponse, error) {
-	// Validate payment method exists and is active
-	pm, err := s.paymentRepo.GetPaymentMethodByID(ctx, req.PaymentMethodID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment method: %w", err)
-	}
-	if pm == nil {
-		return nil, fmt.Errorf("payment method not found")
-	}
-	if !pm.IsActive {
-		return nil, fmt.Errorf("payment method is not active")
-	}
-
-	// Validate payment gateway exists and is active
-	pg, err := s.paymentRepo.GetPaymentGatewayByCode(ctx, req.GatewayID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get payment gateway: %w", err)
-	}
-	if pg == nil {
-		return nil, fmt.Errorf("payment gateway not found")
-	}
-	if !pg.IsActive {
-		return nil, fmt.Errorf("payment gateway is not active")
+	// Validate gateway (currently only Stripe is supported)
+	if req.GatewayID != "stripe" {
+		return nil, fmt.Errorf("unsupported payment gateway: %s", req.GatewayID)
 	}
 
 	// Generate unique transaction ID
@@ -318,16 +43,16 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *dto.CreatePayme
 	}
 
 	payment := &domain.Payment{
-		OrderID:         req.OrderID,
-		PaymentMethodID: req.PaymentMethodID,
-		TransactionID:   transactionID,
-		GatewayID:       req.GatewayID,
-		Amount:          req.Amount,
-		Currency:        req.Currency,
-		Status:          domain.PaymentStatusPending,
-		Metadata:        req.Metadata,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		OrderID:       req.OrderID,
+		PaymentMethod: req.PaymentMethod,
+		TransactionID: transactionID,
+		GatewayID:     req.GatewayID,
+		Amount:        req.Amount,
+		Currency:      req.Currency,
+		Status:        domain.PaymentStatusPending,
+		Metadata:      req.Metadata,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	if err := s.paymentRepo.CreatePayment(ctx, payment); err != nil {
@@ -570,12 +295,6 @@ func (s *PaymentService) GetPaymentSummary(ctx context.Context, dateFrom, dateTo
 
 // Helper methods
 
-func (s *PaymentService) unsetDefaultPaymentMethod(ctx context.Context) error {
-	// This would require a custom repository method to unset all defaults
-	// For now, we'll implement it in the repository
-	return nil
-}
-
 func (s *PaymentService) generateTransactionID() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
@@ -594,36 +313,11 @@ func (s *PaymentService) generateRefundID() (string, error) {
 
 // Response conversion methods
 
-func (s *PaymentService) paymentMethodToResponse(pm *domain.PaymentMethod) *dto.PaymentMethodResponse {
-	return &dto.PaymentMethodResponse{
-		ID:          pm.ID,
-		Name:        pm.Name,
-		Code:        pm.Code,
-		Type:        pm.Type,
-		IsActive:    pm.IsActive,
-		IsDefault:   pm.IsDefault,
-		SortOrder:   pm.SortOrder,
-		Description: pm.Description,
-		Icon:        pm.Icon,
-	}
-}
-
-func (s *PaymentService) paymentGatewayToResponse(pg *domain.PaymentGateway) *dto.PaymentGatewayResponse {
-	return &dto.PaymentGatewayResponse{
-		ID:         pg.ID,
-		Name:       pg.Name,
-		Code:       pg.Code,
-		IsActive:   pg.IsActive,
-		IsTestMode: pg.IsTestMode,
-		SortOrder:  pg.SortOrder,
-	}
-}
-
 func (s *PaymentService) paymentToResponse(payment *domain.Payment) *dto.PaymentResponse {
 	return &dto.PaymentResponse{
 		ID:              payment.ID,
 		OrderID:         payment.OrderID,
-		PaymentMethodID: payment.PaymentMethodID,
+		PaymentMethod:   payment.PaymentMethod,
 		TransactionID:   payment.TransactionID,
 		GatewayID:       payment.GatewayID,
 		Amount:          payment.Amount,

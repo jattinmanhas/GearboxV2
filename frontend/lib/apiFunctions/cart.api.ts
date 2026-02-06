@@ -23,32 +23,39 @@ export const cartApi = {
     },
 
     async updateCart(cartId: string, data: any): Promise<any> {
-        return httpClient.put<any>(`/carts/${cartId}`, data);
+        const response = await httpClient.put<ApiResponse<any>>(`/carts/${cartId}`, data);
+        return response.data;
     },
 
     async deleteCart(cartId: string): Promise<any> {
-        return httpClient.delete<any>(`/carts/${cartId}`);
+        const response = await httpClient.delete<ApiResponse<any>>(`/carts/${cartId}`);
+        return response.data;
     },
 
     // Cart Items
     async addItemToCart(cartId: string, itemData: any): Promise<any> {
-        return httpClient.post<any>(`/carts/${cartId}/items`, itemData);
+        const response = await httpClient.post<ApiResponse<any>>(`/carts/${cartId}/items`, itemData);
+        return response.data;
     },
 
     async getCartItems(cartId: string): Promise<any> {
-        return httpClient.get<any>(`/carts/${cartId}/items`);
+        const response = await httpClient.get<ApiResponse<any>>(`/carts/${cartId}/items`);
+        return response.data;
     },
 
     async updateCartItem(itemId: string, data: any): Promise<any> {
-        return httpClient.put<any>(`/carts/items/${itemId}`, data);
+        const response = await httpClient.put<ApiResponse<any>>(`/carts/items/${itemId}`, data);
+        return response.data;
     },
 
     async deleteCartItem(itemId: string): Promise<any> {
-        return httpClient.delete<any>(`/carts/items/${itemId}`);
+        const response = await httpClient.delete<ApiResponse<any>>(`/carts/items/${itemId}`);
+        return response.data;
     },
 
     async clearCartItems(cartId: string): Promise<any> {
-        return httpClient.delete<any>(`/carts/${cartId}/items`);
+        const response = await httpClient.delete<ApiResponse<any>>(`/carts/${cartId}/items`);
+        return response.data;
     },
 
     // Cart Summary
@@ -59,25 +66,29 @@ export const cartApi = {
 
     // Cart Merging
     async mergeCarts(targetCartId: string, sourceCartId: string): Promise<any> {
-        return httpClient.post<any>(`/carts/${targetCartId}/merge`, {
+        const response = await httpClient.post<ApiResponse<any>>(`/carts/${targetCartId}/merge`, {
             source_cart_id: sourceCartId,
         });
+        return response.data;
     },
 
     // Cart Coupons
     async applyCouponToCart(cartId: string, couponCode: string): Promise<any> {
-        return httpClient.post<any>(`/carts/${cartId}/coupons`, {
+        const response = await httpClient.post<ApiResponse<any>>(`/carts/${cartId}/coupons`, {
             coupon_code: couponCode,
         });
+        return response.data;
     },
 
     async removeCouponFromCart(cartId: string, couponCode: string): Promise<any> {
-        return httpClient.delete<any>(`/carts/${cartId}/coupons`, {
+        const response = await httpClient.delete<ApiResponse<any>>(`/carts/${cartId}/coupons`, {
             coupon_code: couponCode,
         });
+        return response.data;
     },
 
     async getCartCoupons(cartId: string): Promise<any> {
-        return httpClient.get<any>(`/carts/${cartId}/coupons`);
+        const response = await httpClient.get<ApiResponse<any>>(`/carts/${cartId}/coupons`);
+        return response.data;
     },
 };

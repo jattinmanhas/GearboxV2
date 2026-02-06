@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { paymentApi } from "@/lib/apiFunctions/payment.api"
 
 interface Payment {
     id: number
@@ -55,15 +56,14 @@ export default function PaymentDetailsPage() {
     const fetchPaymentDetails = async () => {
         try {
             setLoading(true)
-            const response = await fetch(`/api/v1/payments/${id}`, {
-                credentials: 'include',
-            })
-            if (!response.ok) throw new Error("Failed to fetch payment details")
-            const data = await response.json()
-            setPayment(data)
+            const response = await paymentApi.getPayment(Number(id))
+            if (response.error) throw new Error(response.message || "Failed to fetch payment details")
+            setPayment(response)
         } catch (err) {
             console.error(err)
-            setError("Failed to load payment details")
+            const msg = err instanceof Error ? err.message : "Failed to load payment details"
+            setError(msg)
+            toast.error(msg)
         } finally {
             setLoading(false)
         }
@@ -77,24 +77,20 @@ export default function PaymentDetailsPage() {
 
         try {
             setRefundLoading(true)
-            const response = await fetch('/api/v1/payments/refund', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    payment_id: payment.id,
-                    amount: payment.amount,
-                    reason: "Admin requested refund"
-                })
+            const response = await paymentApi.refundPayment({
+                payment_id: payment.id,
+                amount: payment.amount,
+                reason: "Admin requested refund"
             })
 
-            if (response.ok) {
+            if (!response.error) {
                 toast.success("Refund processed successfully")
                 fetchPaymentDetails()
             } else {
-                const errorData = await response.json()
-                toast.error(errorData.error || "Failed to process refund")
+                toast.error(response.message || "Failed to process refund")
             }
         } catch (err) {
+            console.error(err)
             toast.error("An error occurred while processing refund")
         } finally {
             setRefundLoading(false)
@@ -154,10 +150,10 @@ export default function PaymentDetailsPage() {
                     </Button>
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Payment Details</h1>
-                        <p className="text-muted-foreground flex items-center gap-2">
+                        <div className="text-muted-foreground flex items-center gap-2">
                             <span className="font-mono text-xs">{payment.transaction_id}</span>
                             <Badge className={getStatusColor(payment.status)}>{payment.status}</Badge>
-                        </p>
+                        </div>
                     </div>
                 </div>
                 <div className="flex gap-2">

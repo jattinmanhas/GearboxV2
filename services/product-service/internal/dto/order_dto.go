@@ -11,7 +11,7 @@ type CreateOrderRequest struct {
 	BillingAddress        *OrderAddressRequest     `json:"billing_address"`          // Optional: defaults to shipping
 	UserShippingAddressID *uint                    `json:"user_shipping_address_id"` // Optional: use saved user address
 	UserBillingAddressID  *uint                    `json:"user_billing_address_id"`  // Optional: use saved user address
-	PaymentMethodID       int64                    `json:"payment_method_id" validate:"required"`
+	PaymentMethod         string                   `json:"payment_method" validate:"required"`
 	Currency              string                   `json:"currency" validate:"required,len=3"`
 	Notes                 string                   `json:"notes"`
 	InternalNotes         string                   `json:"internal_notes"`
@@ -54,9 +54,9 @@ type UpdateOrderRequest struct {
 type OrderResponse struct {
 	ID                int64                        `json:"id"`
 	OrderNumber       string                       `json:"order_number"`
-	UserID            int64                        `json:"user_id"`
-	CustomerName      string                       `json:"customer_name,omitempty"`      // Customer name from shipping address
-	CustomerEmail     string                       `json:"customer_email,omitempty"`     // Customer email from shipping address
+	UserID            int64                        `json:"customer_id"`
+	CustomerName      string                       `json:"customer_name,omitempty"`  // Customer name from shipping address
+	CustomerEmail     string                       `json:"customer_email,omitempty"` // Customer email from shipping address
 	Status            string                       `json:"status"`
 	PaymentStatus     string                       `json:"payment_status"`
 	FulfillmentStatus string                       `json:"fulfillment_status"`
@@ -78,6 +78,24 @@ type OrderResponse struct {
 	ShippedAt         *time.Time                   `json:"shipped_at"`
 	DeliveredAt       *time.Time                   `json:"delivered_at"`
 	CancelledAt       *time.Time                   `json:"cancelled_at"`
+	ShippingAddress   *OrderAddressResponse        `json:"shipping_address,omitempty"`
+	BillingAddress    *OrderAddressResponse        `json:"billing_address,omitempty"`
+	User              *UserProfileResponse         `json:"user,omitempty"`
+}
+
+// UserProfileResponse represents deep user details from auth service
+type UserProfileResponse struct {
+	ID          uint      `json:"id"`
+	Username    string    `json:"username"`
+	Email       string    `json:"email"`
+	FirstName   string    `json:"first_name"`
+	MiddleName  string    `json:"middle_name"`
+	LastName    string    `json:"last_name"`
+	PhoneNumber string    `json:"phone_number"`
+	DateOfBirth time.Time `json:"date_of_birth"`
+	Avatar      string    `json:"avatar"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // OrderItemResponse represents the response for order item data
@@ -85,7 +103,7 @@ type OrderItemResponse struct {
 	ID               int64   `json:"id"`
 	OrderID          int64   `json:"order_id"`
 	ProductID        int64   `json:"product_id"`
-	ProductVariantID *int64  `json:"product_variant_id"`
+	ProductVariantID *int64  `json:"variant_id"`
 	ProductName      string  `json:"product_name"`
 	ProductSKU       string  `json:"product_sku"`
 	Quantity         int     `json:"quantity"`
@@ -99,20 +117,20 @@ type OrderItemResponse struct {
 
 // OrderAddressResponse represents the response for order address data
 type OrderAddressResponse struct {
-	ID         int64  `json:"id"`
-	OrderID    int64  `json:"order_id"`
-	Type       string `json:"type"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	Company    string `json:"company"`
-	Address1   string `json:"address1"`
-	Address2   string `json:"address2"`
-	City       string `json:"city"`
-	State      string `json:"state"`
-	Country    string `json:"country"`
-	PostalCode string `json:"postal_code"`
-	Phone      string `json:"phone"`
-	Email      string `json:"email"`
+	ID           int64  `json:"id"`
+	OrderID      int64  `json:"order_id"`
+	Type         string `json:"type"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Company      string `json:"company"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	City         string `json:"city"`
+	State        string `json:"state"`
+	Country      string `json:"country"`
+	PostalCode   string `json:"postal_code"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
 }
 
 // OrderStatusHistoryResponse represents the response for order status history
@@ -248,7 +266,7 @@ type CreateOrderFromCartRequest struct {
 	BillingAddress        *OrderAddressRequest `json:"billing_address"`
 	UserShippingAddressID *uint                `json:"user_shipping_address_id"` // Optional: use saved user address
 	UserBillingAddressID  *uint                `json:"user_billing_address_id"`  // Optional: use saved user address
-	PaymentMethodID       int64                `json:"payment_method_id" validate:"required"`
+	PaymentMethod         string               `json:"payment_method" validate:"required"`
 	Currency              string               `json:"currency" validate:"required,len=3"`
 	Notes                 string               `json:"notes"`
 	ApplyCoupons          []string             `json:"apply_coupons"`

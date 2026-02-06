@@ -6,12 +6,12 @@ import "time"
 
 // CreatePaymentRequest represents a request to create a payment
 type CreatePaymentRequest struct {
-	OrderID         int64                  `json:"order_id" validate:"required,min=1"`
-	PaymentMethodID int64                  `json:"payment_method_id" validate:"required,min=1"`
-	Amount          float64                `json:"amount" validate:"required,min=0.01"`
-	Currency        string                 `json:"currency" validate:"required,len=3"`
-	GatewayID       string                 `json:"gateway_id" validate:"required,min=1,max=50"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	OrderID       int64                  `json:"order_id" validate:"required,min=1"`
+	PaymentMethod string                 `json:"payment_method" validate:"required,min=1"`
+	Amount        float64                `json:"amount" validate:"required,min=0.01"`
+	Currency      string                 `json:"currency" validate:"required,len=3"`
+	GatewayID     string                 `json:"gateway_id" validate:"required,min=1,max=50"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ProcessPaymentRequest represents a request to process a payment
@@ -37,34 +37,13 @@ type UpdatePaymentStatusRequest struct {
 	FailureReason   string `json:"failure_reason,omitempty"`
 }
 
-// PaymentMethodRequest represents a request to create/update payment method
-type PaymentMethodRequest struct {
-	Name        string `json:"name" validate:"required,min=1,max=100"`
-	Code        string `json:"code" validate:"required,min=1,max=50"`
-	Type        string `json:"type" validate:"required,oneof=credit_card debit_card paypal bank_transfer digital_wallet"`
-	IsActive    bool   `json:"is_active"`
-	IsDefault   bool   `json:"is_default"`
-	SortOrder   int    `json:"sort_order" validate:"min=0,max=999"`
-	Description string `json:"description" validate:"max=500"`
-	Icon        string `json:"icon" validate:"max=255"`
-}
-
-// PaymentGatewayRequest represents a request to create/update payment gateway
-type PaymentGatewayRequest struct {
-	Name       string `json:"name" validate:"required,min=1,max=100"`
-	Code       string `json:"code" validate:"required,min=1,max=50"`
-	IsActive   bool   `json:"is_active"`
-	IsTestMode bool   `json:"is_test_mode"`
-	SortOrder  int    `json:"sort_order" validate:"min=0,max=999"`
-}
-
 // Payment Response DTOs
 
 // PaymentResponse represents a payment response
 type PaymentResponse struct {
 	ID              int64                  `json:"id"`
 	OrderID         int64                  `json:"order_id"`
-	PaymentMethodID int64                  `json:"payment_method_id"`
+	PaymentMethod   string                 `json:"payment_method"`
 	TransactionID   string                 `json:"transaction_id"`
 	GatewayID       string                 `json:"gateway_id"`
 	Amount          float64                `json:"amount"`
@@ -77,29 +56,6 @@ type PaymentResponse struct {
 	CreatedAt       time.Time              `json:"created_at"`
 	UpdatedAt       time.Time              `json:"updated_at"`
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// PaymentMethodResponse represents a payment method response
-type PaymentMethodResponse struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Code        string `json:"code"`
-	Type        string `json:"type"`
-	IsActive    bool   `json:"is_active"`
-	IsDefault   bool   `json:"is_default"`
-	SortOrder   int    `json:"sort_order"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
-}
-
-// PaymentGatewayResponse represents a payment gateway response
-type PaymentGatewayResponse struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	Code       string `json:"code"`
-	IsActive   bool   `json:"is_active"`
-	IsTestMode bool   `json:"is_test_mode"`
-	SortOrder  int    `json:"sort_order"`
 }
 
 // PaymentRefundResponse represents a refund response
@@ -140,20 +96,20 @@ type PaymentSummaryResponse struct {
 	NetAmount          float64 `json:"net_amount"`
 }
 
-// Payment Filter Request
+// PaymentFilterRequest represents a request to filter payments
 type PaymentFilterRequest struct {
-	OrderID         *int64  `json:"order_id"`
-	PaymentMethodID *int64  `json:"payment_method_id"`
-	Status          *string `json:"status"`
-	GatewayID       *string `json:"gateway_id"`
-	Currency        *string `json:"currency"`
-	DateFrom        *string `json:"date_from"`
-	DateTo          *string `json:"date_to"`
-	Search          string  `json:"search"`
-	Page            int     `json:"page" validate:"min=1"`
-	Limit           int     `json:"limit" validate:"min=1,max=100"`
-	SortBy          string  `json:"sort_by" validate:"oneof=id order_id amount created_at updated_at"`
-	SortOrder       string  `json:"sort_order" validate:"oneof=asc desc"`
+	OrderID       *int64  `json:"order_id"`
+	PaymentMethod *string `json:"payment_method"`
+	Status        *string `json:"status"`
+	GatewayID     *string `json:"gateway_id"`
+	Currency      *string `json:"currency"`
+	DateFrom      *string `json:"date_from"`
+	DateTo        *string `json:"date_to"`
+	Search        string  `json:"search"`
+	Page          int     `json:"page" validate:"min=1"`
+	Limit         int     `json:"limit" validate:"min=1,max=100"`
+	SortBy        string  `json:"sort_by" validate:"oneof=id order_id amount created_at updated_at"`
+	SortOrder     string  `json:"sort_order" validate:"oneof=asc desc"`
 }
 
 // Payment List Response

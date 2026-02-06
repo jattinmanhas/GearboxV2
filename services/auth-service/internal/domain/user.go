@@ -1,42 +1,41 @@
 package domain
 
 import (
-	"database/sql"
 	"time"
 )
 
-// Helper function to create sql.NullString from string
-func NewNullString(s string) sql.NullString {
+// Helper function to create *string from string
+func StringPtr(s string) *string {
 	if s == "" {
-		return sql.NullString{Valid: false}
+		return nil
 	}
-	return sql.NullString{String: s, Valid: true}
+	return &s
 }
 
-// Helper function to create sql.NullTime from time.Time
-func NewNullTime(t time.Time) sql.NullTime {
+// Helper function to create *time.Time from time.Time
+func TimePtr(t time.Time) *time.Time {
 	if t.IsZero() {
-		return sql.NullTime{Valid: false}
+		return nil
 	}
-	return sql.NullTime{Time: t, Valid: true}
+	return &t
 }
 
 type User struct {
-	ID          uint           `json:"id" db:"id"`
-	Username    string         `json:"username" db:"username"`
-	Password    string         `json:"-" db:"password"` // Now nullable for OAuth users
-	Email       string         `json:"email" db:"email"`
-	FirstName   string         `json:"first_name" db:"first_name"`
-	MiddleName  sql.NullString `json:"middle_name" db:"middle_name"`
-	LastName    sql.NullString `json:"last_name" db:"last_name"`
-	PhoneNumber sql.NullString `json:"phone_number" db:"phone_number"`
-	Avatar      sql.NullString `json:"avatar" db:"avatar"`
-	Gender      sql.NullString `json:"gender" db:"gender"`
-	DateOfBirth sql.NullTime   `json:"date_of_birth" db:"date_of_birth"`
-	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
-	IsDeleted   bool           `json:"is_deleted" db:"is_deleted"`
-	IsActive    bool           `json:"is_active" db:"is_active"`
+	ID          uint       `json:"id" db:"id"`
+	Username    string     `json:"username" db:"username"`
+	Password    string     `json:"-" db:"password"` // Now nullable for OAuth users
+	Email       string     `json:"email" db:"email"`
+	FirstName   string     `json:"first_name" db:"first_name"`
+	MiddleName  *string    `json:"middle_name" db:"middle_name"`
+	LastName    *string    `json:"last_name" db:"last_name"`
+	PhoneNumber *string    `json:"phone_number" db:"phone_number"`
+	Avatar      *string    `json:"avatar" db:"avatar"`
+	Gender      *string    `json:"gender" db:"gender"`
+	DateOfBirth *time.Time `json:"date_of_birth" db:"date_of_birth"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	IsDeleted   bool       `json:"is_deleted" db:"is_deleted"`
+	IsActive    bool       `json:"is_active" db:"is_active"`
 
 	// Role information
 	RoleID uint   `json:"role_id" db:"role_id"`

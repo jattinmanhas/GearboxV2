@@ -131,12 +131,13 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 		}
 
 		// Update OAuth tokens
-		existingOAuthLink.AccessToken = domain.NewNullString(token.AccessToken)
+		// Update OAuth tokens
+		existingOAuthLink.AccessToken = domain.StringPtr(token.AccessToken)
 		if token.RefreshToken != "" {
-			existingOAuthLink.RefreshToken = domain.NewNullString(token.RefreshToken)
+			existingOAuthLink.RefreshToken = domain.StringPtr(token.RefreshToken)
 		}
 		if !token.Expiry.IsZero() {
-			existingOAuthLink.ExpiresAt = domain.NewNullTime(token.Expiry)
+			existingOAuthLink.ExpiresAt = domain.TimePtr(token.Expiry)
 		}
 		if err := s.oauthRepo.UpdateOAuthProvider(ctx, existingOAuthLink); err != nil {
 			return nil, nil, "", fmt.Errorf("failed to update oauth provider: %w", err)
@@ -156,8 +157,8 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 				Password:  "", // OAuth users don't have password initially
 				Email:     userInfo.Email,
 				FirstName: userInfo.FirstName,
-				LastName:  domain.NewNullString(userInfo.LastName),
-				Avatar:    domain.NewNullString(userInfo.Avatar),
+				LastName:  domain.StringPtr(userInfo.LastName),
+				Avatar:    domain.StringPtr(userInfo.Avatar),
 				IsActive:  true,
 			}
 
@@ -172,13 +173,13 @@ func (s *oauthService) HandleOAuthCallback(ctx context.Context, provider string,
 			Provider:       provider,
 			ProviderUserID: userInfo.ProviderUserID,
 			Email:          userInfo.Email,
-			AccessToken:    domain.NewNullString(token.AccessToken),
+			AccessToken:    domain.StringPtr(token.AccessToken),
 		}
 		if token.RefreshToken != "" {
-			oauthLink.RefreshToken = domain.NewNullString(token.RefreshToken)
+			oauthLink.RefreshToken = domain.StringPtr(token.RefreshToken)
 		}
 		if !token.Expiry.IsZero() {
-			oauthLink.ExpiresAt = domain.NewNullTime(token.Expiry)
+			oauthLink.ExpiresAt = domain.TimePtr(token.Expiry)
 		}
 
 		if err := s.oauthRepo.CreateOAuthProvider(ctx, oauthLink); err != nil {
@@ -276,13 +277,13 @@ func (s *oauthService) LinkOAuthProvider(ctx context.Context, userID uint, provi
 		Provider:       provider,
 		ProviderUserID: userInfo.ProviderUserID,
 		Email:          userInfo.Email,
-		AccessToken:    domain.NewNullString(token.AccessToken),
+		AccessToken:    domain.StringPtr(token.AccessToken),
 	}
 	if token.RefreshToken != "" {
-		oauthLink.RefreshToken = domain.NewNullString(token.RefreshToken)
+		oauthLink.RefreshToken = domain.StringPtr(token.RefreshToken)
 	}
 	if !token.Expiry.IsZero() {
-		oauthLink.ExpiresAt = domain.NewNullTime(token.Expiry)
+		oauthLink.ExpiresAt = domain.TimePtr(token.Expiry)
 	}
 
 	if err := s.oauthRepo.CreateOAuthProvider(ctx, oauthLink); err != nil {

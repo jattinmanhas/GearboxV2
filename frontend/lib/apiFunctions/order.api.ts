@@ -2,6 +2,11 @@ import { httpClient } from "./http-client";
 import type { ApiResponse } from "../types";
 
 export const orderApi = {
+    async getOrders(params: Record<string, string>): Promise<ApiResponse<any>> {
+        const queryString = new URLSearchParams(params).toString();
+        return httpClient.get<ApiResponse<any>>(`/orders?${queryString}`);
+    },
+
     async createOrderFromCart(cartId: number, orderData: any): Promise<any> {
         return httpClient.post<any>(
             `/orders/from-cart?cart_id=${cartId}`,

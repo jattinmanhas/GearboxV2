@@ -78,23 +78,23 @@ func (s *userService) UpdateUser(ctx context.Context, id int, updateData *domain
 	if updateData.FirstName != "" {
 		updatedUser.FirstName = updateData.FirstName
 	}
-	if updateData.MiddleName.Valid {
+	if updateData.MiddleName != nil {
 		updatedUser.MiddleName = updateData.MiddleName
 	}
-	if updateData.LastName.Valid {
+	if updateData.LastName != nil {
 		updatedUser.LastName = updateData.LastName
 	}
-	if updateData.PhoneNumber.Valid {
+	if updateData.PhoneNumber != nil {
 		updatedUser.PhoneNumber = updateData.PhoneNumber
 	}
-	if updateData.Avatar.Valid {
+	if updateData.Avatar != nil {
 		updatedUser.Avatar = updateData.Avatar
 	}
-	if updateData.Gender.Valid {
+	if updateData.Gender != nil {
 		updatedUser.Gender = updateData.Gender
 	}
 	// Check if DateOfBirth is valid
-	if updateData.DateOfBirth.Valid {
+	if updateData.DateOfBirth != nil {
 		updatedUser.DateOfBirth = updateData.DateOfBirth
 	}
 

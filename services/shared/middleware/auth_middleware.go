@@ -53,13 +53,8 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 			authHeader := r.Header.Get("Authorization")
 			fmt.Printf("[AuthMiddleware] Request: %s %s | Auth Header Present: %v\n", r.Method, r.URL.Path, authHeader != "")
 
-			// Extract access token from Authorization header (preferred)
+			// Extract access token from Authorization header
 			accessToken := authService.ExtractTokenFromHeader(r)
-
-			// Fallback to cookie for backward compatibility during transition
-			if accessToken == "" {
-				accessToken = authService.ExtractTokenFromCookie(r, "access_token")
-			}
 
 			// If no token found, return 401
 			if accessToken == "" {
@@ -88,11 +83,8 @@ func AuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 func OptionalAuthMiddleware(authService IAuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract token from Authorization header or cookie
+			// Extract token from Authorization header
 			token := authService.ExtractTokenFromHeader(r)
-			if token == "" {
-				token = authService.ExtractTokenFromCookie(r, "access_token")
-			}
 
 			if token != "" {
 				// Try to validate token

@@ -1,5 +1,6 @@
 import { ApiError } from "./api-error";
 import { API_BASE_URL } from "./constants";
+import type { User } from "../stores/user-store";
 
 interface RequestOptions {
     headers?: Record<string, string>;
@@ -14,15 +15,18 @@ let refreshPromise: Promise<string | null> | null = null;
 // Local cache to avoid React state race conditions
 let localAccessToken: string | null = null;
 
-let getAccessToken: (() => string | null) | null = null;
+let getAccessToken: (() => string | null) | null = () => localAccessToken;
 let setAccessToken: ((token: string | null) => void) | null = null;
 
 export function setAuthTokenHandlers(
     getToken: () => string | null,
     setToken: (token: string | null) => void
 ) {
-    // Initialize local cache from external source
-    localAccessToken = getToken();
+    // Initialize local cache from external source without wiping an existing token
+    const initialToken = getToken();
+    if (initialToken) {
+        localAccessToken = initialToken;
+    }
 
     // Wrap the getter to check local cache first
     getAccessToken = () => {
@@ -54,15 +58,45 @@ async function refreshAccessToken(): Promise<string | null> {
             if (response.ok) {
                 const data = await response.json();
                 const newAccessToken = data.data?.access_token || data.access_token;
+                const refreshedUser = data.data?.user || data.user;
 
-                if (newAccessToken && setAccessToken) {
+                if (newAccessToken) {
                     console.log("[HTTPClient] Access token refreshed successfully");
-                    setAccessToken(newAccessToken);
+
+                    // Always update local cache, even if handlers aren't registered yet
+                    localAccessToken = newAccessToken;
+                    if (setAccessToken) {
+                        setAccessToken(newAccessToken);
+                    }
+
+                    // Update in-memory user details if provided
+                    if (typeof window !== "undefined" && refreshedUser) {
+                        try {
+                            const { useUserStore } = await import("../stores/user-store");
+                            const existingUser = useUserStore.getState().user;
+                            const mergedUser: User = {
+                                id: refreshedUser.id ?? existingUser?.id ?? 0,
+                                username: refreshedUser.username ?? existingUser?.username ?? "",
+                                email: refreshedUser.email ?? existingUser?.email ?? "",
+                                firstName: refreshedUser.firstName ?? existingUser?.firstName ?? "",
+                                middleName: refreshedUser.middleName ?? existingUser?.middleName ?? "",
+                                lastName: refreshedUser.lastName ?? existingUser?.lastName ?? "",
+                                avatar: refreshedUser.avatar ?? existingUser?.avatar ?? "",
+                                role: refreshedUser.role ?? existingUser?.role ?? "user",
+                                createdAt: refreshedUser.createdAt ?? existingUser?.createdAt ?? new Date().toISOString(),
+                                updatedAt: refreshedUser.updatedAt ?? existingUser?.updatedAt ?? new Date().toISOString(),
+                            };
+                            useUserStore.getState().setUser(mergedUser);
+                        } catch (storeError) {
+                            console.warn("[HTTPClient] Failed to update user store after refresh:", storeError);
+                        }
+                    }
+
                     return newAccessToken;
                 }
                 console.warn("[HTTPClient] Refresh succeeded but no access token was returned");
             } else {
-                console.error(`[HTTPClient] Token refresh failed with status: ${response.status}`);
+                console.warn(`[HTTPClient] Token refresh failed with status: ${response.status}`);
 
                 // Only clear token if we got a specific 401/403 (unauthorized/forbidden)
                 // If it's a 500 or other error, we don't want to forcefully log the user out 
@@ -157,7 +191,13 @@ async function handleResponse<T>(
             (Array.isArray(data?.errors) ? data.errors.join(", ") : "") ||
             `HTTP ${response.status}: ${response.statusText}`;
 
-        throw new ApiError(errorMessage, response.status, data?.errors);
+        console.warn(`[HTTPClient] API Error (${response.status}): ${errorMessage}`);
+        return {
+            error: true,
+            status: response.status,
+            message: errorMessage,
+            details: data?.errors
+        } as unknown as T;
     }
 
     // Backend returns structured responses, so just return the data as-is

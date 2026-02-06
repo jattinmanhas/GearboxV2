@@ -143,8 +143,8 @@ export default function InventoryDashboard() {
     try {
       const response = await inventoryApi.getInventoryAlerts();
 
-      if (response.success && response.data) {
-        setAlerts(response.data);
+      if (response.success) {
+        setAlerts(response.data || []);
       } else {
         const msg = response.message || "Failed to fetch inventory alerts";
         console.error("Inventory alerts fetch failed:", response);

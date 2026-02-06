@@ -388,8 +388,8 @@ func TestUserService_RegisterNewUser(t *testing.T) {
 			Password:    "SecurePass123", // Plain text password
 			Email:       "john@example.com",
 			FirstName:   "John",
-			LastName:    domain.NewNullString("Doe"),
-			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+			LastName:    domain.StringPtr("Doe"),
+			DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		}
 
 		// 🎭 Mock Expectations: Repository should be called with hashed password
@@ -493,7 +493,7 @@ func TestUserService_GetUserByID(t *testing.T) {
 			Username:  "john_doe",
 			Email:     "john@example.com",
 			FirstName: "John",
-			LastName:  domain.NewNullString("Doe"),
+			LastName:  domain.StringPtr("Doe"),
 		}
 
 		// 🎭 Mock Expectations: Repository should return user
@@ -699,17 +699,17 @@ func TestUserService_UpdateUser(t *testing.T) {
 			Username:    "john_doe",
 			Email:       "john@example.com",
 			FirstName:   "John",
-			MiddleName:  domain.NewNullString("Michael"),
-			LastName:    domain.NewNullString("Doe"),
-			Avatar:      domain.NewNullString("https://example.com/avatar.jpg"),
-			Gender:      domain.NewNullString("male"),
-			DateOfBirth: domain.NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+			MiddleName:  domain.StringPtr("Michael"),
+			LastName:    domain.StringPtr("Doe"),
+			Avatar:      domain.StringPtr("https://example.com/avatar.jpg"),
+			Gender:      domain.StringPtr("male"),
+			DateOfBirth: domain.TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 		}
 
 		// Create update request with only some fields
 		updateData := &domain.User{
-			FirstName: "Jonathan",                                                 // Only updating first name
-			Avatar:    domain.NewNullString("https://example.com/new-avatar.jpg"), // And avatar
+			FirstName: "Jonathan",                                             // Only updating first name
+			Avatar:    domain.StringPtr("https://example.com/new-avatar.jpg"), // And avatar
 		}
 
 		// 🎭 Mock Expectations: Repository should be called to get existing user
@@ -719,7 +719,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 		mockRepo.On("UpdateUser", mock.Anything, 1, mock.MatchedBy(func(u *domain.User) bool {
 			// Verify that the update data is passed through
 			return u.FirstName == "Jonathan" &&
-				u.Avatar.String == "https://example.com/new-avatar.jpg"
+				u.Avatar != nil && *u.Avatar == "https://example.com/new-avatar.jpg"
 		})).Return(nil)
 
 		// 🚀 Action: Update user
@@ -1171,7 +1171,7 @@ func TestAuthService_Logout(t *testing.T) {
 		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Refresh token should be revoked
-		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, "test-refresh-token").Return(nil)
+		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, mock.Anything).Return(nil)
 
 		// 🚀 Action: Logout user
 		err := service.Logout(context.Background(), "test-refresh-token")
@@ -1193,7 +1193,7 @@ func TestAuthService_Logout(t *testing.T) {
 		service := NewAuthService(mockUserRepo, mockRefreshTokenRepo, mockPasswordResetRepo, mockRoleRepo, jwtService)
 
 		// 🎭 Mock Expectations: Repository should return error
-		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, "test-refresh-token").Return(errors.New("database error"))
+		mockRefreshTokenRepo.On("RevokeRefreshToken", mock.Anything, mock.Anything).Return(errors.New("database error"))
 
 		// 🚀 Action: Logout user
 		err := service.Logout(context.Background(), "test-refresh-token")

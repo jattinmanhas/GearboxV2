@@ -118,16 +118,13 @@ export const useCartStore = create<CartStore>()(
           set({ isLoading: true, error: null })
 
           // First get the cart metadata
-          const cartResponse = await cartApi.getOrCreateCart()
-          const cart = cartResponse.data
+          const cart = await cartApi.getOrCreateCart()
 
           // Then get the cart items via summary
-          const summaryResponse = await cartApi.getCartSummary(cart.id.toString())
-          const summary = summaryResponse.data
+          const summary = await cartApi.getCartSummary(cart.id.toString())
 
           // Get applied coupons
-          const couponsResponse = await cartApi.getCartCoupons(cart.id.toString())
-          const appliedCoupons = couponsResponse.data || []
+          const appliedCoupons = await cartApi.getCartCoupons(cart.id.toString()) || []
 
 
           // Fetch product details for items
@@ -624,8 +621,8 @@ export const useCartStore = create<CartStore>()(
             return
           }
 
-          const response = await cartApi.getCartCoupons(state.cart.id)
-          set({ appliedCoupons: response.data || [] })
+          const appliedCoupons = await cartApi.getCartCoupons(state.cart.id)
+          set({ appliedCoupons: appliedCoupons || [] })
         } catch (error) {
           console.error('Failed to load applied coupons:', error)
         }
@@ -701,16 +698,13 @@ export const useCartStore = create<CartStore>()(
       loadCartSilently: async () => {
         try {
           // First get the cart metadata
-          const cartResponse = await cartApi.getOrCreateCart()
-          const cart = cartResponse.data
+          const cart = await cartApi.getOrCreateCart()
 
           // Then get the cart items via summary
-          const summaryResponse = await cartApi.getCartSummary(cart.id.toString())
-          const summary = summaryResponse.data
+          const summary = await cartApi.getCartSummary(cart.id.toString())
 
           // Get applied coupons
-          const couponsResponse = await cartApi.getCartCoupons(cart.id.toString())
-          const appliedCoupons = couponsResponse.data || []
+          const appliedCoupons = await cartApi.getCartCoupons(cart.id.toString()) || []
 
           // Fetch product details for items
           const itemsWithDetails = await get().fetchProductDetails(summary.items || [])

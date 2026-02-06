@@ -47,9 +47,6 @@ func NewRouter(paymentService *services.PaymentService, jwtService *jwt.JWTServi
 
 		// Public routes (no authentication required)
 		r.Route("/public", func(r chi.Router) {
-			// Payment methods (public for frontend to display available options)
-			r.Get("/payment-methods", paymentHandler.ListPaymentMethods)
-			r.Get("/payment-gateways", paymentHandler.ListPaymentGateways)
 
 			// Webhook endpoints (no auth required as they come from external services)
 			r.Post("/webhooks/{gatewayId}", paymentHandler.HandleWebhook)
@@ -58,24 +55,6 @@ func NewRouter(paymentService *services.PaymentService, jwtService *jwt.JWTServi
 		// Protected routes (authentication required)
 		r.Route("/protected", func(r chi.Router) {
 			r.Use(sharedMiddleware.AuthMiddleware(authService))
-
-			// Payment methods management (admin/editor only)
-			r.Route("/payment-methods", func(r chi.Router) {
-				r.Use(sharedMiddleware.RequireEditor())
-				r.Post("/", paymentHandler.CreatePaymentMethod)
-				r.Get("/{id}", paymentHandler.GetPaymentMethod)
-				r.Put("/{id}", paymentHandler.UpdatePaymentMethod)
-				r.Delete("/{id}", paymentHandler.DeletePaymentMethod)
-			})
-
-			// Payment gateways management (admin only)
-			r.Route("/payment-gateways", func(r chi.Router) {
-				r.Use(sharedMiddleware.RequireAdmin())
-				r.Post("/", paymentHandler.CreatePaymentGateway)
-				r.Get("/{id}", paymentHandler.GetPaymentGateway)
-				r.Put("/{id}", paymentHandler.UpdatePaymentGateway)
-				r.Delete("/{id}", paymentHandler.DeletePaymentGateway)
-			})
 
 			// Payment operations (authenticated users)
 			r.Route("/payments", func(r chi.Router) {

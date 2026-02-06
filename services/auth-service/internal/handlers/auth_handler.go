@@ -75,11 +75,11 @@ func (h *authHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Password:    req.Password,
 		Email:       strings.TrimSpace(req.Email),
 		FirstName:   strings.TrimSpace(req.FirstName),
-		MiddleName:  domain.NewNullString(strings.TrimSpace(req.MiddleName)),
-		LastName:    domain.NewNullString(strings.TrimSpace(req.LastName)),
-		Avatar:      domain.NewNullString(req.Avatar),
-		Gender:      domain.NewNullString(req.Gender),
-		DateOfBirth: domain.NewNullTime(req.DateOfBirth),
+		MiddleName:  domain.StringPtr(strings.TrimSpace(req.MiddleName)),
+		LastName:    domain.StringPtr(strings.TrimSpace(req.LastName)),
+		Avatar:      domain.StringPtr(req.Avatar),
+		Gender:      domain.StringPtr(req.Gender),
+		DateOfBirth: domain.TimePtr(req.DateOfBirth),
 	}
 
 	if err := h.userService.RegisterNewUser(r.Context(), user); err != nil {
@@ -125,8 +125,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"username":  user.Username,
 			"email":     user.Email,
 			"firstName": user.FirstName,
-			"lastName":  user.LastName.String,
-			"avatar":    user.Avatar.String,
+			"lastName":  user.LastName,
+			"avatar":    user.Avatar,
 			"role":      user.Role,
 		},
 		"access_token": accessToken, // NEW: Access token in response body
@@ -347,15 +347,15 @@ func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Convert request to domain.User for the service
 	updateData := &domain.User{
 		FirstName:  strings.TrimSpace(req.FirstName),
-		MiddleName: domain.NewNullString(strings.TrimSpace(req.MiddleName)),
-		LastName:   domain.NewNullString(strings.TrimSpace(req.LastName)),
-		Avatar:     domain.NewNullString(req.Avatar),
-		Gender:     domain.NewNullString(req.Gender),
+		MiddleName: domain.StringPtr(strings.TrimSpace(req.MiddleName)),
+		LastName:   domain.StringPtr(strings.TrimSpace(req.LastName)),
+		Avatar:     domain.StringPtr(req.Avatar),
+		Gender:     domain.StringPtr(req.Gender),
 	}
 
 	// Handle DateOfBirth separately since it's a pointer in the request
 	if req.DateOfBirth != nil {
-		updateData.DateOfBirth = domain.NewNullTime(*req.DateOfBirth)
+		updateData.DateOfBirth = domain.TimePtr(*req.DateOfBirth)
 	}
 
 	// Call the service to update the user (service handles merging with existing data)
@@ -369,7 +369,7 @@ func (h *authHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		"id":        updatedUser.ID,
 		"username":  updatedUser.Username,
 		"firstName": updatedUser.FirstName,
-		"lastName":  updatedUser.LastName.String,
+		"lastName":  updatedUser.LastName,
 		"email":     updatedUser.Email,
 		"updatedAt": updatedUser.UpdatedAt,
 	})
@@ -462,11 +462,11 @@ func (h *authHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		Username:    user.Username,
 		Email:       user.Email,
 		FirstName:   user.FirstName,
-		MiddleName:  user.MiddleName.String,
-		LastName:    user.LastName.String,
-		PhoneNumber: user.PhoneNumber.String,
-		DateOfBirth: user.DateOfBirth.Time,
-		Avatar:      user.Avatar.String,
+		MiddleName:  user.MiddleName,
+		LastName:    user.LastName,
+		PhoneNumber: user.PhoneNumber,
+		DateOfBirth: user.DateOfBirth,
+		Avatar:      user.Avatar,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 	}
@@ -498,16 +498,16 @@ func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// Convert request to domain.User for the service
 	updateData := &domain.User{
 		FirstName:   strings.TrimSpace(req.FirstName),
-		MiddleName:  domain.NewNullString(strings.TrimSpace(req.MiddleName)),
-		LastName:    domain.NewNullString(strings.TrimSpace(req.LastName)),
-		PhoneNumber: domain.NewNullString(strings.TrimSpace(req.PhoneNumber)),
-		Gender:      domain.NewNullString(req.Gender),
-		Avatar:      domain.NewNullString(req.Avatar),
+		MiddleName:  domain.StringPtr(strings.TrimSpace(req.MiddleName)),
+		LastName:    domain.StringPtr(strings.TrimSpace(req.LastName)),
+		PhoneNumber: domain.StringPtr(strings.TrimSpace(req.PhoneNumber)),
+		Gender:      domain.StringPtr(req.Gender),
+		Avatar:      domain.StringPtr(req.Avatar),
 	}
 
 	// Handle DateOfBirth separately since it's a pointer in the request
 	if req.DateOfBirth != nil {
-		updateData.DateOfBirth = domain.NewNullTime(*req.DateOfBirth)
+		updateData.DateOfBirth = domain.TimePtr(*req.DateOfBirth)
 	}
 
 	// Call UpdateUser service method
@@ -523,11 +523,11 @@ func (h *authHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Username:    updatedUser.Username,
 		Email:       updatedUser.Email,
 		FirstName:   updatedUser.FirstName,
-		MiddleName:  updatedUser.MiddleName.String,
-		LastName:    updatedUser.LastName.String,
-		PhoneNumber: updatedUser.PhoneNumber.String,
-		DateOfBirth: updatedUser.DateOfBirth.Time,
-		Avatar:      updatedUser.Avatar.String,
+		MiddleName:  updatedUser.MiddleName,
+		LastName:    updatedUser.LastName,
+		PhoneNumber: updatedUser.PhoneNumber,
+		DateOfBirth: updatedUser.DateOfBirth,
+		Avatar:      updatedUser.Avatar,
 		CreatedAt:   updatedUser.CreatedAt,
 		UpdatedAt:   updatedUser.UpdatedAt,
 	}

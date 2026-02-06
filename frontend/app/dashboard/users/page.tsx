@@ -8,15 +8,13 @@ import { UserForm } from "./components/user-form"
 import { UserFilters as UserFiltersComponent } from "./components/user-filters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Users, UserCheck, UserX } from "lucide-react"
-import { AlertMessage } from "@/components/ui/alert-message"
+import { Plus, Users, UserCheck, UserX, Eraser } from "lucide-react"
+import { toast } from "sonner"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [filters, setFilters] = useState<UserFilters>({
     page: 1,
@@ -33,7 +31,6 @@ export default function UsersPage() {
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true)
-      setError(null)
       const response = await userApi.getUsers(filters)
 
       // Ensure we have valid data
@@ -49,7 +46,7 @@ export default function UsersPage() {
       const error = err as Error
       console.error('Error loading users:', error)
       // The improved error handling in api.ts will handle 401s appropriately
-      setError(error.message || "Failed to load users")
+      toast.error(error.message || "Failed to load users")
       setUsers([]) // Set empty array on error
     } finally {
       setLoading(false)
@@ -78,14 +75,13 @@ export default function UsersPage() {
 
   const handleUpdateUser = async (id: number, userData: UpdateUserRequest) => {
     try {
-      setError(null)
       await userApi.updateUser(id, userData)
-      setSuccess("User updated successfully")
+      toast.success("User updated successfully")
       setEditingUser(null)
       loadUsers()
     } catch (err: unknown) {
       const error = err as Error
-      setError(error.message || "Failed to update user")
+      toast.error(error.message || "Failed to update user")
     }
   }
 
@@ -93,24 +89,22 @@ export default function UsersPage() {
     if (!confirm("Are you sure you want to delete this user?")) return
 
     try {
-      setError(null)
       await userApi.deleteUser(id)
-      setSuccess("User deleted successfully")
+      toast.success("User deleted successfully")
       loadUsers()
     } catch (err: unknown) {
       const error = err as Error
-      setError(error.message || "Failed to delete user")
+      toast.error(error.message || "Failed to delete user")
     }
   }
 
   const handleChangePassword = async (id: number, passwordData: ChangePasswordRequest) => {
     try {
-      setError(null)
       await userApi.changePassword(id, passwordData)
-      setSuccess("Password changed successfully")
+      toast.success("Password changed successfully")
     } catch (err: unknown) {
       const error = err as Error
-      setError(error.message || "Failed to change password")
+      toast.error(error.message || "Failed to change password")
     }
   }
 
@@ -118,13 +112,23 @@ export default function UsersPage() {
     if (!confirm("Are you sure you want to logout this user from all devices?")) return
 
     try {
-      setError(null)
       await userApi.logoutAll(id)
-      setSuccess("User logged out from all devices")
+      toast.success("User logged out from all devices")
     } catch (err: unknown) {
       const error = err as Error
-      setError(error.message || "Failed to logout user")
+      toast.error(error.message || "Failed to logout user")
     }
+  }
+
+  const handleCleanupTokens = async () => {
+    const promise = userApi.cleanupExpiredTokens()
+    toast.promise(promise, {
+      loading: 'Cleaning up expired tokens...',
+      success: (data) => {
+        return data.message || 'Tokens cleaned up successfully'
+      },
+      error: 'Failed to cleanup tokens'
+    })
   }
 
   const handleFiltersChange = (newFilters: UserFilters) => {
@@ -147,8 +151,8 @@ export default function UsersPage() {
             Manage users, roles, and permissions
           </p>
         </div>
-        <Button onClick={() => userApi.cleanupExpiredTokens()}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button variant="outline" onClick={handleCleanupTokens}>
+          <Eraser className="h-4 w-4 mr-2" />
           Cleanup Tokens
         </Button>
       </div>
@@ -199,19 +203,6 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Alerts */}
-      {error && (
-        <AlertMessage
-          type="error"
-          message={error}
-        />
-      )}
-      {success && (
-        <AlertMessage
-          type="success"
-          message={success}
-        />
-      )}
 
       {/* User Table */}
       <Card>

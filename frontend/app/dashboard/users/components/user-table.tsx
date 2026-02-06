@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { User, Role, ChangePasswordRequest } from "@/lib/types"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -31,13 +32,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
-  Key, 
-  LogOut, 
-  Eye, 
+import {
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Key,
+  LogOut,
+  Eye,
   EyeOff,
   ChevronLeft,
   ChevronRight
@@ -82,12 +83,12 @@ export function UserTable({
 
   const handleChangePassword = () => {
     if (!changePasswordUser) return
-    
+
     if (passwordData.new_password !== passwordData.confirm_password) {
-      alert("New passwords do not match")
+      toast.error("New passwords do not match")
       return
     }
-    
+
     onChangePassword(changePasswordUser.id, passwordData)
     setChangePasswordUser(null)
     setPasswordData({
@@ -100,19 +101,19 @@ export function UserTable({
   const getRoleName = (user: User) => {
     // First try to get role from the role field (string)
     if (user.role) return user.role
-    
+
     // Fallback to role_id lookup
     if (user.role_id && Array.isArray(roles)) {
       const role = roles.find(r => r.id === user.role_id)
       return role?.name || "Unknown Role"
     }
-    
+
     return "No Role"
   }
 
   const getRoleColor = (user: User) => {
     const roleName = getRoleName(user).toLowerCase()
-    
+
     switch (roleName) {
       case "admin":
         return "destructive"
@@ -130,8 +131,9 @@ export function UserTable({
   }
 
   const getInitials = (user: User) => {
-    const first = user.first_name.charAt(0).toUpperCase()
-    const last = user.last_name.charAt(0).toUpperCase()
+    const firstChar = (val: any) => (typeof val === 'string' && val.length > 0) ? val.charAt(0) : ""
+    const first = (firstChar(user.first_name) || firstChar(user.username) || "U").toUpperCase()
+    const last = firstChar(user.last_name).toUpperCase()
     return `${first}${last}`
   }
 
@@ -145,7 +147,7 @@ export function UserTable({
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -153,8 +155,8 @@ export function UserTable({
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="hidden md:table-cell">Last Login</TableHead>
+              <TableHead className="hidden lg:table-cell">Created</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -184,7 +186,7 @@ export function UserTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={user.email}>{user.email}</TableCell>
                   <TableCell>
                     <Badge variant={getRoleColor(user)}>
                       {getRoleName(user)}
@@ -195,7 +197,7 @@ export function UserTable({
                       {user.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {user.last_login && user.last_login !== "0001-01-01T00:00:00Z" ? (
                       <div className="text-sm">
                         {format(new Date(user.last_login), "MMM d, yyyy")}
@@ -207,7 +209,7 @@ export function UserTable({
                       <span className="text-muted-foreground">Never</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <div className="text-sm">
                       {format(new Date(user.created_at), "MMM d, yyyy")}
                     </div>
@@ -235,7 +237,7 @@ export function UserTable({
                           Logout All Devices
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onDelete(user.id)}
                           className="text-destructive"
                         >

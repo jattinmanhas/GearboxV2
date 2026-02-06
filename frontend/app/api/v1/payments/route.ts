@@ -7,12 +7,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const queryString = searchParams.toString()
 
+    const authHeader = request.headers.get('authorization');
+    console.log(`[PaymentsProxy] GET | Auth Header: ${authHeader ? 'Yes' : 'No'}`, authHeader ? `(Length: ${authHeader.length})` : '');
+
     const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-        'Authorization': request.headers.get('authorization') || '',
+        'Authorization': authHeader || '',
       },
     })
 
@@ -40,12 +43,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    const authHeader = request.headers.get('authorization');
+    console.log(`[PaymentsProxy] POST | Auth Header: ${authHeader ? 'Yes' : 'No'}`, authHeader ? `(Length: ${authHeader.length})` : '');
+
     const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-        'Authorization': request.headers.get('authorization') || '',
+        'Authorization': authHeader || '',
       },
       body: JSON.stringify(body),
     })

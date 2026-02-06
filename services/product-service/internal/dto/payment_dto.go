@@ -2,9 +2,9 @@ package dto
 
 // CreatePaymentRequest represents a request to create a payment for an order
 type CreatePaymentRequest struct {
-	PaymentMethodID int64                  `json:"payment_method_id" validate:"required"`
-	GatewayID       string                 `json:"gateway_id" validate:"required"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	PaymentMethod string                 `json:"payment_method" validate:"required"`
+	GatewayID     string                 `json:"gateway_id" validate:"required"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ProcessPaymentRequest represents a request to process a payment
@@ -18,7 +18,7 @@ type ProcessPaymentRequest struct {
 type PaymentResponse struct {
 	ID              int64                  `json:"id"`
 	OrderID         int64                  `json:"order_id"`
-	PaymentMethodID int64                  `json:"payment_method_id"`
+	PaymentMethod   string                 `json:"payment_method"`
 	TransactionID   string                 `json:"transaction_id"`
 	GatewayID       string                 `json:"gateway_id"`
 	Amount          float64                `json:"amount"`

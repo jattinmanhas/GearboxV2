@@ -114,14 +114,13 @@ func (h *oauthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Handle OAuth callback
-	_, refreshToken, accessToken, err := h.oauthService.HandleOAuthCallback(r.Context(), provider, code, state, ipAddress, userAgent)
+	_, refreshToken, _, err := h.oauthService.HandleOAuthCallback(r.Context(), provider, code, state, ipAddress, userAgent)
 	if err != nil {
 		http.Redirect(w, r, h.frontendURL+"/oauth/error?message="+err.Error(), http.StatusTemporaryRedirect)
 		return
 	}
 
-	// Set auth cookies (similar to login handler)
-	h.setAccessTokenCookie(w, accessToken)
+	// Set refresh token cookie (access token is returned in response in other flows)
 	h.setRefreshTokenCookie(w, refreshToken.RefreshToken)
 
 	// Redirect to frontend success page
@@ -228,19 +227,7 @@ func (h *oauthHandler) GetLinkedProviders(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// Helper methods to set cookies (borrowed from auth handler pattern)
-func (h *oauthHandler) setAccessTokenCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.environment == "production",
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   900, // 15 minutes
-	})
-}
-
+// Helper method to set refresh token cookie (borrowed from auth handler pattern)
 func (h *oauthHandler) setRefreshTokenCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/jattinmanhas/GearboxV2/services/product-service/internal/dto"
 )
 
 // AuthServiceClient handles communication with the auth service
@@ -145,4 +147,43 @@ func (c *AuthServiceClient) ConvertUserAddressToOrderAddress(userAddr *UserAddre
 		"phone":       userAddr.Phone,
 		"email":       userAddr.Email,
 	}
+}
+
+// GetUserProfile fetches the user's profile from the auth service
+func (c *AuthServiceClient) GetUserProfile(ctx context.Context, userID uint, authToken string) (*dto.UserProfileResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/auth/profile", c.baseURL) // Note: GetProfile usually doesn't need ID if it uses the token, but we might have an admin endpoint or just use the token's profile
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+authToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("auth service returned status %d", resp.StatusCode)
+	}
+
+	var response struct {
+		Success bool                    `json:"success"`
+		Message string                  `json:"message"`
+		Data    dto.UserProfileResponse `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("auth service error: %s", response.Message)
+	}
+
+	return &response.Data, nil
 }

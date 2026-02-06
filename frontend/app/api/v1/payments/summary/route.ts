@@ -7,12 +7,15 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const queryString = searchParams.toString()
 
+        const authHeader = request.headers.get('authorization');
+        console.log(`[PaymentSummaryProxy] GET | Auth Header: ${authHeader ? 'Yes' : 'No'}`, authHeader ? `(Length: ${authHeader.length})` : '');
+
         const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments/summary${queryString ? `?${queryString}` : ''}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
                 'Cookie': request.headers.get('cookie') || '',
-                'Authorization': request.headers.get('authorization') || '',
+                'Authorization': authHeader || '',
             },
         })
 

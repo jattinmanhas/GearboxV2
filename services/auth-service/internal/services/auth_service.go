@@ -75,7 +75,7 @@ func (a *authService) Login(ctx context.Context, username, password, userAgent, 
 		Role:     user.Role,
 	}
 
-	// Generate access token (stored in cookie by handler)
+	// Generate access token (returned in response body; stored in memory on client)
 	accessToken, err := a.jwtService.GenerateAccessToken(jwtUser)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate access token: %w", err)

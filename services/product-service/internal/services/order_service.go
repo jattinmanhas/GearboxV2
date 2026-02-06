@@ -16,6 +16,8 @@ type OrderService interface {
 	CreateOrder(ctx context.Context, req *dto.CreateOrderRequest) (*domain.Order, error)
 	GetOrderByID(ctx context.Context, id int64) (*domain.Order, error)
 	GetOrderByNumber(ctx context.Context, orderNumber string) (*domain.Order, error)
+	GetOrderDetails(ctx context.Context, id int64) (*dto.OrderResponse, error)
+	GetOrderDetailsByNumber(ctx context.Context, orderNumber string) (*dto.OrderResponse, error)
 	UpdateOrder(ctx context.Context, id int64, req *dto.UpdateOrderRequest) (*domain.Order, error)
 	DeleteOrder(ctx context.Context, id int64) error
 	ListOrders(ctx context.Context, req *dto.ListOrdersRequest) (*dto.ListOrdersResponse, error)
@@ -269,6 +271,174 @@ func (s *orderService) GetOrderByNumber(ctx context.Context, orderNumber string)
 	}
 
 	return order, nil
+}
+
+// GetOrderDetails retrieves an enriched order by ID
+func (s *orderService) GetOrderDetails(ctx context.Context, id int64) (*dto.OrderResponse, error) {
+	order, err := s.GetOrderByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.enrichOrderResponse(ctx, order)
+}
+
+// GetOrderDetailsByNumber retrieves an enriched order by order number
+func (s *orderService) GetOrderDetailsByNumber(ctx context.Context, orderNumber string) (*dto.OrderResponse, error) {
+	order, err := s.GetOrderByNumber(ctx, orderNumber)
+	if err != nil {
+		return nil, err
+	}
+	return s.enrichOrderResponse(ctx, order)
+}
+
+// enrichOrderResponse populates items, addresses, history, fulfillment and user details
+func (s *orderService) enrichOrderResponse(ctx context.Context, order *domain.Order) (*dto.OrderResponse, error) {
+	// Get order items
+	items, _ := s.orderRepo.GetOrderItems(ctx, order.ID)
+
+	// Get order addresses
+	addresses, _ := s.orderRepo.GetOrderAddresses(ctx, order.ID)
+
+	// Get status history
+	statusHistory, _ := s.orderRepo.GetOrderStatusHistory(ctx, order.ID)
+
+	// Get fulfillment
+	fulfillment, _ := s.orderRepo.GetOrderFulfillment(ctx, order.ID)
+
+	// Map items
+	itemResponses := make([]dto.OrderItemResponse, len(items))
+	for i, item := range items {
+		itemResponses[i] = dto.OrderItemResponse{
+			ID:               item.ID,
+			OrderID:          item.OrderID,
+			ProductID:        item.ProductID,
+			ProductVariantID: item.ProductVariantID,
+			ProductName:      item.ProductName,
+			ProductSKU:       item.ProductSKU,
+			Quantity:         item.Quantity,
+			UnitPrice:        item.UnitPrice,
+			TotalPrice:       item.TotalPrice,
+			TaxAmount:        item.TaxAmount,
+			DiscountAmount:   item.DiscountAmount,
+			IsDigital:        item.IsDigital,
+			RequiresShipping: item.RequiresShipping,
+		}
+	}
+
+	// Map addresses and categorize them
+	var shippingAddr, billingAddr *dto.OrderAddressResponse
+	addressResponses := make([]dto.OrderAddressResponse, len(addresses))
+
+	customerName := ""
+	customerEmail := ""
+
+	for i, addr := range addresses {
+		res := dto.OrderAddressResponse{
+			ID:           addr.ID,
+			OrderID:      addr.OrderID,
+			Type:         addr.Type,
+			FirstName:    addr.FirstName,
+			LastName:     addr.LastName,
+			Company:      addr.Company,
+			AddressLine1: addr.Address1,
+			AddressLine2: addr.Address2,
+			City:         addr.City,
+			State:        addr.State,
+			Country:      addr.Country,
+			PostalCode:   addr.PostalCode,
+			Phone:        addr.Phone,
+			Email:        addr.Email,
+		}
+		addressResponses[i] = res
+
+		if addr.Type == "shipping" {
+			shippingAddr = &res
+			customerName = fmt.Sprintf("%s %s", addr.FirstName, addr.LastName)
+			customerEmail = addr.Email
+		} else if addr.Type == "billing" {
+			billingAddr = &res
+		}
+	}
+
+	// Fallback for customer info if no shipping address
+	if customerName == "" && len(addresses) > 0 {
+		customerName = fmt.Sprintf("%s %s", addresses[0].FirstName, addresses[0].LastName)
+		customerEmail = addresses[0].Email
+	}
+
+	// Map status history
+	historyResponses := make([]dto.OrderStatusHistoryResponse, len(statusHistory))
+	for i, h := range statusHistory {
+		historyResponses[i] = dto.OrderStatusHistoryResponse{
+			ID:             h.ID,
+			OrderID:        h.OrderID,
+			Status:         h.Status,
+			PreviousStatus: h.PreviousStatus,
+			Notes:          h.Notes,
+			CreatedBy:      h.CreatedBy,
+			CreatedAt:      h.CreatedAt,
+		}
+	}
+
+	// Map fulfillment
+	var fulfillmentResponse *dto.OrderFulfillmentResponse
+	if fulfillment != nil {
+		fulfillmentResponse = &dto.OrderFulfillmentResponse{
+			ID:                fulfillment.ID,
+			OrderID:           fulfillment.OrderID,
+			TrackingNumber:    fulfillment.TrackingNumber,
+			Carrier:           fulfillment.Carrier,
+			Service:           fulfillment.Service,
+			Status:            fulfillment.Status,
+			ShippedAt:         fulfillment.ShippedAt,
+			DeliveredAt:       fulfillment.DeliveredAt,
+			EstimatedDelivery: fulfillment.EstimatedDelivery,
+			Notes:             fulfillment.Notes,
+			CreatedAt:         fulfillment.CreatedAt,
+			UpdatedAt:         fulfillment.UpdatedAt,
+		}
+	}
+
+	// Fetch user details if token is available
+	var userProfile *dto.UserProfileResponse
+	if authToken, ok := ctx.Value("auth_token").(string); ok && authToken != "" {
+		profile, err := s.authClient.GetUserProfile(ctx, uint(order.UserID), authToken)
+		if err == nil {
+			userProfile = profile
+		}
+	}
+
+	return &dto.OrderResponse{
+		ID:                order.ID,
+		OrderNumber:       order.OrderNumber,
+		UserID:            order.UserID,
+		CustomerName:      customerName,
+		CustomerEmail:     customerEmail,
+		Status:            order.Status,
+		PaymentStatus:     order.PaymentStatus,
+		FulfillmentStatus: order.FulfillmentStatus,
+		Subtotal:          order.Subtotal,
+		TaxAmount:         order.TaxAmount,
+		ShippingAmount:    order.ShippingAmount,
+		DiscountAmount:    order.DiscountAmount,
+		TotalAmount:       order.TotalAmount,
+		Currency:          order.Currency,
+		Notes:             order.Notes,
+		InternalNotes:     order.InternalNotes,
+		Items:             itemResponses,
+		Addresses:         addressResponses,
+		ShippingAddress:   shippingAddr,
+		BillingAddress:    billingAddr,
+		StatusHistory:     historyResponses,
+		Fulfillment:       fulfillmentResponse,
+		User:              userProfile,
+		CreatedAt:         order.CreatedAt,
+		UpdatedAt:         order.UpdatedAt,
+		ConfirmedAt:       order.ConfirmedAt,
+		ShippedAt:         order.ShippedAt,
+		DeliveredAt:       order.DeliveredAt,
+		CancelledAt:       order.CancelledAt,
+	}, nil
 }
 
 // UpdateOrder updates an existing order
@@ -785,7 +955,7 @@ func (s *orderService) CreateOrderFromCart(ctx context.Context, userID int64, ca
 		Items:           orderItems,
 		ShippingAddress: req.ShippingAddress,
 		BillingAddress:  req.BillingAddress,
-		PaymentMethodID: req.PaymentMethodID,
+		PaymentMethod:   req.PaymentMethod,
 		Currency:        req.Currency,
 		Notes:           req.Notes,
 		ApplyCoupons:    req.ApplyCoupons,
@@ -985,12 +1155,12 @@ func (s *orderService) CreatePaymentForOrder(ctx context.Context, orderID int64,
 
 	// Create payment request
 	paymentReq := &PaymentServiceRequest{
-		OrderID:         orderID,
-		PaymentMethodID: req.PaymentMethodID,
-		Amount:          order.TotalAmount,
-		Currency:        order.Currency,
-		GatewayID:       req.GatewayID,
-		Metadata:        req.Metadata,
+		OrderID:       orderID,
+		PaymentMethod: req.PaymentMethod,
+		Amount:        order.TotalAmount,
+		Currency:      order.Currency,
+		GatewayID:     req.GatewayID,
+		Metadata:      req.Metadata,
 	}
 
 	// Create payment in payment service

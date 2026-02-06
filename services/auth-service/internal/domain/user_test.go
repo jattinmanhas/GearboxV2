@@ -19,11 +19,11 @@ func TestUserStruct(t *testing.T) {
 			Password:    "hashedpassword123",
 			Email:       "john@example.com",
 			FirstName:   "John",
-			MiddleName:  NewNullString("Michael"),
-			LastName:    NewNullString("Doe"),
-			Avatar:      NewNullString("https://example.com/avatar.jpg"),
-			Gender:      NewNullString("male"),
-			DateOfBirth: NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+			MiddleName:  StringPtr("Michael"),
+			LastName:    StringPtr("Doe"),
+			Avatar:      StringPtr("https://example.com/avatar.jpg"),
+			Gender:      StringPtr("male"),
+			DateOfBirth: TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   now,
 			UpdatedAt:   now,
 			IsDeleted:   false,
@@ -50,24 +50,24 @@ func TestUserStruct(t *testing.T) {
 			t.Errorf("Expected first name 'John', got %s", user.FirstName)
 		}
 
-		if user.MiddleName != NewNullString("Michael") {
+		if user.MiddleName == nil || *user.MiddleName != "Michael" {
 			t.Errorf("Expected middle name 'Michael', got %v", user.MiddleName)
 		}
 
-		if user.LastName != NewNullString("Doe") {
+		if user.LastName == nil || *user.LastName != "Doe" {
 			t.Errorf("Expected last name 'Doe', got %v", user.LastName)
 		}
 
-		if user.Avatar != NewNullString("https://example.com/avatar.jpg") {
+		if user.Avatar == nil || *user.Avatar != "https://example.com/avatar.jpg" {
 			t.Errorf("Expected avatar 'https://example.com/avatar.jpg', got %v", user.Avatar)
 		}
 
-		if user.Gender != NewNullString("male") {
+		if user.Gender == nil || *user.Gender != "male" {
 			t.Errorf("Expected gender 'male', got %v", user.Gender)
 		}
 
-		if user.DateOfBirth.Time.Year() != 1990 {
-			t.Errorf("Expected year of birth 1990, got %d", user.DateOfBirth.Time.Year())
+		if user.DateOfBirth == nil || user.DateOfBirth.Year() != 1990 {
+			t.Errorf("Expected year of birth 1990, got %v", user.DateOfBirth)
 		}
 
 		if user.IsDeleted != false {
@@ -118,8 +118,8 @@ func TestUserJSONMarshaling(t *testing.T) {
 			Password:    "secretpassword", // This should be hidden in JSON
 			Email:       "john@example.com",
 			FirstName:   "John",
-			LastName:    NewNullString("Doe"),
-			DateOfBirth: NewNullTime(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+			LastName:    StringPtr("Doe"),
+			DateOfBirth: TimePtr(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
 			CreatedAt:   time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 			UpdatedAt:   time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 			IsDeleted:   false,
@@ -213,8 +213,8 @@ func TestUserJSONMarshaling(t *testing.T) {
 			t.Errorf("Expected empty password for unmarshaled field, got %s", user.Password)
 		}
 
-		if user.MiddleName.Valid {
-			t.Errorf("Expected invalid middle name for unmarshaled field, got %v", user.MiddleName)
+		if user.MiddleName != nil {
+			t.Errorf("Expected nil middle name for unmarshaled field, got %v", user.MiddleName)
 		}
 
 		if !user.CreatedAt.IsZero() {

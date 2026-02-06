@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { 
-  ShoppingCart, 
-  Eye, 
+import {
+  ShoppingCart,
+  Eye,
   Search,
   Filter,
   Download,
@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { formatCurrency } from "@/lib/currency"
 import Link from "next/link"
+import { orderApi, ApiError } from "@/lib/apiFunctions"
 
 interface Order {
   id: number
@@ -52,7 +53,7 @@ export default function OrdersPage() {
   const [limit, setLimit] = useState(10)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  
+
   // Filters
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -68,7 +69,7 @@ export default function OrdersPage() {
     try {
       setLoading(true)
       setError(null)
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
@@ -86,15 +87,7 @@ export default function OrdersPage() {
         params.append("search", search)
       }
 
-      const response = await fetch(`/api/v1/orders?${params.toString()}`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch orders: ${response.statusText}`)
-      }
-
-      const result = await response.json()
+      const result = await orderApi.getOrders(Object.fromEntries(params.entries()))
 
       if (result.success && result.data) {
         setOrders(result.data.orders || [])
@@ -105,7 +98,8 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('Error loading orders:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage =
+        error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Unknown error'
       setError(`Failed to load orders: ${errorMessage}`)
     } finally {
       setLoading(false)
@@ -117,8 +111,9 @@ export default function OrdersPage() {
     fetchOrders()
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusColor = (status: any) => {
+    const s = (typeof status === 'string' ? status : "").toLowerCase()
+    switch (s) {
       case 'delivered':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       case 'processing':
@@ -136,8 +131,9 @@ export default function OrdersPage() {
     }
   }
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getPaymentStatusColor = (status: any) => {
+    const s = (typeof status === 'string' ? status : "").toLowerCase()
+    switch (s) {
       case 'paid':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       case 'failed':
@@ -334,14 +330,18 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            {typeof order.status === 'string' && order.status.length > 0
+                              ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
+                              : "Unknown"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={getPaymentStatusColor(order.payment_status)}>
-                            {order.payment_status.replace('_', ' ').split(' ').map(w => 
-                              w.charAt(0).toUpperCase() + w.slice(1)
-                            ).join(' ')}
+                            {typeof order.payment_status === 'string' && order.payment_status.length > 0
+                              ? order.payment_status.replace('_', ' ').split(' ').map(w =>
+                                w.charAt(0).toUpperCase() + w.slice(1)
+                              ).join(' ')
+                              : "Unknown"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -399,4 +399,3 @@ export default function OrdersPage() {
     </div>
   )
 }
-

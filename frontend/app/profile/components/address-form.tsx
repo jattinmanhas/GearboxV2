@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Address, CreateAddressRequest, UpdateAddressRequest, AddressType } from "@/lib/types"
 
 interface AddressFormProps {
@@ -21,16 +28,43 @@ interface AddressFormProps {
   onCancel: () => void
 }
 
-const US_STATES = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
-  "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
-  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma",
-  "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
-  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-  "West Virginia", "Wisconsin", "Wyoming"
+const INDIA_STATES_AND_UTS = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry",
 ]
 
 export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
@@ -44,7 +78,7 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
     city: "",
     state: "",
     postal_code: "",
-    country: "United States",
+    country: "India",
     phone_number: "",
     is_default: false,
   })
@@ -98,6 +132,14 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
       newErrors.postal_code = "Postal code is required"
     }
 
+    if (
+      formData.country.trim().toLowerCase() === "india" &&
+      formData.postal_code.trim() &&
+      !/^\d{6}$/.test(formData.postal_code.trim())
+    ) {
+      newErrors.postal_code = "Please enter a valid 6-digit PIN code"
+    }
+
     if (!formData.country.trim()) {
       newErrors.country = "Country is required"
     }
@@ -112,7 +154,7 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
 
     setIsSubmitting(true)
@@ -133,8 +175,8 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
             {address ? "Edit Address" : "Add New Address"}
           </DialogTitle>
           <DialogDescription>
-            {address 
-              ? "Update the address information below." 
+            {address
+              ? "Update the address information below."
               : "Fill in the details to add a new address."
             }
           </DialogDescription>
@@ -144,28 +186,21 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
           {/* Address Type */}
           <div className="space-y-2">
             <Label>Address Type</Label>
-            <div className="flex flex-wrap gap-4">
-              {[
-                { value: 'home', label: 'Home' },
-                { value: 'work', label: 'Work' },
-                { value: 'billing', label: 'Billing' },
-                { value: 'shipping', label: 'Shipping' },
-                { value: 'other', label: 'Other' },
-              ].map(({ value, label }) => (
-                <div key={value} className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id={value}
-                    name="type"
-                    value={value}
-                    checked={formData.type === value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AddressType }))}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor={value}>{label}</Label>
-                </div>
-              ))}
-            </div>
+            <Select
+              value={formData.type}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as AddressType }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Address Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="home">Home</SelectItem>
+                <SelectItem value="work">Work</SelectItem>
+                <SelectItem value="billing">Billing</SelectItem>
+                <SelectItem value="shipping">Shipping</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Name Fields */}
@@ -248,20 +283,22 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="state">State *</Label>
-              <select
-                id="state"
+              <Label htmlFor="state">State / UT *</Label>
+              <Select
                 value={formData.state}
-                onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                onValueChange={(value) => setFormData(prev => ({ ...prev, state: value }))}
               >
-                <option value="">Select State</option>
-                {US_STATES.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="state" className={errors.state ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select State / UT" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIA_STATES_AND_UTS.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.state && (
                 <p className="text-sm text-destructive">{errors.state}</p>
               )}
@@ -302,7 +339,7 @@ export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
                 id="phone_number"
                 value={formData.phone_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                placeholder="+1 (555) 123-4567"
+                placeholder="+91 98765 43210"
                 className={errors.phone_number ? "border-destructive" : ""}
               />
               {errors.phone_number && (

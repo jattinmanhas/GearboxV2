@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -30,16 +29,16 @@ func IsValidProvider(provider string) bool {
 
 // OAuthProviderLink represents a link between a user and an OAuth provider
 type OAuthProviderLink struct {
-	ID             uint           `json:"id" db:"id"`
-	UserID         uint           `json:"user_id" db:"user_id"`
-	Provider       string         `json:"provider" db:"provider"` // google, github
-	ProviderUserID string         `json:"provider_user_id" db:"provider_user_id"`
-	Email          string         `json:"email" db:"email"`
-	AccessToken    sql.NullString `json:"-" db:"access_token"`  // Don't expose in JSON
-	RefreshToken   sql.NullString `json:"-" db:"refresh_token"` // Don't expose in JSON
-	ExpiresAt      sql.NullTime   `json:"expires_at" db:"expires_at"`
-	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
+	ID             uint       `json:"id" db:"id"`
+	UserID         uint       `json:"user_id" db:"user_id"`
+	Provider       string     `json:"provider" db:"provider"` // google, github
+	ProviderUserID string     `json:"provider_user_id" db:"provider_user_id"`
+	Email          string     `json:"email" db:"email"`
+	AccessToken    *string    `json:"-" db:"access_token"`  // Don't expose in JSON
+	RefreshToken   *string    `json:"-" db:"refresh_token"` // Don't expose in JSON
+	ExpiresAt      *time.Time `json:"expires_at" db:"expires_at"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // OAuthUserInfo represents user information returned from OAuth providers

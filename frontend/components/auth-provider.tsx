@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { AuthProvider as AuthContextProvider, useAuth } from '@/lib/contexts/auth-context'
 import { setAuthTokenHandlers } from '@/lib/apiFunctions/http-client'
+import { useUserStore, type User } from '@/lib/stores/user-store'
 
 /**
  * Authentication Provider Component
@@ -18,6 +19,7 @@ import { setAuthTokenHandlers } from '@/lib/apiFunctions/http-client'
 
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const { accessToken, setAccessToken } = useAuth()
+  const { setUser, clearUser } = useUserStore()
 
   const tokenRef = useRef(accessToken)
 
@@ -48,15 +50,34 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
         // Try to refresh token using HTTP-only cookie
         const response = await authApi.refreshToken()
         const newAccessToken = response?.data?.access_token
+        const refreshedUser = response?.data?.user
 
         if (newAccessToken) {
           setAccessToken(newAccessToken)
           console.log('Access token restored from refresh token')
         }
+
+        if (refreshedUser) {
+          const existingUser = useUserStore.getState().user
+          const mergedUser: User = {
+            id: refreshedUser.id ?? existingUser?.id ?? 0,
+            username: refreshedUser.username ?? existingUser?.username ?? '',
+            email: refreshedUser.email ?? existingUser?.email ?? '',
+            firstName: refreshedUser.firstName ?? existingUser?.firstName ?? '',
+            middleName: refreshedUser.middleName ?? existingUser?.middleName ?? '',
+            lastName: refreshedUser.lastName ?? existingUser?.lastName ?? '',
+            avatar: refreshedUser.avatar ?? existingUser?.avatar ?? '',
+            role: refreshedUser.role ?? existingUser?.role ?? 'user',
+            createdAt: refreshedUser.createdAt ?? existingUser?.createdAt ?? new Date().toISOString(),
+            updatedAt: refreshedUser.updatedAt ?? existingUser?.updatedAt ?? new Date().toISOString(),
+          }
+          setUser(mergedUser)
+        }
       } catch (error) {
         // Refresh failed - user needs to log in again
         // This is normal if no refresh token exists or it's expired
         console.log('No valid session found, user needs to log in')
+        clearUser()
       }
     }
 
