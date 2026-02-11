@@ -777,8 +777,6 @@ export interface OrderResponse {
   payment_status: string;
   fulfillment_status: string;
   subtotal: number;
-  tax_amount: number;
-  shipping_amount: number;
   discount_amount: number;
   total_amount: number;
   currency: string;

@@ -160,13 +160,8 @@ func (s *orderService) CreateOrder(ctx context.Context, req *dto.CreateOrderRequ
 		}
 	}
 
-	// Calculate tax (placeholder - would integrate with tax service)
-	taxAmount := subtotal * 0.08 // 8% tax rate
-
-	// Calculate shipping (placeholder - would integrate with shipping service)
-	shippingAmount := 10.0 // Fixed shipping cost
-
-	totalAmount := subtotal + taxAmount + shippingAmount - discountAmount
+	// Calculate total amount
+	totalAmount := subtotal - discountAmount
 
 	// Create order
 	order := &domain.Order{
@@ -175,8 +170,6 @@ func (s *orderService) CreateOrder(ctx context.Context, req *dto.CreateOrderRequ
 		PaymentStatus:     "pending",
 		FulfillmentStatus: "unfulfilled",
 		Subtotal:          subtotal,
-		TaxAmount:         taxAmount,
-		ShippingAmount:    shippingAmount,
 		DiscountAmount:    discountAmount,
 		TotalAmount:       totalAmount,
 		Currency:          req.Currency,
@@ -318,7 +311,6 @@ func (s *orderService) enrichOrderResponse(ctx context.Context, order *domain.Or
 			Quantity:         item.Quantity,
 			UnitPrice:        item.UnitPrice,
 			TotalPrice:       item.TotalPrice,
-			TaxAmount:        item.TaxAmount,
 			DiscountAmount:   item.DiscountAmount,
 			IsDigital:        item.IsDigital,
 			RequiresShipping: item.RequiresShipping,
@@ -418,8 +410,6 @@ func (s *orderService) enrichOrderResponse(ctx context.Context, order *domain.Or
 		PaymentStatus:     order.PaymentStatus,
 		FulfillmentStatus: order.FulfillmentStatus,
 		Subtotal:          order.Subtotal,
-		TaxAmount:         order.TaxAmount,
-		ShippingAmount:    order.ShippingAmount,
 		DiscountAmount:    order.DiscountAmount,
 		TotalAmount:       order.TotalAmount,
 		Currency:          order.Currency,
@@ -578,8 +568,6 @@ func (s *orderService) ListOrders(ctx context.Context, req *dto.ListOrdersReques
 			PaymentStatus:     order.PaymentStatus,
 			FulfillmentStatus: order.FulfillmentStatus,
 			Subtotal:          order.Subtotal,
-			TaxAmount:         order.TaxAmount,
-			ShippingAmount:    order.ShippingAmount,
 			DiscountAmount:    order.DiscountAmount,
 			TotalAmount:       order.TotalAmount,
 			Currency:          order.Currency,

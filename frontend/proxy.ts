@@ -2,16 +2,28 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Handle Dashboard Authorization
+  if (pathname.startsWith('/dashboard')) {
+    const userRole = request.cookies.get('user-role')?.value;
+
+    // Only allow admin and editor roles
+    if (userRole !== 'admin' && userRole !== 'editor') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Handle CORS for blog API routes
-  if (request.nextUrl.pathname.startsWith('/api/v1/blog')) {
+  if (pathname.startsWith('/api/v1/blog')) {
     const response = NextResponse.next();
 
-    // Set CORS headers
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    // Handle preflight requests
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 200, headers: response.headers });
     }
@@ -23,5 +35,5 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/v1/blog/:path*',
+  matcher: ['/api/v1/blog/:path*', '/dashboard/:path*'],
 };

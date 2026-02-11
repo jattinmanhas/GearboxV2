@@ -193,19 +193,21 @@ func (r *cartRepository) GetCartBySessionOrUser(ctx context.Context, sessionID s
 	var args []interface{}
 
 	if userID != nil {
-		// If user is logged in, prioritize user-based cart
-		query = `SELECT id, user_id, session_id, currency, created_at, updated_at, expires_at 
-				 FROM carts 
-				 WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
-				 ORDER BY created_at DESC 
+		// If user is logged in, prioritize user-based cart with items
+		query = `SELECT c.id, c.user_id, c.session_id, c.currency, c.created_at, c.updated_at, c.expires_at 
+				 FROM carts c
+				 LEFT JOIN (SELECT cart_id, COUNT(*) as item_count FROM cart_items GROUP BY cart_id) ci ON c.id = ci.cart_id
+				 WHERE c.user_id = $1 AND (c.expires_at IS NULL OR c.expires_at > NOW())
+				 ORDER BY COALESCE(ci.item_count, 0) DESC, c.updated_at DESC 
 				 LIMIT 1`
 		args = []interface{}{*userID}
 	} else {
 		// If guest user, use session ID
-		query = `SELECT id, user_id, session_id, currency, created_at, updated_at, expires_at 
-				 FROM carts 
-				 WHERE session_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
-				 ORDER BY created_at DESC 
+		query = `SELECT c.id, c.user_id, c.session_id, c.currency, c.created_at, c.updated_at, c.expires_at 
+				 FROM carts c
+				 LEFT JOIN (SELECT cart_id, COUNT(*) as item_count FROM cart_items GROUP BY cart_id) ci ON c.id = ci.cart_id
+				 WHERE c.session_id = $1 AND (c.expires_at IS NULL OR c.expires_at > NOW())
+				 ORDER BY COALESCE(ci.item_count, 0) DESC, c.updated_at DESC 
 				 LIMIT 1`
 		args = []interface{}{sessionID}
 	}
@@ -486,18 +488,8 @@ func (r *cartRepository) GetCartSummary(ctx context.Context, cartID int64) (*dom
 		discountAmount += coupon.DiscountAmount
 	}
 
-	// Get shipping
-	shipping, err := r.GetCartShipping(ctx, cartID)
-	var shippingAmount float64
-	if err == nil && shipping != nil {
-		shippingAmount = shipping.ShippingAmount
-	}
-
-	// Calculate tax (simplified)
-	taxAmount := subtotal * 0.1 // 10% tax rate
-
 	// Calculate total
-	totalAmount := subtotal + taxAmount + shippingAmount - discountAmount
+	totalAmount := subtotal - discountAmount
 
 	// Convert []*domain.CartItem to []domain.CartItem
 	cartItems := make([]domain.CartItem, len(items))
@@ -509,8 +501,6 @@ func (r *cartRepository) GetCartSummary(ctx context.Context, cartID int64) (*dom
 		CartID:         cartID,
 		ItemCount:      itemCount,
 		Subtotal:       subtotal,
-		TaxAmount:      taxAmount,
-		ShippingAmount: shippingAmount,
 		DiscountAmount: discountAmount,
 		TotalAmount:    totalAmount,
 		Currency:       cart.Currency,
@@ -637,8 +627,8 @@ func (r *cartRepository) GetCartCouponByCode(ctx context.Context, cartID int64, 
 // SetCartShipping sets shipping information for a cart
 func (r *cartRepository) SetCartShipping(ctx context.Context, shipping *domain.CartShipping) error {
 	query := `
-		INSERT INTO cart_shipping (cart_id, shipping_method_id, shipping_method, shipping_amount, estimated_days, created_at)
-		VALUES (:cart_id, :shipping_method_id, :shipping_method, :shipping_amount, :estimated_days, :created_at)`
+		INSERT INTO cart_shipping (cart_id, shipping_method_id, shipping_method, estimated_days, created_at)
+		VALUES (:cart_id, :shipping_method_id, :shipping_method, :estimated_days, :created_at)`
 
 	shipping.CreatedAt = time.Now()
 
@@ -655,7 +645,7 @@ func (r *cartRepository) UpdateCartShipping(ctx context.Context, cartID int64, s
 	query := `
 		UPDATE cart_shipping SET
 			shipping_method_id = :shipping_method_id, shipping_method = :shipping_method,
-			shipping_amount = :shipping_amount, estimated_days = :estimated_days
+			estimated_days = :estimated_days
 		WHERE cart_id = :cart_id`
 
 	shipping.CartID = cartID
@@ -1102,7 +1092,29 @@ func (r *cartRepository) MergeCarts(ctx context.Context, sourceCartID, targetCar
 		}
 	}
 
-	// Delete source cart
+	// Move coupons to target cart (if target doesn't have them)
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO cart_coupons (cart_id, coupon_code, discount_amount, created_at)
+		SELECT $1, coupon_code, discount_amount, created_at
+		FROM cart_coupons
+		WHERE cart_id = $2
+		ON CONFLICT (cart_id, coupon_code) DO NOTHING`, targetCartID, sourceCartID)
+	if err != nil {
+		return fmt.Errorf("failed to move cart coupons: %w", err)
+	}
+
+	// Move shipping to target cart (if target doesn't have it)
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO cart_shipping (cart_id, shipping_method_id, shipping_method, estimated_days, created_at)
+		SELECT $1, shipping_method_id, shipping_method, estimated_days, created_at
+		FROM cart_shipping
+		WHERE cart_id = $2
+		ON CONFLICT (cart_id) DO NOTHING`, targetCartID, sourceCartID)
+	if err != nil {
+		return fmt.Errorf("failed to move cart shipping: %w", err)
+	}
+
+	// Delete source cart (will cascade delete items/coupons/shipping that weren't moved if any)
 	_, err = tx.ExecContext(ctx, "DELETE FROM carts WHERE id = $1", sourceCartID)
 	if err != nil {
 		return fmt.Errorf("failed to delete source cart: %w", err)

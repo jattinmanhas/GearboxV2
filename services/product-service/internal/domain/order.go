@@ -13,8 +13,6 @@ type Order struct {
 	PaymentStatus     string     `json:"payment_status" db:"payment_status"`         // pending, paid, failed, refunded, partially_refunded
 	FulfillmentStatus string     `json:"fulfillment_status" db:"fulfillment_status"` // unfulfilled, partial, fulfilled
 	Subtotal          float64    `json:"subtotal" db:"subtotal"`
-	TaxAmount         float64    `json:"tax_amount" db:"tax_amount"`
-	ShippingAmount    float64    `json:"shipping_amount" db:"shipping_amount"`
 	DiscountAmount    float64    `json:"discount_amount" db:"discount_amount"`
 	TotalAmount       float64    `json:"total_amount" db:"total_amount"`
 	Currency          string     `json:"currency" db:"currency"`
@@ -39,7 +37,6 @@ type OrderItem struct {
 	Quantity         int     `json:"quantity" db:"quantity"`
 	UnitPrice        float64 `json:"unit_price" db:"unit_price"`
 	TotalPrice       float64 `json:"total_price" db:"total_price"`
-	TaxAmount        float64 `json:"tax_amount" db:"tax_amount"`
 	DiscountAmount   float64 `json:"discount_amount" db:"discount_amount"`
 	IsDigital        bool    `json:"is_digital" db:"is_digital"`
 	RequiresShipping bool    `json:"requires_shipping" db:"requires_shipping"`
@@ -113,25 +110,25 @@ type OrderFilter struct {
 	MinAmount         *float64   `json:"min_amount"`
 	MaxAmount         *float64   `json:"max_amount"`
 	Search            string     `json:"search"`
-	SortBy            string     `json:"sort_by"`   // Field to sort by (created_at, total_amount, order_number, etc.)
+	SortBy            string     `json:"sort_by"`    // Field to sort by (created_at, total_amount, order_number, etc.)
 	SortOrder         string     `json:"sort_order"` // asc or desc
 }
 
 // OrderAnalytics represents analytics data for orders
 type OrderAnalytics struct {
-	TotalOrders        int64   `json:"total_orders"`
-	PendingOrders      int64   `json:"pending_orders"`
-	ConfirmedOrders    int64   `json:"confirmed_orders"`
-	ProcessingOrders   int64   `json:"processing_orders"`
-	ShippedOrders      int64   `json:"shipped_orders"`
-	DeliveredOrders    int64   `json:"delivered_orders"`
-	CancelledOrders    int64   `json:"cancelled_orders"`
-	TotalRevenue       float64 `json:"total_revenue"`
-	AverageOrderValue  float64 `json:"average_order_value"`
-	ConversionRate     float64 `json:"conversion_rate"`
-	NewOrdersToday     int64   `json:"new_orders_today"`
-	NewOrdersThisWeek  int64   `json:"new_orders_this_week"`
-	NewOrdersThisMonth int64   `json:"new_orders_this_month"`
+	TotalOrders        int64   `json:"total_orders" db:"total_orders"`
+	PendingOrders      int64   `json:"pending_orders" db:"pending_orders"`
+	ConfirmedOrders    int64   `json:"confirmed_orders" db:"confirmed_orders"`
+	ProcessingOrders   int64   `json:"processing_orders" db:"processing_orders"`
+	ShippedOrders      int64   `json:"shipped_orders" db:"shipped_orders"`
+	DeliveredOrders    int64   `json:"delivered_orders" db:"delivered_orders"`
+	CancelledOrders    int64   `json:"cancelled_orders" db:"cancelled_orders"`
+	TotalRevenue       float64 `json:"total_revenue" db:"total_revenue"`
+	AverageOrderValue  float64 `json:"average_order_value" db:"average_order_value"`
+	ConversionRate     float64 `json:"conversion_rate" db:"conversion_rate"`
+	NewOrdersToday     int64   `json:"new_orders_today" db:"new_orders_today"`
+	NewOrdersThisWeek  int64   `json:"new_orders_this_week" db:"new_orders_this_week"`
+	NewOrdersThisMonth int64   `json:"new_orders_this_month" db:"new_orders_this_month"`
 }
 
 // ProductOrderStats represents product statistics in orders

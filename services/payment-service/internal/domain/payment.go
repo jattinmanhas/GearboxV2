@@ -52,15 +52,15 @@ type PaymentWebhook struct {
 
 // PaymentSummary represents payment analytics
 type PaymentSummary struct {
-	TotalPayments      int64   `json:"total_payments"`
-	SuccessfulPayments int64   `json:"successful_payments"`
-	FailedPayments     int64   `json:"failed_payments"`
-	PendingPayments    int64   `json:"pending_payments"`
-	TotalAmount        float64 `json:"total_amount"`
-	RefundedAmount     float64 `json:"refunded_amount"`
-	NetAmount          float64 `json:"net_amount"`
-	AverageAmount      float64 `json:"average_amount"`
-	SuccessRate        float64 `json:"success_rate"`
+	TotalPayments      int64   `json:"total_payments" db:"total_payments"`
+	SuccessfulPayments int64   `json:"successful_payments" db:"successful_payments"`
+	FailedPayments     int64   `json:"failed_payments" db:"failed_payments"`
+	PendingPayments    int64   `json:"pending_payments" db:"pending_payments"`
+	TotalAmount        float64 `json:"total_amount" db:"total_amount"`
+	RefundedAmount     float64 `json:"refunded_amount" db:"refunded_amount"`
+	NetAmount          float64 `json:"net_amount" db:"net_amount"`
+	AverageAmount      float64 `json:"average_amount" db:"average_amount"`
+	SuccessRate        float64 `json:"success_rate" db:"success_rate"`
 }
 
 // PaymentFilter represents filters for payment queries

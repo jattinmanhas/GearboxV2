@@ -55,8 +55,6 @@ type CartSummaryResponse struct {
 	CartID         int64              `json:"cart_id"`
 	ItemCount      int                `json:"item_count"`
 	Subtotal       float64            `json:"subtotal"`
-	TaxAmount      float64            `json:"tax_amount"`
-	ShippingAmount float64            `json:"shipping_amount"`
 	DiscountAmount float64            `json:"discount_amount"`
 	TotalAmount    float64            `json:"total_amount"`
 	Currency       string             `json:"currency"`
@@ -84,29 +82,26 @@ type CartCouponResponse struct {
 
 // SetShippingRequest represents the request to set shipping for cart
 type SetShippingRequest struct {
-	ShippingMethodID int64   `json:"shipping_method_id" validate:"required"`
-	ShippingMethod   string  `json:"shipping_method" validate:"required,min=1,max=100"`
-	ShippingAmount   float64 `json:"shipping_amount" validate:"required,min=0"`
-	EstimatedDays    int     `json:"estimated_days" validate:"required,min=1"`
+	ShippingMethodID int64  `json:"shipping_method_id" validate:"required"`
+	ShippingMethod   string `json:"shipping_method" validate:"required,min=1,max=100"`
+	EstimatedDays    int    `json:"estimated_days" validate:"required,min=1"`
 }
 
 // UpdateShippingRequest represents the request to update shipping for cart
 type UpdateShippingRequest struct {
-	ShippingMethodID *int64   `json:"shipping_method_id" validate:"omitempty"`
-	ShippingMethod   *string  `json:"shipping_method" validate:"omitempty,min=1,max=100"`
-	ShippingAmount   *float64 `json:"shipping_amount" validate:"omitempty,min=0"`
-	EstimatedDays    *int     `json:"estimated_days" validate:"omitempty,min=1"`
+	ShippingMethodID *int64  `json:"shipping_method_id" validate:"omitempty"`
+	ShippingMethod   *string `json:"shipping_method" validate:"omitempty,min=1,max=100"`
+	EstimatedDays    *int    `json:"estimated_days" validate:"omitempty,min=1"`
 }
 
 // CartShippingResponse represents the response for cart shipping data
 type CartShippingResponse struct {
-	ID               int64   `json:"id"`
-	CartID           int64   `json:"cart_id"`
-	ShippingMethodID int64   `json:"shipping_method_id"`
-	ShippingMethod   string  `json:"shipping_method"`
-	ShippingAmount   float64 `json:"shipping_amount"`
-	EstimatedDays    int     `json:"estimated_days"`
-	CreatedAt        string  `json:"created_at"`
+	ID               int64  `json:"id"`
+	CartID           int64  `json:"cart_id"`
+	ShippingMethodID int64  `json:"shipping_method_id"`
+	ShippingMethod   string `json:"shipping_method"`
+	EstimatedDays    int    `json:"estimated_days"`
+	CreatedAt        string `json:"created_at"`
 }
 
 // Wishlist Management DTOs

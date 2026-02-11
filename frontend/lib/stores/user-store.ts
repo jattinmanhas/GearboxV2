@@ -74,6 +74,12 @@ export const useUserStore = create<UserState>()((set, get) => ({
     })
     console.log("Zustand state updated")
 
+    // Set user role cookie for middleware access
+    if (typeof document !== 'undefined') {
+      const role = userData.role || 'user';
+      document.cookie = `user-role=${role}; path=/; max-age=604800; samesite=lax`; // 7 days
+    }
+
     // Handle cart merging when user logs in
     try {
       const cartStore = useCartStore.getState()
@@ -88,7 +94,7 @@ export const useUserStore = create<UserState>()((set, get) => ({
         await cartStore.loadCart()
 
         // If we have a guest cart and a user cart, merge them
-        if (cartStore.cart && cartStore.cart.id !== guestCart.id) {
+        if (cartStore.cart && cartStore.cart.id !== guestCart.id && guestCart.items.length > 0) {
           console.log("Merging guest cart with user cart")
           await cartStore.mergeCarts(guestCart.id)
         }
@@ -111,6 +117,20 @@ export const useUserStore = create<UserState>()((set, get) => ({
       console.error("Logout API error:", error)
       // Continue with local logout even if API call fails
     } finally {
+      // Clear cart from Zustand store and backend session
+      try {
+        const cartStore = useCartStore.getState()
+        await cartStore.reset()
+        console.log("Cart reset during logout")
+      } catch (cartError) {
+        console.error("Error resetting cart during logout:", cartError)
+      }
+
+      // Clear user role cookie
+      if (typeof document !== 'undefined') {
+        document.cookie = 'user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
+
       // Clear user data from Zustand store
       set({
         user: null,

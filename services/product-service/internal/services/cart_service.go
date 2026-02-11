@@ -450,10 +450,8 @@ func (s *cartService) GetCartSummary(ctx context.Context, cartID int64) (*dto.Ca
 		if recalculatedDiscount > summary.Subtotal {
 			recalculatedDiscount = summary.Subtotal
 		}
-		// Use recalculated discount instead of stored one
-		summary.DiscountAmount = recalculatedDiscount
 		// Recalculate total with new discount
-		summary.TotalAmount = summary.Subtotal + summary.TaxAmount + summary.ShippingAmount - summary.DiscountAmount
+		summary.TotalAmount = summary.Subtotal - summary.DiscountAmount
 	}
 
 	// Convert to response DTO
@@ -476,8 +474,6 @@ func (s *cartService) GetCartSummary(ctx context.Context, cartID int64) (*dto.Ca
 		CartID:         summary.CartID,
 		ItemCount:      summary.ItemCount,
 		Subtotal:       summary.Subtotal,
-		TaxAmount:      summary.TaxAmount,
-		ShippingAmount: summary.ShippingAmount,
 		DiscountAmount: summary.DiscountAmount,
 		TotalAmount:    summary.TotalAmount,
 		Currency:       summary.Currency,
@@ -582,7 +578,6 @@ func (s *cartService) SetCartShipping(ctx context.Context, cartID int64, req *dt
 		CartID:           cartID,
 		ShippingMethodID: req.ShippingMethodID,
 		ShippingMethod:   req.ShippingMethod,
-		ShippingAmount:   req.ShippingAmount,
 		EstimatedDays:    req.EstimatedDays,
 	}
 
@@ -620,9 +615,6 @@ func (s *cartService) UpdateCartShipping(ctx context.Context, cartID int64, req 
 	}
 	if req.ShippingMethod != nil {
 		updateShipping.ShippingMethod = *req.ShippingMethod
-	}
-	if req.ShippingAmount != nil {
-		updateShipping.ShippingAmount = *req.ShippingAmount
 	}
 	if req.EstimatedDays != nil {
 		updateShipping.EstimatedDays = *req.EstimatedDays

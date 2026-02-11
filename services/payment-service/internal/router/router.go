@@ -60,12 +60,8 @@ func NewRouter(paymentService *services.PaymentService, jwtService *jwt.JWTServi
 			r.Route("/payments", func(r chi.Router) {
 				r.Post("/", paymentHandler.CreatePayment)
 				r.Post("/process", paymentHandler.ProcessPayment)
-				r.Get("/", paymentHandler.ListPayments)
-				r.Get("/summary", paymentHandler.GetPaymentSummary)
 				r.Get("/{id}", paymentHandler.GetPayment)
 				r.Get("/transaction/{transactionId}", paymentHandler.GetPaymentByTransactionID)
-				r.Put("/{id}/status", paymentHandler.UpdatePaymentStatus)
-				r.Post("/refund", paymentHandler.RefundPayment)
 			})
 		})
 
@@ -75,7 +71,11 @@ func NewRouter(paymentService *services.PaymentService, jwtService *jwt.JWTServi
 			r.Use(sharedMiddleware.RequireAdmin())
 
 			// Payment analytics and management
+			r.Get("/payments", paymentHandler.ListPayments)
+			r.Get("/payments/summary", paymentHandler.GetPaymentSummary)
 			r.Get("/payments/analytics", paymentHandler.GetPaymentSummary)
+			r.Put("/payments/{id}/status", paymentHandler.UpdatePaymentStatus)
+			r.Post("/payments/refund", paymentHandler.RefundPayment)
 			r.Get("/payments/export", paymentHandler.ListPayments) // TODO: Add export functionality
 		})
 	})

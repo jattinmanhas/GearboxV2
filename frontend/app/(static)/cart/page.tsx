@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
-  Trash2, 
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
   X,
   Package,
   CreditCard,
@@ -26,20 +26,20 @@ import Image from "next/image"
 
 export default function CartPage() {
   const [isMounted, setIsMounted] = useState(false)
-  
+
   // Hydrate the store on client side
   useHydrateCartStore()
-  
-  const { 
-    cart, 
-    items, 
+
+  const {
+    cart,
+    items,
     appliedCoupons,
     availableCoupons,
-    isLoading, 
-    error, 
-    loadCart, 
-    updateQuantity, 
-    removeItem, 
+    isLoading,
+    error,
+    loadCart,
+    updateQuantity,
+    removeItem,
     clearCart,
     getItemCount,
     getTotalPrice,
@@ -47,7 +47,7 @@ export default function CartPage() {
     removeCoupon,
     loadAvailableCoupons
   } = useCartStore()
-  
+
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [couponMessage, setCouponMessage] = useState("")
@@ -91,7 +91,7 @@ export default function CartPage() {
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !cart) return
-    
+
     setIsApplyingCoupon(true)
     setCouponMessage("")
     try {
@@ -117,7 +117,7 @@ export default function CartPage() {
       setCouponMessage("Invalid coupon selected")
       return
     }
-    
+
     setCouponCode(coupon.code)
     setShowAvailableCoupons(false)
     // Auto-apply after selection
@@ -126,10 +126,10 @@ export default function CartPage() {
         setCouponMessage("Cart not available")
         return
       }
-      
+
       setIsApplyingCoupon(true)
       setCouponMessage("")
-      
+
       try {
         await applyCoupon(coupon.code)
         setCouponCode("") // Clear the input on success
@@ -137,8 +137,8 @@ export default function CartPage() {
         setTimeout(() => setCouponMessage(""), 3000)
       } catch (error) {
         console.error("Failed to apply coupon:", error)
-        const errorMessage = error instanceof Error 
-          ? error.message 
+        const errorMessage = error instanceof Error
+          ? error.message
           : "Failed to apply coupon"
         setCouponMessage(errorMessage)
         // Don't clear the coupon code on error so user can try again
@@ -219,8 +219,8 @@ export default function CartPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Cart Items</CardTitle>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={handleClearCart}
                     disabled={isLoading}
@@ -238,9 +238,9 @@ export default function CartPage() {
                       {/* Product Image */}
                       <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {item.image ? (
-                          <Image 
-                            src={item.image} 
-                            alt={item.name || 'Product'} 
+                          <Image
+                            src={item.image}
+                            alt={item.name || 'Product'}
                             width={96}
                             height={96}
                             className="w-full h-full object-cover"
@@ -249,7 +249,7 @@ export default function CartPage() {
                           <Package className="h-8 w-8 text-muted-foreground" />
                         )}
                       </div>
-                      
+
                       {/* Product Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg mb-1">
@@ -266,7 +266,7 @@ export default function CartPage() {
                             {formatCurrency(item.unit_price)} each
                           </span>
                         </div>
-                        
+
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-3">
                           <div className="flex items-center border rounded-md">
@@ -292,7 +292,7 @@ export default function CartPage() {
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -305,7 +305,7 @@ export default function CartPage() {
                           </Button>
                         </div>
                       </div>
-                      
+
                       {/* Price */}
                       <div className="text-right">
                         <div className="text-2xl font-bold">
@@ -395,7 +395,7 @@ export default function CartPage() {
                   >
                     {showAvailableCoupons ? "Hide Available Coupons" : "View Available Coupons"}
                   </Button>
-                  
+
                   {showAvailableCoupons && (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {appliedCoupons.length > 0 && (
@@ -419,16 +419,16 @@ export default function CartPage() {
                                     try {
                                       const discountValue = coupon.value || 0;
                                       const discountType = coupon.type || 'fixed_amount';
-                                      
+
                                       if (isNaN(discountValue) || discountValue === null || discountValue === undefined || discountValue === 0) {
                                         return 'Discount available';
                                       }
-                                      
-                                      return discountType === 'percentage' 
+
+                                      return discountType === 'percentage'
                                         ? `${discountValue}% off`
                                         : discountType === 'free_shipping'
-                                        ? 'Free shipping'
-                                        : `${formatCurrency(discountValue)} off`;
+                                          ? 'Free shipping'
+                                          : `${formatCurrency(discountValue)} off`;
                                     } catch (err) {
                                       console.error("Error formatting coupon discount:", err)
                                       return 'Discount available'
@@ -442,8 +442,8 @@ export default function CartPage() {
                                 onClick={() => handleSelectCoupon(coupon)}
                                 disabled={appliedCoupons.length > 0 || isApplyingCoupon}
                               >
-                                {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" : 
-                                 appliedCoupons.length > 0 ? "Remove existing first" : "Apply"}
+                                {appliedCoupons.some(ac => ac.coupon_code === coupon.code) ? "Applied" :
+                                  appliedCoupons.length > 0 ? "Remove existing first" : "Apply"}
                               </Button>
                             </div>
                           ))
@@ -465,18 +465,6 @@ export default function CartPage() {
                     <span>Subtotal</span>
                     <span className="font-medium">{formatCurrency(cart?.subtotal || totalPrice)}</span>
                   </div>
-                  {cart && cart.tax_amount > 0 && (
-                    <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span className="font-medium">{formatCurrency(cart.tax_amount)}</span>
-                    </div>
-                  )}
-                  {cart && cart.shipping_amount > 0 && (
-                    <div className="flex justify-between">
-                      <span>Shipping</span>
-                      <span className="font-medium">{formatCurrency(cart.shipping_amount)}</span>
-                    </div>
-                  )}
                   {cart && cart.discount_amount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
@@ -484,16 +472,16 @@ export default function CartPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <Separator />
-                
+
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
                   <span>{formatCurrency(cart?.total || totalPrice)}</span>
                 </div>
 
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
                   asChild
                 >
@@ -503,9 +491,9 @@ export default function CartPage() {
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </Link>
                 </Button>
-                
-                <Button 
-                  variant="outline" 
+
+                <Button
+                  variant="outline"
                   className="w-full"
                   asChild
                 >

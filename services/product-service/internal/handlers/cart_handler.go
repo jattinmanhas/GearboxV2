@@ -23,6 +23,7 @@ type ICartHandler interface {
 	UpdateCart(w http.ResponseWriter, r *http.Request)
 	DeleteCart(w http.ResponseWriter, r *http.Request)
 	GetOrCreateCart(w http.ResponseWriter, r *http.Request)
+	ClearCartSession(w http.ResponseWriter, r *http.Request)
 
 	// Cart Items
 	AddItemToCart(w http.ResponseWriter, r *http.Request)
@@ -305,6 +306,21 @@ func (h *cartHandler) GetOrCreateCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.OK(w, "Cart retrieved or created successfully", response)
+}
+
+// ClearCartSession clears the cart_session cookie
+func (h *cartHandler) ClearCartSession(w http.ResponseWriter, r *http.Request) {
+	cookie := &http.Cookie{
+		Name:     "cart_session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.secureCookies,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, cookie)
+	httpx.OK(w, "Cart session cleared successfully", nil)
 }
 
 // Cart Items
@@ -638,7 +654,6 @@ func (h *cartHandler) SetCartShipping(w http.ResponseWriter, r *http.Request) {
 		CartID:           shipping.CartID,
 		ShippingMethodID: shipping.ShippingMethodID,
 		ShippingMethod:   shipping.ShippingMethod,
-		ShippingAmount:   shipping.ShippingAmount,
 		EstimatedDays:    shipping.EstimatedDays,
 		CreatedAt:        shipping.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -671,7 +686,6 @@ func (h *cartHandler) UpdateCartShipping(w http.ResponseWriter, r *http.Request)
 		CartID:           shipping.CartID,
 		ShippingMethodID: shipping.ShippingMethodID,
 		ShippingMethod:   shipping.ShippingMethod,
-		ShippingAmount:   shipping.ShippingAmount,
 		EstimatedDays:    shipping.EstimatedDays,
 		CreatedAt:        shipping.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -703,7 +717,6 @@ func (h *cartHandler) GetCartShipping(w http.ResponseWriter, r *http.Request) {
 		CartID:           shipping.CartID,
 		ShippingMethodID: shipping.ShippingMethodID,
 		ShippingMethod:   shipping.ShippingMethod,
-		ShippingAmount:   shipping.ShippingAmount,
 		EstimatedDays:    shipping.EstimatedDays,
 		CreatedAt:        shipping.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

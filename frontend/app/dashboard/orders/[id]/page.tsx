@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
     Select,
@@ -64,8 +63,6 @@ interface Order {
     customer_email: string
     total_amount: number
     subtotal: number
-    tax_amount: number
-    shipping_amount: number
     discount_amount: number
     status: string
     payment_status: string
@@ -278,14 +275,6 @@ export default function OrderDetailsPage() {
                                 <div className="flex justify-between text-sm">
                                     <span>Subtotal</span>
                                     <span>{formatCurrency(order.subtotal)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span>Shipping</span>
-                                    <span>{formatCurrency(order.shipping_amount)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span>Tax</span>
-                                    <span>{formatCurrency(order.tax_amount)}</span>
                                 </div>
                                 {order.discount_amount > 0 && (
                                     <div className="flex justify-between text-sm text-green-600 font-medium">

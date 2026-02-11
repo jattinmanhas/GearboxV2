@@ -55,12 +55,17 @@ func NewRouter(authHandler handlers.IAuthHandler, authService services.IAuthServ
 
 			// User management routes
 			r.Get("/user/{id}", authHandler.GetUserByID)
-			r.Put("/user/{id}", authHandler.UpdateUser)
-			r.Delete("/user/{id}", authHandler.DeleteUser)
 			r.Post("/user/{id}/change-password", authHandler.ChangePassword)
 			r.Post("/logout-all", authHandler.LogoutAll)
-			r.Get("/users", authHandler.GetAllUsers)                // Temporarily moved outside admin group for testing
-			r.Get("/users/analytics", authHandler.GetUserAnalytics) // User analytics
+
+			// Admin-only user management
+			r.Group(func(r chi.Router) {
+				r.Use(sharedMiddleware.RequireAdmin())
+				r.Get("/users", authHandler.GetAllUsers)
+				r.Get("/users/analytics", authHandler.GetUserAnalytics)
+				r.Put("/user/{id}", authHandler.UpdateUser)
+				r.Delete("/user/{id}", authHandler.DeleteUser)
+			})
 
 			// Profile routes
 			r.Get("/profile", authHandler.GetProfile)

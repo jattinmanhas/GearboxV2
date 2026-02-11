@@ -39,8 +39,6 @@ export interface Cart {
   user_id?: number
   items: CartItem[]
   subtotal: number
-  tax_amount: number
-  shipping_amount: number
   discount_amount: number
   total: number
   created_at: string
@@ -91,6 +89,7 @@ interface CartStore {
   loadAvailableCoupons: () => Promise<void>
   recalculatePercentageDiscounts: () => Promise<void>
   loadCartSilently: () => Promise<void>
+  reset: () => Promise<void>
 }
 
 export const useCartStore = create<CartStore>()(
@@ -135,8 +134,6 @@ export const useCartStore = create<CartStore>()(
             ...cart,
             items: itemsWithDetails,
             subtotal: summary.subtotal || 0,
-            tax_amount: summary.tax_amount || 0,
-            shipping_amount: summary.shipping_amount || 0,
             discount_amount: summary.discount_amount || 0,
             total: summary.total_amount || 0,
             applied_coupons: appliedCoupons
@@ -484,12 +481,8 @@ export const useCartStore = create<CartStore>()(
         // The backend handles maximum discount limits correctly
         const discount = state.cart.discount_amount || 0
 
-        // Tax and shipping remain the same or recalculate if you have logic
-        const taxAmount = state.cart.tax_amount || 0
-        const shippingAmount = state.cart.shipping_amount || 0
-
         // Calculate total
-        const total = subtotal - discount + taxAmount + shippingAmount
+        const total = subtotal - discount
 
         // Update cart with new totals (keep discount from backend)
         set(state => ({
@@ -714,8 +707,6 @@ export const useCartStore = create<CartStore>()(
             ...cart,
             items: itemsWithDetails,
             subtotal: summary.subtotal || 0,
-            tax_amount: summary.tax_amount || 0,
-            shipping_amount: summary.shipping_amount || 0,
             discount_amount: summary.discount_amount || 0,
             total: summary.total_amount || 0,
             applied_coupons: appliedCoupons
@@ -730,6 +721,21 @@ export const useCartStore = create<CartStore>()(
         } catch (error) {
           console.error('Failed to load cart silently:', error)
         }
+      },
+
+      reset: async () => {
+        try {
+          await cartApi.clearCartSession()
+        } catch (error) {
+          console.error('Failed to clear cart session on server:', error)
+        }
+        set({
+          cart: null,
+          items: [],
+          appliedCoupons: [],
+          isLoading: false,
+          error: null
+        })
       }
     }),
     {

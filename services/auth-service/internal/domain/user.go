@@ -49,23 +49,23 @@ func (u *User) HasPassword() bool {
 
 // UserAnalytics represents analytics data for users
 type UserAnalytics struct {
-	TotalUsers            int64                  `json:"total_users"`
-	ActiveUsers           int64                  `json:"active_users"`
-	NewUsersToday         int64                  `json:"new_users_today"`
-	NewUsersThisWeek      int64                  `json:"new_users_this_week"`
-	NewUsersThisMonth     int64                  `json:"new_users_this_month"`
-	UsersByRole           []UserRoleCount        `json:"users_by_role"`
-	UserRegistrationTrend []UserRegistrationData `json:"user_registration_trend"`
+	TotalUsers            int64                  `json:"total_users" db:"total_users"`
+	ActiveUsers           int64                  `json:"active_users" db:"active_users"`
+	NewUsersToday         int64                  `json:"new_users_today" db:"new_users_today"`
+	NewUsersThisWeek      int64                  `json:"new_users_this_week" db:"new_users_this_week"`
+	NewUsersThisMonth     int64                  `json:"new_users_this_month" db:"new_users_this_month"`
+	UsersByRole           []UserRoleCount        `json:"users_by_role" db:"users_by_role"`
+	UserRegistrationTrend []UserRegistrationData `json:"user_registration_trend" db:"user_registration_trend"`
 }
 
 // UserRoleCount represents user count by role
 type UserRoleCount struct {
-	Role  string `json:"role"`
-	Count int64  `json:"count"`
+	Role  string `json:"role" db:"role"`
+	Count int64  `json:"count" db:"count"`
 }
 
 // UserRegistrationData represents user registration data for trends
 type UserRegistrationData struct {
-	Date  string `json:"date"`
-	Count int64  `json:"count"`
+	Date  string `json:"date" db:"date"`
+	Count int64  `json:"count" db:"count"`
 }

@@ -33,8 +33,6 @@ type CartSummary struct {
 	CartID         int64      `json:"cart_id"`
 	ItemCount      int        `json:"item_count"`
 	Subtotal       float64    `json:"subtotal"`
-	TaxAmount      float64    `json:"tax_amount"`
-	ShippingAmount float64    `json:"shipping_amount"`
 	DiscountAmount float64    `json:"discount_amount"`
 	TotalAmount    float64    `json:"total_amount"`
 	Currency       string     `json:"currency"`
@@ -76,7 +74,6 @@ type CartShipping struct {
 	CartID           int64     `json:"cart_id" db:"cart_id"`
 	ShippingMethodID int64     `json:"shipping_method_id" db:"shipping_method_id"`
 	ShippingMethod   string    `json:"shipping_method" db:"shipping_method"`
-	ShippingAmount   float64   `json:"shipping_amount" db:"shipping_amount"`
 	EstimatedDays    int       `json:"estimated_days" db:"estimated_days"`
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 }

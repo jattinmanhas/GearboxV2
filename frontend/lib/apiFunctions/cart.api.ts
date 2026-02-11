@@ -5,15 +5,20 @@ export const cartApi = {
     // Cart Management
     async getCartBySession(currency: string = "INR"): Promise<any> {
         const response = await httpClient.get<ApiResponse<any>>(
-            `/carts?endpoint=session&currency=${currency}`
+            `/carts/session?currency=${currency}`
         );
         return response.data;
     },
 
     async getOrCreateCart(currency: string = "INR"): Promise<any> {
         const response = await httpClient.get<ApiResponse<any>>(
-            `/carts?endpoint=get-or-create&currency=${currency}`
+            `/carts/get-or-create?currency=${currency}`
         );
+        return response.data;
+    },
+
+    async clearCartSession(): Promise<any> {
+        const response = await httpClient.post<ApiResponse<any>>(`/carts/clear-session`);
         return response.data;
     },
 

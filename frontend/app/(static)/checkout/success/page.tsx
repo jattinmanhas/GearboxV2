@@ -126,18 +126,6 @@ function CheckoutSuccessContent() {
                   <span>Subtotal</span>
                   <span>{formatCurrency(order.subtotal)}</span>
                 </div>
-                {order.tax_amount > 0 && (
-                  <div className="flex justify-between">
-                    <span>Tax</span>
-                    <span>{formatCurrency(order.tax_amount)}</span>
-                  </div>
-                )}
-                {order.shipping_amount > 0 && (
-                  <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span>{formatCurrency(order.shipping_amount)}</span>
-                  </div>
-                )}
                 {order.discount_amount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>

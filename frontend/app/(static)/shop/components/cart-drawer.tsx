@@ -4,17 +4,17 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { 
+import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
   Trash2,
   Package,
   CreditCard,
@@ -36,18 +36,18 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [showAllItems, setShowAllItems] = useState(false)
   const [maxVisibleItems] = useState(3) // Show max 3 items initially
-  
+
   // Hydrate the store on client side
   useHydrateCartStore()
-  
-  const { 
-    cart, 
-    items, 
+
+  const {
+    cart,
+    items,
     appliedCoupons,
-    isLoading, 
-    error, 
-    loadCart, 
-    updateQuantity, 
+    isLoading,
+    error,
+    loadCart,
+    updateQuantity,
     removeItem,
     getItemCount,
     getTotalPrice
@@ -97,7 +97,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             )}
           </SheetTitle>
           <SheetDescription>
-            {itemCount > 0 
+            {itemCount > 0
               ? `${itemCount} item${itemCount === 1 ? '' : 's'} in your cart`
               : "Your cart is empty"
             }
@@ -144,16 +144,16 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       {/* Product Image - Smaller */}
                       <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
                         {item.image ? (
-                          <img 
-                            src={item.image} 
-                            alt={item.name || 'Product'} 
+                          <img
+                            src={item.image}
+                            alt={item.name || 'Product'}
                             className="w-full h-full object-cover rounded-md"
                           />
                         ) : (
                           <Package className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
-                      
+
                       {/* Product Info - More Compact */}
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm line-clamp-1 mb-1">
@@ -169,7 +169,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Quantity and Price - Horizontal Layout */}
                       <div className="flex items-center gap-3">
                         {/* Quantity Controls - Compact */}
@@ -196,7 +196,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        
+
                         {/* Price */}
                         <div className="text-right min-w-[4rem]">
                           <div className="font-medium text-sm">
@@ -206,7 +206,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                             {formatCurrency(item.unit_price)} ea
                           </div>
                         </div>
-                        
+
                         {/* Remove Button */}
                         <Button
                           variant="ghost"
@@ -269,18 +269,6 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     <span>Subtotal</span>
                     <span>{formatCurrency(cart?.subtotal || totalPrice)}</span>
                   </div>
-                  {cart && cart.tax_amount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Tax</span>
-                      <span>{formatCurrency(cart.tax_amount)}</span>
-                    </div>
-                  )}
-                  {cart && cart.shipping_amount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Shipping</span>
-                      <span>{formatCurrency(cart.shipping_amount)}</span>
-                    </div>
-                  )}
                   {cart && cart.discount_amount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
@@ -296,8 +284,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
                 {/* Action Buttons */}
                 <div className="space-y-2">
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     size="sm"
                     asChild
                   >
@@ -307,10 +295,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Link>
                   </Button>
-                  
+
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex-1"
                       size="sm"
                       asChild
@@ -320,9 +308,9 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                         Checkout
                       </Link>
                     </Button>
-                    
-                    <Button 
-                      variant="outline" 
+
+                    <Button
+                      variant="outline"
                       className="flex-1"
                       size="sm"
                       asChild

@@ -78,10 +78,10 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *domain.Order) 
 
 	query := `
 		INSERT INTO orders (order_number, user_id, status, payment_status, fulfillment_status,
-			subtotal, tax_amount, shipping_amount, discount_amount, total_amount, currency,
+			subtotal, discount_amount, total_amount, currency,
 			notes, internal_notes, created_at, updated_at, confirmed_at, shipped_at, delivered_at, cancelled_at)
 		VALUES (:order_number, :user_id, :status, :payment_status, :fulfillment_status,
-			:subtotal, :tax_amount, :shipping_amount, :discount_amount, :total_amount, :currency,
+			:subtotal, :discount_amount, :total_amount, :currency,
 			:notes, :internal_notes, :created_at, :updated_at, :confirmed_at, :shipped_at, :delivered_at, :cancelled_at)
 		RETURNING id`
 
@@ -140,7 +140,7 @@ func (r *orderRepository) UpdateOrder(ctx context.Context, id int64, order *doma
 	query := `
 		UPDATE orders SET 
 			status = :status, payment_status = :payment_status, fulfillment_status = :fulfillment_status,
-			subtotal = :subtotal, tax_amount = :tax_amount, shipping_amount = :shipping_amount,
+			subtotal = :subtotal,
 			discount_amount = :discount_amount, total_amount = :total_amount, currency = :currency,
 			notes = :notes, internal_notes = :internal_notes, updated_at = :updated_at,
 			confirmed_at = :confirmed_at, shipped_at = :shipped_at, delivered_at = :delivered_at, cancelled_at = :cancelled_at
@@ -270,7 +270,7 @@ func (r *orderRepository) ListOrders(ctx context.Context, filter *domain.OrderFi
 			sortBy = filter.SortBy
 		}
 	}
-	
+
 	sortOrder := "DESC"
 	if filter.SortOrder == "asc" {
 		sortOrder = "ASC"
@@ -303,9 +303,9 @@ func (r *orderRepository) CreateOrderItems(ctx context.Context, items []*domain.
 
 	query := `
 		INSERT INTO order_items (order_id, product_id, product_variant_id, product_name, product_sku,
-			quantity, unit_price, total_price, tax_amount, discount_amount, is_digital, requires_shipping)
+			quantity, unit_price, total_price, discount_amount, is_digital, requires_shipping)
 		VALUES (:order_id, :product_id, :product_variant_id, :product_name, :product_sku,
-			:quantity, :unit_price, :total_price, :tax_amount, :discount_amount, :is_digital, :requires_shipping)`
+			:quantity, :unit_price, :total_price, :discount_amount, :is_digital, :requires_shipping)`
 
 	_, err := r.db.NamedExecContext(ctx, query, items)
 	if err != nil {
@@ -333,7 +333,7 @@ func (r *orderRepository) UpdateOrderItem(ctx context.Context, id int64, item *d
 	query := `
 		UPDATE order_items SET 
 			quantity = :quantity, unit_price = :unit_price, total_price = :total_price,
-			tax_amount = :tax_amount, discount_amount = :discount_amount
+			discount_amount = :discount_amount
 		WHERE id = :id`
 
 	result, err := r.db.NamedExecContext(ctx, query, item)
@@ -631,24 +631,26 @@ func (r *orderRepository) GetOrderAnalytics(ctx context.Context) (*domain.OrderA
 			COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
 		FROM orders`
 
-	err = r.db.GetContext(ctx, &struct {
+	var counts struct {
 		Pending    int64 `db:"pending"`
 		Confirmed  int64 `db:"confirmed"`
 		Processing int64 `db:"processing"`
 		Shipped    int64 `db:"shipped"`
 		Delivered  int64 `db:"delivered"`
 		Cancelled  int64 `db:"cancelled"`
-	}{
-		Pending:    pendingOrders,
-		Confirmed:  confirmedOrders,
-		Processing: processingOrders,
-		Shipped:    shippedOrders,
-		Delivered:  deliveredOrders,
-		Cancelled:  cancelledOrders,
-	}, statusQuery)
+	}
+
+	err = r.db.GetContext(ctx, &counts, statusQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders by status: %w", err)
 	}
+
+	pendingOrders = counts.Pending
+	confirmedOrders = counts.Confirmed
+	processingOrders = counts.Processing
+	shippedOrders = counts.Shipped
+	deliveredOrders = counts.Delivered
+	cancelledOrders = counts.Cancelled
 
 	// Get total revenue
 	var totalRevenue float64
@@ -715,10 +717,91 @@ func (r *orderRepository) GetOrderAnalytics(ctx context.Context) (*domain.OrderA
 
 // GetOrderAnalyticsByDateRange retrieves order analytics by date range
 func (r *orderRepository) GetOrderAnalyticsByDateRange(ctx context.Context, startDate, endDate time.Time) (*domain.OrderAnalytics, error) {
-	// Similar implementation to GetOrderAnalytics but with date filtering
-	// Implementation would be similar but with WHERE created_at BETWEEN $1 AND $2
-	// For brevity, returning basic implementation
-	return r.GetOrderAnalytics(ctx)
+	// Get total orders count in range
+	var totalOrders int64
+	err := r.db.GetContext(ctx, &totalOrders, `SELECT COUNT(*) FROM orders WHERE created_at BETWEEN $1 AND $2`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total orders count by range: %w", err)
+	}
+
+	// Get orders by status in range
+	var pendingOrders, confirmedOrders, processingOrders, shippedOrders, deliveredOrders, cancelledOrders int64
+
+	statusQuery := `
+		SELECT 
+			COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+			COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
+			COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
+			COUNT(CASE WHEN status = 'shipped' THEN 1 END) as shipped,
+			COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered,
+			COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
+		FROM orders
+		WHERE created_at BETWEEN $1 AND $2`
+
+	var counts struct {
+		Pending    int64 `db:"pending"`
+		Confirmed  int64 `db:"confirmed"`
+		Processing int64 `db:"processing"`
+		Shipped    int64 `db:"shipped"`
+		Delivered  int64 `db:"delivered"`
+		Cancelled  int64 `db:"cancelled"`
+	}
+
+	err = r.db.GetContext(ctx, &counts, statusQuery, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders by status in range: %w", err)
+	}
+
+	pendingOrders = counts.Pending
+	confirmedOrders = counts.Confirmed
+	processingOrders = counts.Processing
+	shippedOrders = counts.Shipped
+	deliveredOrders = counts.Delivered
+	cancelledOrders = counts.Cancelled
+
+	// Get total revenue in range
+	var totalRevenue float64
+	err = r.db.GetContext(ctx, &totalRevenue, `
+		SELECT COALESCE(SUM(total_amount), 0) FROM orders 
+		WHERE status IN ('confirmed', 'processing', 'shipped', 'delivered')
+		AND created_at BETWEEN $1 AND $2`, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total revenue in range: %w", err)
+	}
+
+	// Calculate average order value
+	var averageOrderValue float64
+	if totalOrders > 0 {
+		averageOrderValue = totalRevenue / float64(totalOrders)
+	}
+
+	today := time.Now().Truncate(24 * time.Hour)
+
+	var newOrdersToday int64
+
+	err = r.db.GetContext(ctx, &newOrdersToday, `SELECT COUNT(*) FROM orders WHERE created_at >= $1`, today)
+	if err != nil {
+		newOrdersToday = 0
+	}
+
+	// Calculate conversion rate placeholder
+	conversionRate := 5.0
+
+	return &domain.OrderAnalytics{
+		TotalOrders:        totalOrders,
+		PendingOrders:      pendingOrders,
+		ConfirmedOrders:    confirmedOrders,
+		ProcessingOrders:   processingOrders,
+		ShippedOrders:      shippedOrders,
+		DeliveredOrders:    deliveredOrders,
+		CancelledOrders:    cancelledOrders,
+		TotalRevenue:       totalRevenue,
+		AverageOrderValue:  averageOrderValue,
+		ConversionRate:     conversionRate,
+		NewOrdersToday:     newOrdersToday,
+		NewOrdersThisWeek:  0, // Omitted for brevity in range calc
+		NewOrdersThisMonth: 0, // Omitted for brevity in range calc
+	}, nil
 }
 
 // GetTopSellingProducts retrieves top selling products

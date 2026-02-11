@@ -1032,14 +1032,12 @@ func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.Pr
 	}
 
 	// Get active/inactive products count
-	var activeProducts, inactiveProducts int64
-	err = r.db.GetContext(ctx, &struct {
+	var statusCounts struct {
 		Active   int64 `db:"active"`
 		Inactive int64 `db:"inactive"`
-	}{
-		Active:   activeProducts,
-		Inactive: inactiveProducts,
-	}, `
+	}
+
+	err = r.db.GetContext(ctx, &statusCounts, `
 		SELECT 
 			COUNT(CASE WHEN is_active = true THEN 1 END) as active,
 			COUNT(CASE WHEN is_active = false THEN 1 END) as inactive
@@ -1047,18 +1045,15 @@ func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.Pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active/inactive products count: %w", err)
 	}
-	analytics.ActiveProducts = activeProducts
-	analytics.InactiveProducts = inactiveProducts
+	analytics.ActiveProducts = statusCounts.Active
+	analytics.InactiveProducts = statusCounts.Inactive
 
 	// Get low stock and out of stock products count
-	var lowStockProducts, outOfStockProducts int64
-	err = r.db.GetContext(ctx, &struct {
+	var stockCounts struct {
 		LowStock   int64 `db:"low_stock"`
 		OutOfStock int64 `db:"out_of_stock"`
-	}{
-		LowStock:   lowStockProducts,
-		OutOfStock: outOfStockProducts,
-	}, `
+	}
+	err = r.db.GetContext(ctx, &stockCounts, `
 		SELECT 
 			COUNT(CASE WHEN track_quantity = true AND quantity <= 10 THEN 1 END) as low_stock,
 			COUNT(CASE WHEN track_quantity = true AND quantity = 0 THEN 1 END) as out_of_stock
@@ -1066,8 +1061,8 @@ func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.Pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stock products count: %w", err)
 	}
-	analytics.LowStockProducts = lowStockProducts
-	analytics.OutOfStockProducts = outOfStockProducts
+	analytics.LowStockProducts = stockCounts.LowStock
+	analytics.OutOfStockProducts = stockCounts.OutOfStock
 
 	// Get total categories count
 	err = r.db.GetContext(ctx, &analytics.TotalCategories, `SELECT COUNT(*) FROM categories`)

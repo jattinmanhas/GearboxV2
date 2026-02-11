@@ -61,8 +61,6 @@ type OrderResponse struct {
 	PaymentStatus     string                       `json:"payment_status"`
 	FulfillmentStatus string                       `json:"fulfillment_status"`
 	Subtotal          float64                      `json:"subtotal"`
-	TaxAmount         float64                      `json:"tax_amount"`
-	ShippingAmount    float64                      `json:"shipping_amount"`
 	DiscountAmount    float64                      `json:"discount_amount"`
 	TotalAmount       float64                      `json:"total_amount"`
 	Currency          string                       `json:"currency"`
@@ -109,7 +107,6 @@ type OrderItemResponse struct {
 	Quantity         int     `json:"quantity"`
 	UnitPrice        float64 `json:"unit_price"`
 	TotalPrice       float64 `json:"total_price"`
-	TaxAmount        float64 `json:"tax_amount"`
 	DiscountAmount   float64 `json:"discount_amount"`
 	IsDigital        bool    `json:"is_digital"`
 	RequiresShipping bool    `json:"requires_shipping"`

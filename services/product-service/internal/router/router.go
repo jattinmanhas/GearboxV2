@@ -56,52 +56,72 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 		// Product routes
 		r.Route("/products", func(r chi.Router) {
-			r.Post("/", productHandler.CreateProduct)
 			r.Get("/", productHandler.ListProducts)
 			r.Get("/search", productHandler.SearchProducts)
 			r.Get("/tags", productHandler.GetProductsByTags)
 			r.Get("/sku/{sku}", productHandler.GetProductBySKU)
 			r.Get("/{id}", productHandler.GetProduct)
-			r.Put("/{id}", productHandler.UpdateProduct)
-			r.Delete("/{id}", productHandler.DeleteProduct)
 
-			// Product variants
-			r.Post("/{id}/variants", productHandler.CreateProductVariant)
+			// Protected management routes
+			r.Group(func(r chi.Router) {
+				jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
+				authService := sharedMiddleware.NewSharedAuthService(jwtService)
+				r.Use(sharedMiddleware.AuthMiddleware(authService))
+				r.Use(sharedMiddleware.RequireEditor())
+
+				r.Post("/", productHandler.CreateProduct)
+				r.Put("/{id}", productHandler.UpdateProduct)
+				r.Delete("/{id}", productHandler.DeleteProduct)
+
+				// Product variants
+				r.Post("/{id}/variants", productHandler.CreateProductVariant)
+				r.Put("/variants/{id}", productHandler.UpdateProductVariant)
+				r.Delete("/variants/{id}", productHandler.DeleteProductVariant)
+
+				// Product categories
+				r.Post("/{id}/categories", productHandler.AddProductToCategory)
+				r.Put("/{id}/categories", productHandler.UpdateProductCategories)
+				r.Delete("/{id}/categories/{category_id}", productHandler.RemoveProductFromCategory)
+
+				// Product images
+				r.Post("/{id}/images", productHandler.CreateProductImage)
+				r.Put("/images/{image_id}", productHandler.UpdateProductImage)
+				r.Delete("/images/{image_id}", productHandler.DeleteProductImage)
+				r.Put("/{id}/images/{image_id}/primary", productHandler.SetPrimaryProductImage)
+
+				// Product analytics
+				r.Get("/analytics", productHandler.GetProductAnalytics)
+				r.Get("/analytics/top-selling", productHandler.GetTopSellingProducts)
+			})
+
+			// Publicly visible variants/categories/images (if needed, though standard to keep GET public)
 			r.Get("/{id}/variants", productHandler.GetProductVariants)
 			r.Get("/{id}/variants-with-inventory", productHandler.GetProductVariantsWithInventory)
-			r.Put("/variants/{id}", productHandler.UpdateProductVariant)
-			r.Delete("/variants/{id}", productHandler.DeleteProductVariant)
 			r.Get("/variants/{id}", productHandler.GetProductVariant)
-
-			// Product categories
-			r.Post("/{id}/categories", productHandler.AddProductToCategory)
-			r.Put("/{id}/categories", productHandler.UpdateProductCategories)
 			r.Get("/{id}/categories", productHandler.GetProductCategories)
-			r.Delete("/{id}/categories/{category_id}", productHandler.RemoveProductFromCategory)
-
-			// Product images
-			r.Post("/{id}/images", productHandler.CreateProductImage)
 			r.Get("/{id}/images", productHandler.GetProductImages)
-			r.Put("/images/{image_id}", productHandler.UpdateProductImage)
-			r.Delete("/images/{image_id}", productHandler.DeleteProductImage)
-			r.Put("/{id}/images/{image_id}/primary", productHandler.SetPrimaryProductImage)
-
-			// Product analytics
-			r.Get("/analytics", productHandler.GetProductAnalytics)
-			r.Get("/analytics/top-selling", productHandler.GetTopSellingProducts)
 		})
 
 		// Category routes
 		r.Route("/categories", func(r chi.Router) {
-			r.Post("/", categoryHandler.CreateCategory)
 			r.Get("/", categoryHandler.ListCategories)
 			r.Get("/hierarchy", categoryHandler.GetCategoryHierarchy)
 			r.Get("/slug/{slug}", categoryHandler.GetCategoryBySlug)
 			r.Get("/{id}", categoryHandler.GetCategory)
-			r.Put("/{id}", categoryHandler.UpdateCategory)
-			r.Delete("/{id}", categoryHandler.DeleteCategory)
 			r.Get("/{id}/children", categoryHandler.GetCategoryChildren)
 			r.Get("/{id}/products", productHandler.GetProductsByCategory)
+
+			// Protected management routes
+			r.Group(func(r chi.Router) {
+				jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
+				authService := sharedMiddleware.NewSharedAuthService(jwtService)
+				r.Use(sharedMiddleware.AuthMiddleware(authService))
+				r.Use(sharedMiddleware.RequireEditor())
+
+				r.Post("/", categoryHandler.CreateCategory)
+				r.Put("/{id}", categoryHandler.UpdateCategory)
+				r.Delete("/{id}", categoryHandler.DeleteCategory)
+			})
 		})
 
 		// Cart routes (supports both guest and authenticated users)
@@ -113,6 +133,7 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 
 			r.Get("/session", cartHandler.GetCartBySession)
 			r.Get("/get-or-create", cartHandler.GetOrCreateCart)
+			r.Post("/clear-session", cartHandler.ClearCartSession)
 			r.Get("/analytics", cartHandler.GetCartAnalytics)
 			r.Get("/analytics/date-range", cartHandler.GetCartAnalyticsByDateRange)
 			r.Get("/analytics/top-products", cartHandler.GetTopProductsInCarts)
@@ -227,52 +248,52 @@ func NewRouter(categoryHandler handlers.ICategoryHandler, productHandler handler
 			})
 		})
 
-		// Order routes (protected - requires authentication)
+		// Order routes
 		r.Route("/orders", func(r chi.Router) {
 			jwtService := jwt.NewJWTService(jwtSecret, jwtRefreshSecret)
 			authService := sharedMiddleware.NewSharedAuthService(jwtService)
 			r.Use(sharedMiddleware.AuthMiddleware(authService))
+
+			// User routes (View own orders, create from cart, etc.)
 			r.Post("/", orderHandler.CreateOrder)
 			r.Get("/", orderHandler.ListOrders)
 			r.Get("/number/{orderNumber}", orderHandler.GetOrderByNumber)
 			r.Get("/{id}", orderHandler.GetOrder)
-			r.Put("/{id}", orderHandler.UpdateOrder)
-			r.Delete("/{id}", orderHandler.DeleteOrder)
-
-			// Order items
+			r.Post("/from-cart", orderHandler.CreateOrderFromCart)
 			r.Get("/{id}/items", orderHandler.GetOrderItems)
-			r.Put("/items/{id}", orderHandler.UpdateOrderItem)
-			r.Delete("/items/{id}", orderHandler.DeleteOrderItem)
-
-			// Order addresses
 			r.Get("/{id}/addresses", orderHandler.GetOrderAddresses)
-			r.Put("/addresses/{id}", orderHandler.UpdateOrderAddress)
-
-			// Order status management
-			r.Put("/{id}/status", orderHandler.UpdateOrderStatus)
 			r.Get("/{id}/status-history", orderHandler.GetOrderStatusHistory)
 
-			// Order fulfillment
-			r.Post("/{id}/fulfillment", orderHandler.CreateOrderFulfillment)
-			r.Get("/{id}/fulfillment", orderHandler.GetOrderFulfillment)
-			r.Put("/fulfillment/{id}", orderHandler.UpdateOrderFulfillment)
-
-			// Order refunds
-			r.Post("/{id}/refunds", orderHandler.CreateOrderRefund)
-			r.Get("/{id}/refunds", orderHandler.GetOrderRefunds)
-
-			// Order analytics
-			r.Get("/analytics", orderHandler.GetOrderAnalytics)
-			r.Get("/analytics/date-range", orderHandler.GetOrderAnalyticsByDateRange)
-			r.Get("/analytics/top-products", orderHandler.GetTopSellingProducts)
-
-			// Cart integration
-			r.Post("/from-cart", orderHandler.CreateOrderFromCart)
-
-			// Payment integration
+			// Payment integration (Usually user-initiated)
 			r.Post("/{id}/payments", orderHandler.CreateOrderPayment)
 			r.Post("/{id}/payments/process", orderHandler.ProcessOrderPayment)
 			r.Get("/{id}/payments", orderHandler.GetOrderPayment)
+
+			// Admin/Editor routes
+			r.Group(func(r chi.Router) {
+				r.Use(sharedMiddleware.RequireEditor())
+
+				r.Put("/{id}", orderHandler.UpdateOrder)
+				r.Delete("/{id}", orderHandler.DeleteOrder)
+				r.Put("/items/{id}", orderHandler.UpdateOrderItem)
+				r.Delete("/items/{id}", orderHandler.DeleteOrderItem)
+				r.Put("/addresses/{id}", orderHandler.UpdateOrderAddress)
+				r.Put("/{id}/status", orderHandler.UpdateOrderStatus)
+
+				// Order fulfillment
+				r.Post("/{id}/fulfillment", orderHandler.CreateOrderFulfillment)
+				r.Get("/{id}/fulfillment", orderHandler.GetOrderFulfillment)
+				r.Put("/fulfillment/{id}", orderHandler.UpdateOrderFulfillment)
+
+				// Order refunds
+				r.Post("/{id}/refunds", orderHandler.CreateOrderRefund)
+				r.Get("/{id}/refunds", orderHandler.GetOrderRefunds)
+
+				// Order analytics
+				r.Get("/analytics", orderHandler.GetOrderAnalytics)
+				r.Get("/analytics/date-range", orderHandler.GetOrderAnalyticsByDateRange)
+				r.Get("/analytics/top-products", orderHandler.GetTopSellingProducts)
+			})
 		})
 	})
 

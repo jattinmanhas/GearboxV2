@@ -550,18 +550,6 @@ export default function CheckoutPage() {
                     <span>Subtotal</span>
                     <span className="font-medium">{formatCurrency(cart.subtotal || totalPrice)}</span>
                   </div>
-                  {cart.tax_amount > 0 && (
-                    <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span className="font-medium">{formatCurrency(cart.tax_amount)}</span>
-                    </div>
-                  )}
-                  {cart.shipping_amount > 0 && (
-                    <div className="flex justify-between">
-                      <span>Shipping</span>
-                      <span className="font-medium">{formatCurrency(cart.shipping_amount)}</span>
-                    </div>
-                  )}
                   {cart.discount_amount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
