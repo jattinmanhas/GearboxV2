@@ -144,6 +144,25 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce ownership for non-admin/editor users
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == 0 {
+		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
+		return
+	}
+
+	if !isPrivilegedUser(r.Context()) {
+		order, getErr := h.orderService.GetOrderByID(r.Context(), id)
+		if getErr != nil {
+			httpx.Error(w, http.StatusNotFound, "Order not found", nil)
+			return
+		}
+		if order.UserID != int64(currentUserID) {
+			httpx.Error(w, http.StatusForbidden, "You are not allowed to access this order", nil)
+			return
+		}
+	}
+
 	// Get enriched order details
 	response, err := h.orderService.GetOrderDetails(r.Context(), id)
 	if err != nil {
@@ -161,6 +180,24 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 // GetOrderByNumber handles GET /api/v1/orders/number/{orderNumber}
 func (h *orderHandler) GetOrderByNumber(w http.ResponseWriter, r *http.Request) {
 	orderNumber := chi.URLParam(r, "orderNumber")
+
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == 0 {
+		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
+		return
+	}
+
+	if !isPrivilegedUser(r.Context()) {
+		order, getErr := h.orderService.GetOrderByNumber(r.Context(), orderNumber)
+		if getErr != nil {
+			httpx.Error(w, http.StatusNotFound, "Order not found", nil)
+			return
+		}
+		if order.UserID != int64(currentUserID) {
+			httpx.Error(w, http.StatusForbidden, "You are not allowed to access this order", nil)
+			return
+		}
+	}
 
 	response, err := h.orderService.GetOrderDetailsByNumber(r.Context(), orderNumber)
 	if err != nil {
@@ -255,6 +292,12 @@ func (h *orderHandler) DeleteOrder(w http.ResponseWriter, r *http.Request) {
 
 // ListOrders handles GET /api/v1/orders
 func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == 0 {
+		httpx.Error(w, http.StatusUnauthorized, "user ID not found in context", nil)
+		return
+	}
+
 	// Parse query parameters
 	sortBy := r.URL.Query().Get("sort")
 	if sortBy == "" {
@@ -282,6 +325,12 @@ func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		Limit:             getIntParam(r, "limit", 10),
 		Sort:              sortBy,
 		Order:             sortOrder,
+	}
+
+	// Regular users can only list their own orders
+	if !isPrivilegedUser(r.Context()) {
+		userID := int64(currentUserID)
+		req.UserID = &userID
 	}
 
 	response, err := h.orderService.ListOrders(r.Context(), req)
@@ -879,6 +928,15 @@ func getTimeParam(r *http.Request, key string) *time.Time {
 		return &timeValue
 	}
 	return nil
+}
+
+func isPrivilegedUser(ctx context.Context) bool {
+	claims, ok := middleware.GetClaimsFromContext(ctx).(*middleware.Claims)
+	if !ok || claims == nil {
+		return false
+	}
+
+	return claims.Role == "admin" || claims.Role == "editor"
 }
 
 // Payment Integration Handlers

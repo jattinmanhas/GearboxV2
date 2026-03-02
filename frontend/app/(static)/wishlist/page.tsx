@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
 import { useCartStore } from "@/lib/stores/cart-store"
+import { useUserStore } from "@/lib/stores/user-store"
 import { formatCurrency } from "@/lib/currency"
 import Link from "next/link"
 
@@ -37,10 +38,13 @@ export default function WishlistPage() {
   } = useWishlistStore()
 
   const { addItem } = useCartStore()
+  const { isAuthenticated } = useUserStore()
 
   useEffect(() => {
-    loadWishlists()
-  }, [loadWishlists])
+    if (isAuthenticated) {
+      loadWishlists()
+    }
+  }, [isAuthenticated, loadWishlists])
 
 
   const handleCreateWishlist = async () => {
@@ -98,6 +102,25 @@ export default function WishlistPage() {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-6 w-6 animate-spin" />
             <span className="ml-2">Loading wishlists...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center py-12">
+            <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+            <p className="text-muted-foreground mb-6">
+              Please log in to view and manage your wishlists.
+            </p>
+            <Button asChild>
+              <Link href="/login">Login</Link>
+            </Button>
           </div>
         </div>
       </div>

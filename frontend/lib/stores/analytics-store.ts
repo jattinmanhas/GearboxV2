@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { httpClient } from '@/lib/apiFunctions/http-client'
 
 // Types for analytics data
 export interface OrderAnalytics {
@@ -105,6 +106,8 @@ export interface DashboardAnalytics {
   }> | null
   period: string
   lastUpdated: string
+  partial?: boolean
+  errors?: Record<string, string>
 }
 
 interface AnalyticsState {
@@ -134,17 +137,15 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         set({ isLoading: true, error: null })
         
         try {
-          const response = await fetch(`/api/v1/dashboard/analytics?period=${period}`, {
-            credentials: 'include',
-          })
+          const result = await httpClient.get<{
+            success: boolean
+            message?: string
+            data?: DashboardAnalytics
+            error?: boolean
+            status?: number
+          }>(`/dashboard/analytics?period=${period}`)
           
-          if (!response.ok) {
-            throw new Error(`Failed to fetch analytics: ${response.statusText}`)
-          }
-          
-          const result = await response.json()
-          
-          if (result.success) {
+          if (result.success && result.data) {
             set({ 
               analytics: result.data, 
               isLoading: false,
@@ -167,17 +168,15 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         set({ isLoading: true, error: null })
         
         try {
-          const response = await fetch('/api/v1/dashboard/orders', {
-            credentials: 'include',
-          })
+          const result = await httpClient.get<{
+            success: boolean
+            message?: string
+            data?: OrderAnalytics
+            error?: boolean
+            status?: number
+          }>('/dashboard/orders')
           
-          if (!response.ok) {
-            throw new Error(`Failed to fetch order analytics: ${response.statusText}`)
-          }
-          
-          const result = await response.json()
-          
-          if (result.success) {
+          if (result.success && result.data) {
             const currentAnalytics = get().analytics
             set({ 
               analytics: {
@@ -210,17 +209,15 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         set({ isLoading: true, error: null })
         
         try {
-          const response = await fetch('/api/v1/dashboard/products', {
-            credentials: 'include',
-          })
+          const result = await httpClient.get<{
+            success: boolean
+            message?: string
+            data?: ProductAnalytics
+            error?: boolean
+            status?: number
+          }>('/dashboard/products')
           
-          if (!response.ok) {
-            throw new Error(`Failed to fetch product analytics: ${response.statusText}`)
-          }
-          
-          const result = await response.json()
-          
-          if (result.success) {
+          if (result.success && result.data) {
             const currentAnalytics = get().analytics
             set({ 
               analytics: {
@@ -253,17 +250,15 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         set({ isLoading: true, error: null })
         
         try {
-          const response = await fetch('/api/v1/dashboard/users', {
-            credentials: 'include',
-          })
+          const result = await httpClient.get<{
+            success: boolean
+            message?: string
+            data?: UserAnalytics
+            error?: boolean
+            status?: number
+          }>('/dashboard/users')
           
-          if (!response.ok) {
-            throw new Error(`Failed to fetch user analytics: ${response.statusText}`)
-          }
-          
-          const result = await response.json()
-          
-          if (result.success) {
+          if (result.success && result.data) {
             const currentAnalytics = get().analytics
             set({ 
               analytics: {

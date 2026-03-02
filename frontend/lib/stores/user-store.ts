@@ -49,6 +49,11 @@ export const useUserStore = create<UserState>()((set, get) => ({
   },
 
   clearUser: () => {
+    // Also clear role cookie so middleware does not treat stale sessions as dashboard-authorized
+    if (typeof document !== 'undefined') {
+      document.cookie = 'user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    }
+
     set({
       user: null,
       isAuthenticated: false,

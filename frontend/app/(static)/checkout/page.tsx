@@ -19,7 +19,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { useCartStore, useHydrateCartStore } from "@/lib/stores/cart-store"
-import { profileApi, orderApi, paymentApi } from "@/lib/apiFunctions"
+import { profileApi, orderApi } from "@/lib/apiFunctions"
 import { formatCurrency } from "@/lib/currency"
 import { Address, OrderAddressRequest } from "@/lib/types"
 import { showSuccess, showError, showLoading, updateLoading } from "@/lib/notifications"
@@ -188,32 +188,29 @@ export default function CheckoutPage() {
       // Extract order from response (backend wraps in data field)
       const order = orderResponse?.data || orderResponse
 
-      // Create payment
-      const paymentData = {
-        order_id: order.id,
+      // Create payment via order service to keep order/payment state in sync
+      const paymentResponse = await orderApi.createOrderPayment(order.id, {
         payment_method: selectedPaymentMethod,
-        amount: order.total_amount || totalPrice,
-        currency: order.currency || "INR",
         gateway_id: selectedGateway,
         metadata: {
           order_number: order.order_number,
           cart_id: cart.id,
         },
-      }
+      })
+      const createdPayment = paymentResponse?.payment || paymentResponse?.data?.payment || paymentResponse
 
-      const paymentResponse = await paymentApi.createPayment(paymentData)
-      // Extract payment from response
-      const payment = paymentResponse?.data || paymentResponse
-
-      // Process payment
-      const processResponse = await paymentApi.processPayment(payment.id, {
+      // Process payment via order service so payment status updates on the order
+      const processResponse = await orderApi.processOrderPayment(order.id, {
         payment_data: {},
         return_url: `${window.location.origin}/checkout/success`,
         cancel_url: `${window.location.origin}/checkout`,
       })
 
       // Check if payment gateway requires redirect
-      const processedPayment = processResponse?.data || processResponse
+      const processedPayment = processResponse?.payment || processResponse?.data?.payment || processResponse
+      if (!createdPayment?.id || !processedPayment?.id) {
+        throw new Error("Payment processing failed")
+      }
       if (processedPayment?.gateway_response?.redirect_url) {
         // Redirect to payment gateway
         window.location.href = processedPayment.gateway_response.redirect_url
@@ -591,4 +588,3 @@ export default function CheckoutPage() {
     </div>
   )
 }
-

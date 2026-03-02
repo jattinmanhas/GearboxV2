@@ -148,7 +148,7 @@ function CheckoutSuccessContent() {
                 </Link>
               </Button>
               <Button className="flex-1" asChild>
-                <Link href="/dashboard">
+                <Link href="/orders">
                   View Orders
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
@@ -175,4 +175,3 @@ export default function CheckoutSuccessPage() {
     </Suspense>
   )
 }
-

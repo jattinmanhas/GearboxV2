@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     console.log(`[PaymentsProxy] GET | Auth Header: ${authHeader ? 'Yes' : 'No'}`, authHeader ? `(Length: ${authHeader.length})` : '');
 
-    const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments${queryString ? `?${queryString}` : ''}`, {
+    const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/admin/payments${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

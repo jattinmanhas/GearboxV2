@@ -11,7 +11,13 @@ export async function POST(
     const { id: cartId } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +93,13 @@ export async function DELETE(
     const { id: cartId } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +145,13 @@ export async function GET(
   try {
     const { id: cartId } = await params
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${cartId}/coupons`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

@@ -117,7 +117,7 @@ export const useCartStore = create<CartStore>()(
           set({ isLoading: true, error: null })
 
           // First get the cart metadata
-          const cart = await cartApi.getOrCreateCart()
+          const cart = await cartApi.getOrCreateCart("INR")
 
           // Then get the cart items via summary
           const summary = await cartApi.getCartSummary(cart.id.toString())
@@ -691,7 +691,7 @@ export const useCartStore = create<CartStore>()(
       loadCartSilently: async () => {
         try {
           // First get the cart metadata
-          const cart = await cartApi.getOrCreateCart()
+          const cart = await cartApi.getOrCreateCart("INR")
 
           // Then get the cart items via summary
           const summary = await cartApi.getCartSummary(cart.id.toString())

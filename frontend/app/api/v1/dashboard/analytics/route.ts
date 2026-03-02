@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       }),
 
       // Payment analytics
-      fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments/summary?date_from=${startDateStr}&date_to=${endDateStr}`, {
+      fetch(`${PAYMENT_SERVICE_URL}/api/v1/admin/payments/summary?date_from=${startDateStr}&date_to=${endDateStr}`, {
         method: 'GET',
         headers: getAuthHeaders(request),
       }),
@@ -159,41 +159,83 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
+    const sectionErrors: Record<string, string> = {}
+
     // Process order analytics
     let orderData = null
-    if (orderAnalytics.status === 'fulfilled' && orderAnalytics.value.ok) {
-      const orderResponse = await orderAnalytics.value.json()
-      orderData = orderResponse.data
+    if (orderAnalytics.status === 'fulfilled') {
+      if (orderAnalytics.value.ok) {
+        const orderResponse = await orderAnalytics.value.json()
+        orderData = orderResponse.data
+      } else {
+        sectionErrors.orders = `Upstream returned ${orderAnalytics.value.status}`
+      }
+    } else {
+      sectionErrors.orders = orderAnalytics.reason instanceof Error
+        ? orderAnalytics.reason.message
+        : 'Order analytics request failed'
     }
 
     // Process product analytics
     let productData = null
-    if (productAnalytics.status === 'fulfilled' && productAnalytics.value.ok) {
-      const productResponse = await productAnalytics.value.json()
-      productData = productResponse.data
+    if (productAnalytics.status === 'fulfilled') {
+      if (productAnalytics.value.ok) {
+        const productResponse = await productAnalytics.value.json()
+        productData = productResponse.data
+      } else {
+        sectionErrors.products = `Upstream returned ${productAnalytics.value.status}`
+      }
+    } else {
+      sectionErrors.products = productAnalytics.reason instanceof Error
+        ? productAnalytics.reason.message
+        : 'Product analytics request failed'
     }
 
     // Process user analytics
     let userData = null
-    if (userAnalytics.status === 'fulfilled' && userAnalytics.value.ok) {
-      const userResponse = await userAnalytics.value.json()
-      userData = userResponse.data
+    if (userAnalytics.status === 'fulfilled') {
+      if (userAnalytics.value.ok) {
+        const userResponse = await userAnalytics.value.json()
+        userData = userResponse.data
+      } else {
+        sectionErrors.users = `Upstream returned ${userAnalytics.value.status}`
+      }
+    } else {
+      sectionErrors.users = userAnalytics.reason instanceof Error
+        ? userAnalytics.reason.message
+        : 'User analytics request failed'
     }
 
     // Process payment analytics
     let paymentData = null
-    if (paymentAnalytics.status === 'fulfilled' && paymentAnalytics.value.ok) {
-      const paymentResponse = await paymentAnalytics.value.json()
-      paymentData = paymentResponse.data
+    if (paymentAnalytics.status === 'fulfilled') {
+      if (paymentAnalytics.value.ok) {
+        const paymentResponse = await paymentAnalytics.value.json()
+        paymentData = paymentResponse.data
+      } else {
+        sectionErrors.payments = `Upstream returned ${paymentAnalytics.value.status}`
+      }
+    } else {
+      sectionErrors.payments = paymentAnalytics.reason instanceof Error
+        ? paymentAnalytics.reason.message
+        : 'Payment analytics request failed'
     }
 
     const blogData = blogSummary
 
     // Process top products
     let topProductsData = null
-    if (topProducts.status === 'fulfilled' && topProducts.value.ok) {
-      const topProductsResponse = await topProducts.value.json()
-      topProductsData = topProductsResponse.data
+    if (topProducts.status === 'fulfilled') {
+      if (topProducts.value.ok) {
+        const topProductsResponse = await topProducts.value.json()
+        topProductsData = topProductsResponse.data
+      } else {
+        sectionErrors.top_products = `Upstream returned ${topProducts.value.status}`
+      }
+    } else {
+      sectionErrors.top_products = topProducts.reason instanceof Error
+        ? topProducts.reason.message
+        : 'Top products request failed'
     }
 
     // Combine all analytics data
@@ -206,6 +248,8 @@ export async function GET(request: NextRequest) {
       top_products: topProductsData,
       period,
       lastUpdated: new Date().toISOString(),
+      partial: Object.keys(sectionErrors).length > 0,
+      errors: sectionErrors,
     }
 
     return NextResponse.json({

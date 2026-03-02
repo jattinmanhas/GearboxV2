@@ -143,6 +143,19 @@ func (s *PaymentService) GetPaymentByTransactionID(ctx context.Context, transact
 	return s.paymentToResponse(payment), nil
 }
 
+// GetPaymentByOrderID retrieves the latest payment by order ID
+func (s *PaymentService) GetPaymentByOrderID(ctx context.Context, orderID int64) (*dto.PaymentResponse, error) {
+	payment, err := s.paymentRepo.GetLatestPaymentByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payment: %w", err)
+	}
+	if payment == nil {
+		return nil, fmt.Errorf("payment not found")
+	}
+
+	return s.paymentToResponse(payment), nil
+}
+
 // ListPayments retrieves payments with filtering and pagination
 func (s *PaymentService) ListPayments(ctx context.Context, filter *domain.PaymentFilter, page, limit int) (*dto.PaymentListResponse, error) {
 	offset := (page - 1) * limit

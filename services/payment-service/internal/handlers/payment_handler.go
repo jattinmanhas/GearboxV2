@@ -96,6 +96,24 @@ func (h *PaymentHandler) GetPaymentByTransactionID(w http.ResponseWriter, r *htt
 	httpx.OK(w, "Payment retrieved successfully", response)
 }
 
+// GetPaymentByOrderID retrieves the latest payment by order ID
+func (h *PaymentHandler) GetPaymentByOrderID(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := chi.URLParam(r, "orderId")
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, "Invalid order ID", err)
+		return
+	}
+
+	response, err := h.paymentService.GetPaymentByOrderID(r.Context(), orderID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "Failed to get payment", err)
+		return
+	}
+
+	httpx.OK(w, "Payment retrieved successfully", response)
+}
+
 // ListPayments retrieves payments with filtering and pagination
 func (h *PaymentHandler) ListPayments(w http.ResponseWriter, r *http.Request) {
 	filter := &domain.PaymentFilter{}

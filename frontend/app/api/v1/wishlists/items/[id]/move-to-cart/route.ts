@@ -8,12 +8,15 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}/move-to-cart`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}/move-to-cart${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 

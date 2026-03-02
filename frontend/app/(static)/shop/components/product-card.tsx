@@ -15,6 +15,7 @@ import {
 import { Product, Category, ProductVariant } from "@/lib/types"
 import { useCartStore } from "@/lib/stores/cart-store"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
+import { useUserStore } from "@/lib/stores/user-store"
 import { productApi } from "@/lib/apiFunctions"
 import { formatPrice } from "@/lib/currency"
 
@@ -41,6 +42,7 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
     createWishlist,
     getWishlistItemCount
   } = useWishlistStore()
+  const { isAuthenticated } = useUserStore()
 
   // Load variants for this product
   useEffect(() => {
@@ -95,6 +97,11 @@ export function ProductCard({ product, viewMode, categories }: ProductCardProps)
 
   const handleWishlist = async () => {
     if (isWishlisting) return
+
+    if (!isAuthenticated) {
+      alert("Please log in to add items to your wishlist.")
+      return
+    }
 
     setIsWishlisting(true)
     try {

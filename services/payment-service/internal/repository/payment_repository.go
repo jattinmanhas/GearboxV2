@@ -154,6 +154,53 @@ func (r *PaymentRepository) GetPaymentByTransactionID(ctx context.Context, trans
 	return payment, nil
 }
 
+// GetLatestPaymentByOrderID retrieves the latest payment by order ID
+func (r *PaymentRepository) GetLatestPaymentByOrderID(ctx context.Context, orderID int64) (*domain.Payment, error) {
+	query := `
+		SELECT id, order_id, payment_method, transaction_id, gateway_id, amount, currency,
+		       status, gateway_status, gateway_response, failure_reason, processed_at, metadata, created_at, updated_at
+		FROM payments
+		WHERE order_id = $1
+		ORDER BY created_at DESC
+		LIMIT 1`
+
+	payment := &domain.Payment{}
+	var metadataJSON []byte
+
+	row := r.db.QueryRowContext(ctx, query, orderID)
+	err := row.Scan(
+		&payment.ID,
+		&payment.OrderID,
+		&payment.PaymentMethod,
+		&payment.TransactionID,
+		&payment.GatewayID,
+		&payment.Amount,
+		&payment.Currency,
+		&payment.Status,
+		&payment.GatewayStatus,
+		&payment.GatewayResponse,
+		&payment.FailureReason,
+		&payment.ProcessedAt,
+		&metadataJSON,
+		&payment.CreatedAt,
+		&payment.UpdatedAt,
+	)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get payment by order ID: %w", err)
+	}
+
+	if len(metadataJSON) > 0 && string(metadataJSON) != "null" {
+		if err := json.Unmarshal(metadataJSON, &payment.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+	}
+
+	return payment, nil
+}
+
 // ListPayments retrieves payments with filtering and pagination
 func (r *PaymentRepository) ListPayments(ctx context.Context, filter *domain.PaymentFilter, offset, limit int) ([]*domain.Payment, error) {
 	query := `

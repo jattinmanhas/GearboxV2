@@ -60,8 +60,9 @@ func NewRouter(paymentService *services.PaymentService, jwtService *jwt.JWTServi
 			r.Route("/payments", func(r chi.Router) {
 				r.Post("/", paymentHandler.CreatePayment)
 				r.Post("/process", paymentHandler.ProcessPayment)
-				r.Get("/{id}", paymentHandler.GetPayment)
+				r.Get("/order/{orderId}", paymentHandler.GetPaymentByOrderID)
 				r.Get("/transaction/{transactionId}", paymentHandler.GetPaymentByTransactionID)
+				r.Get("/{id}", paymentHandler.GetPayment)
 			})
 		})
 

@@ -72,7 +72,8 @@ export function AnalyticsStats({ period = '30d' }: AnalyticsStatsProps) {
     return null
   }
 
-  const { orders, products, users, payments, blog } = analytics
+  const { orders, products, users, payments, blog, partial, errors: sectionErrors } = analytics
+  const failedSections = Object.keys(sectionErrors || {})
 
   const stats = [
     {
@@ -144,6 +145,22 @@ export function AnalyticsStats({ period = '30d' }: AnalyticsStatsProps) {
           </Badge>
         </div>
       </div>
+
+      {partial && failedSections.length > 0 && (
+        <Card className="border-yellow-500/40">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-2 text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="h-5 w-5 mt-0.5" />
+              <div>
+                <p className="font-medium">Some analytics could not be loaded</p>
+                <p className="text-sm">
+                  Failed sections: {failedSections.join(", ")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat, index) => (

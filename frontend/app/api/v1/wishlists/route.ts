@@ -4,12 +4,15 @@ const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost
 
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 
@@ -36,12 +39,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })

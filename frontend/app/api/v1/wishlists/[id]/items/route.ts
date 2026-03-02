@@ -8,12 +8,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 
@@ -44,12 +47,15 @@ export async function POST(
     const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists/${id}/items${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })

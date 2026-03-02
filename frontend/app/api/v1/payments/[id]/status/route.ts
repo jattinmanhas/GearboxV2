@@ -10,7 +10,7 @@ export async function PUT(
         const { id } = await params
         const body = await request.json()
 
-        const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/protected/payments/${id}/status`, {
+        const response = await fetch(`${PAYMENT_SERVICE_URL}/api/v1/admin/payments/${id}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

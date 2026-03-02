@@ -10,12 +10,15 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
       body: JSON.stringify(body),
     })
@@ -45,11 +48,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}`, {
+    const { searchParams } = new URL(request.url)
+    const url = `${PRODUCT_SERVICE_URL}/api/v1/wishlists/items/${id}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: {
         'Cookie': request.headers.get('cookie') || '',
-      'Authorization': request.headers.get('authorization') || '',
+        'Authorization': request.headers.get('authorization') || '',
       },
     })
 

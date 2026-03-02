@@ -23,6 +23,7 @@ import { ProductFilters } from "./components/product-filters"
 import { CartDrawer } from "./components/cart-drawer"
 import { useCartStore } from "@/lib/stores/cart-store"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
+import { useUserStore } from "@/lib/stores/user-store"
 
 // Client-side only component to prevent hydration mismatch
 function WishlistCount() {
@@ -64,6 +65,7 @@ export default function ShopPage() {
 
   // Wishlist store
   const { loadWishlists, getWishlistItemCount } = useWishlistStore()
+  const { isAuthenticated } = useUserStore()
 
   const loadProducts = async (page: number = 1, search: string = "", categoryId?: number, priceRange?: [number, number], sortBy?: string, featureFilters?: { inStock?: boolean, onSale?: boolean, isDigital?: boolean }) => {
     try {
@@ -124,13 +126,15 @@ export default function ShopPage() {
       console.warn('Cart loading failed:', error)
       // Continue without cart functionality
     })
-    // Try to load wishlists, but don't fail if it doesn't work
-    loadWishlists().catch(error => {
-      console.warn('Wishlist loading failed:', error)
-      // Continue without wishlist functionality
-    })
+    // Try to load wishlists if authenticated, but don't fail if it doesn't work
+    if (isAuthenticated) {
+      loadWishlists().catch(error => {
+        console.warn('Wishlist loading failed:', error)
+        // Continue without wishlist functionality
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isAuthenticated])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)

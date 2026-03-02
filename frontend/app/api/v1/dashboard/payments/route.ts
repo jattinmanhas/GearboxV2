@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const queryString = searchParams.toString()
 
     const response = await fetch(
-      `${PAYMENT_SERVICE_URL}/api/v1/protected/payments/summary${queryString ? `?${queryString}` : ''}`,
+      `${PAYMENT_SERVICE_URL}/api/v1/admin/payments/summary${queryString ? `?${queryString}` : ''}`,
       {
         method: 'GET',
         headers: getAuthHeaders(request),

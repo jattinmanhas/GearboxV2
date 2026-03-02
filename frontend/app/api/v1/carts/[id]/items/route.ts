@@ -50,7 +50,13 @@ export async function POST(
     const { id } = await params
     const body = await request.json()
     
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,7 +92,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/items`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: {
         'Cookie': request.headers.get('cookie') || '',

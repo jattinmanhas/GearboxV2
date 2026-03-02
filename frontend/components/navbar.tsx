@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart, Heart } from "lucide-react"
+import { CpuIcon, Menu, X, User, Settings, LogOut, ShoppingCart, Heart, Package } from "lucide-react"
 import { useUserStore } from "@/lib/stores/user-store"
 import { useCartStore } from "@/lib/stores/cart-store"
 import { useWishlistStore } from "@/lib/stores/wishlist-store"
@@ -250,6 +250,12 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link href="/orders" className="flex items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      <span>My Orders</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/settings" className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>
@@ -316,6 +322,12 @@ export function Navbar() {
                     <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
                       <Heart className="mr-2 h-4 w-4" />
                       Wishlist
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" asChild className="w-full justify-start">
+                    <Link href="/orders" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Package className="mr-2 h-4 w-4" />
+                      My Orders
                     </Link>
                   </Button>
                 </div>

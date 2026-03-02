@@ -19,6 +19,14 @@ export const orderApi = {
         return response.data;
     },
 
+    async createOrderPayment(orderId: number, paymentData: any): Promise<any> {
+        return httpClient.post<any>(`/orders/${orderId}/payments`, paymentData);
+    },
+
+    async processOrderPayment(orderId: number, processData: any): Promise<any> {
+        return httpClient.post<any>(`/orders/${orderId}/payments/process`, processData);
+    },
+
     async updateOrderStatus(orderId: number, status: string, notes?: string): Promise<any> {
         return httpClient.put<any>(`/orders/${orderId}/status`, {
             status,

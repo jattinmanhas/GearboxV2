@@ -9,7 +9,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const response = await fetch(`${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/summary`, {
+    let url = `${PRODUCT_SERVICE_URL}/api/v1/carts/${id}/summary`
+    const { searchParams } = new URL(request.url)
+    if (searchParams.toString()) {
+      url += `?${searchParams.toString()}`
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
