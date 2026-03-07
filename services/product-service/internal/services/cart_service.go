@@ -446,10 +446,8 @@ func (s *cartService) GetCartSummary(ctx context.Context, cartID int64) (*dto.Ca
 				}
 			}
 		}
-		// Ensure discount doesn't exceed subtotal
-		if recalculatedDiscount > summary.Subtotal {
-			recalculatedDiscount = summary.Subtotal
-		}
+		// Update summary with recalculated discount
+		summary.DiscountAmount = recalculatedDiscount
 		// Recalculate total with new discount
 		summary.TotalAmount = summary.Subtotal - summary.DiscountAmount
 	}
@@ -1049,10 +1047,6 @@ func (s *cartService) GetWishlistItems(ctx context.Context, wishlistID int64, pa
 			IsActive:         product.IsActive,
 			IsDigital:        product.IsDigital,
 			RequiresShipping: product.RequiresShipping,
-			Taxable:          product.Taxable,
-			TrackQuantity:    product.TrackQuantity,
-			MinQuantity:      product.MinQuantity,
-			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,

@@ -20,10 +20,6 @@ type Product struct {
 	IsActive         bool      `json:"is_active" db:"is_active"`
 	IsDigital        bool      `json:"is_digital" db:"is_digital"`
 	RequiresShipping bool      `json:"requires_shipping" db:"requires_shipping"`
-	Taxable          bool      `json:"taxable" db:"taxable"`
-	TrackQuantity    bool      `json:"track_quantity" db:"track_quantity"`
-	MinQuantity      int       `json:"min_quantity" db:"min_quantity"`
-	MaxQuantity      int       `json:"max_quantity" db:"max_quantity"`
 	MetaTitle        string    `json:"meta_title" db:"meta_title"`
 	MetaDesc         string    `json:"meta_description" db:"meta_description"`
 	Tags             string    `json:"tags" db:"tags"`

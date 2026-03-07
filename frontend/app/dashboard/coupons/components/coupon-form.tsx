@@ -40,8 +40,8 @@ export function CouponForm({ couponId, onClose, onSuccess }: CouponFormProps) {
     description: "",
     type: "percentage",
     value: 0,
-    min_order_amount: 0,
-    max_discount_amount: 0,
+    minimum_amount: 0,
+    maximum_discount: 0,
     usage_limit: 0,
     is_active: true,
     starts_at: new Date().toISOString(),
@@ -64,8 +64,8 @@ export function CouponForm({ couponId, onClose, onSuccess }: CouponFormProps) {
         description: currentCoupon.description || "",
         type: currentCoupon.type,
         value: currentCoupon.value,
-        min_order_amount: currentCoupon.min_order_amount || 0,
-        max_discount_amount: currentCoupon.max_discount_amount || 0,
+        minimum_amount: currentCoupon.minimum_amount || 0,
+        maximum_discount: currentCoupon.maximum_discount || 0,
         usage_limit: currentCoupon.usage_limit || 0,
         is_active: currentCoupon.is_active,
         starts_at: currentCoupon.starts_at,
@@ -95,12 +95,12 @@ export function CouponForm({ couponId, onClose, onSuccess }: CouponFormProps) {
       newErrors.value = "Percentage value cannot exceed 100"
     }
 
-    if ((formData.min_order_amount || 0) < 0) {
-      newErrors.min_order_amount = "Minimum order amount cannot be negative"
+    if ((formData.minimum_amount || 0) < 0) {
+      newErrors.minimum_amount = "Minimum order amount cannot be negative"
     }
 
-    if ((formData.max_discount_amount || 0) < 0) {
-      newErrors.max_discount_amount = "Maximum discount amount cannot be negative"
+    if ((formData.maximum_discount || 0) < 0) {
+      newErrors.maximum_discount = "Maximum discount amount cannot be negative"
     }
 
     if ((formData.usage_limit || 0) < 0) {
@@ -255,34 +255,34 @@ export function CouponForm({ couponId, onClose, onSuccess }: CouponFormProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="min_order_amount">Minimum Order Amount</Label>
+                <Label htmlFor="minimum_amount">Minimum Order Amount</Label>
                 <Input
-                  id="min_order_amount"
+                  id="minimum_amount"
                   type="number"
-                  value={formData.min_order_amount}
-                  onChange={(e) => handleInputChange("min_order_amount", parseFloat(e.target.value) || 0)}
+                  value={formData.minimum_amount}
+                  onChange={(e) => handleInputChange("minimum_amount", parseFloat(e.target.value) || 0)}
                   placeholder="500"
                   min="0"
-                  className={errors.min_order_amount ? "border-destructive" : ""}
+                  className={errors.minimum_amount ? "border-destructive" : ""}
                 />
-                {errors.min_order_amount && (
-                  <p className="text-sm text-destructive">{errors.min_order_amount}</p>
+                {errors.minimum_amount && (
+                  <p className="text-sm text-destructive">{errors.minimum_amount}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="max_discount_amount">Maximum Discount Amount</Label>
+                <Label htmlFor="maximum_discount">Maximum Discount Amount</Label>
                 <Input
-                  id="max_discount_amount"
+                  id="maximum_discount"
                   type="number"
-                  value={formData.max_discount_amount}
-                  onChange={(e) => handleInputChange("max_discount_amount", parseFloat(e.target.value) || 0)}
+                  value={formData.maximum_discount}
+                  onChange={(e) => handleInputChange("maximum_discount", parseFloat(e.target.value) || 0)}
                   placeholder="1000"
                   min="0"
-                  className={errors.max_discount_amount ? "border-destructive" : ""}
+                  className={errors.maximum_discount ? "border-destructive" : ""}
                 />
-                {errors.max_discount_amount && (
-                  <p className="text-sm text-destructive">{errors.max_discount_amount}</p>
+                {errors.maximum_discount && (
+                  <p className="text-sm text-destructive">{errors.maximum_discount}</p>
                 )}
               </div>
 

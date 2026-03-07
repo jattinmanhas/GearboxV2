@@ -5,8 +5,8 @@ export interface Coupon {
   description?: string
   type: 'percentage' | 'fixed_amount' | 'free_shipping'
   value: number
-  min_order_amount?: number
-  max_discount_amount?: number
+  minimum_amount?: number
+  maximum_discount?: number
   usage_limit?: number
   used_count: number
   is_active: boolean
@@ -22,8 +22,8 @@ export interface CreateCouponRequest {
   description?: string
   type: 'percentage' | 'fixed_amount' | 'free_shipping'
   value: number
-  min_order_amount?: number
-  max_discount_amount?: number
+  minimum_amount?: number
+  maximum_discount?: number
   usage_limit?: number
   is_active: boolean
   starts_at: string
@@ -35,8 +35,8 @@ export interface UpdateCouponRequest {
   description?: string
   type?: 'percentage' | 'fixed_amount' | 'free_shipping'
   value?: number
-  min_order_amount?: number
-  max_discount_amount?: number
+  minimum_amount?: number
+  maximum_discount?: number
   usage_limit?: number
   is_active?: boolean
   starts_at?: string

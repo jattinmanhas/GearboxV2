@@ -662,10 +662,6 @@ export default function ProductDetailPage() {
                       <span className="font-medium">Shipping:</span>{" "}
                       {product.requires_shipping ? "Required" : "Not Required"}
                     </div>
-                    <div>
-                      <span className="font-medium">Taxable:</span>{" "}
-                      {product.taxable ? "Yes" : "No"}
-                    </div>
                   </div>
                 </div>
 

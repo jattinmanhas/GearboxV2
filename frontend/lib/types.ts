@@ -129,10 +129,6 @@ export interface Product {
   is_active: boolean;
   is_digital: boolean;
   requires_shipping: boolean;
-  taxable: boolean;
-  track_quantity: boolean;
-  min_quantity: number;
-  max_quantity: number;
   meta_title: string;
   meta_description: string;
   tags: string;
@@ -228,10 +224,6 @@ export interface CreateProductRequest {
   is_active: boolean;
   is_digital: boolean;
   requires_shipping: boolean;
-  taxable: boolean;
-  track_quantity: boolean;
-  min_quantity?: number;
-  max_quantity?: number;
   meta_title?: string;
   meta_description?: string;
   tags?: string;
@@ -257,10 +249,6 @@ export interface UpdateProductRequest {
   is_active?: boolean;
   is_digital?: boolean;
   requires_shipping?: boolean;
-  taxable?: boolean;
-  track_quantity?: boolean;
-  min_quantity?: number;
-  max_quantity?: number;
   meta_title?: string;
   meta_description?: string;
   tags?: string;

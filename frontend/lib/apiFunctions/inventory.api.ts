@@ -85,4 +85,36 @@ export const inventoryApi = {
             };
         }
     },
+
+    async createInventory(data: unknown): Promise<ApiResponse> {
+        try {
+            return await httpClient.post<ApiResponse>("/inventory", data);
+        } catch (error) {
+            console.error("Error creating inventory:", error);
+            return {
+                success: false,
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to create inventory",
+                data: null,
+            };
+        }
+    },
+
+    async createStockMovement(data: unknown): Promise<ApiResponse> {
+        try {
+            return await httpClient.post<ApiResponse>("/inventory/movements", data);
+        } catch (error) {
+            console.error("Error creating stock movement:", error);
+            return {
+                success: false,
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to create stock movement",
+                data: null,
+            };
+        }
+    },
 };

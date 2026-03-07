@@ -66,13 +66,11 @@ func (r *productRepository) CreateProduct(ctx context.Context, product *domain.P
 	query := `
 		INSERT INTO products (
 			name, description, short_description, sku, price, compare_price, cost_price,
-			weight, dimensions, is_active, is_digital, requires_shipping, taxable,
-			track_quantity, min_quantity, max_quantity, meta_title,
+			weight, dimensions, is_active, is_digital, requires_shipping, meta_title,
 			meta_description, tags, created_at, updated_at
 		) VALUES (
 			:name, :description, :short_description, :sku, :price, :compare_price, :cost_price,
-			:weight, :dimensions, :is_active, :is_digital, :requires_shipping, :taxable,
-			:track_quantity, :min_quantity, :max_quantity, :meta_title,
+			:weight, :dimensions, :is_active, :is_digital, :requires_shipping, :meta_title,
 			:meta_description, :tags, :created_at, :updated_at
 		)
 		RETURNING id
@@ -175,9 +173,8 @@ func (r *productRepository) UpdateProduct(ctx context.Context, id int64, product
 			name = :name, description = :description, short_description = :short_description,
 			sku = :sku, price = :price, compare_price = :compare_price, cost_price = :cost_price,
 			weight = :weight, dimensions = :dimensions, is_active = :is_active,
-			is_digital = :is_digital, requires_shipping = :requires_shipping, taxable = :taxable,
-			track_quantity = :track_quantity, min_quantity = :min_quantity,
-			max_quantity = :max_quantity, meta_title = :meta_title, meta_description = :meta_description,
+			is_digital = :is_digital, requires_shipping = :requires_shipping,
+			meta_title = :meta_title, meta_description = :meta_description,
 			tags = :tags, updated_at = :updated_at
 		WHERE id = :id`
 

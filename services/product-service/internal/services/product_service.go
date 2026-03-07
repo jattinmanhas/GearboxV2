@@ -84,10 +84,6 @@ func (s *productService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		IsActive:         req.IsActive,
 		IsDigital:        req.IsDigital,
 		RequiresShipping: req.RequiresShipping,
-		Taxable:          req.Taxable,
-		TrackQuantity:    req.TrackQuantity,
-		MinQuantity:      req.MinQuantity,
-		MaxQuantity:      req.MaxQuantity,
 		MetaTitle:        req.MetaTitle,
 		MetaDesc:         req.MetaDescription,
 		Tags:             req.Tags,
@@ -196,18 +192,6 @@ func (s *productService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 	}
 	if req.RequiresShipping != nil {
 		updateProduct.RequiresShipping = *req.RequiresShipping
-	}
-	if req.Taxable != nil {
-		updateProduct.Taxable = *req.Taxable
-	}
-	if req.TrackQuantity != nil {
-		updateProduct.TrackQuantity = *req.TrackQuantity
-	}
-	if req.MinQuantity != nil {
-		updateProduct.MinQuantity = *req.MinQuantity
-	}
-	if req.MaxQuantity != nil {
-		updateProduct.MaxQuantity = *req.MaxQuantity
 	}
 	if req.MetaTitle != nil {
 		updateProduct.MetaTitle = *req.MetaTitle
@@ -343,13 +327,8 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 					quantity = inventory.Quantity
 					availableQuantity = inventory.AvailableQuantity
 					isInStock = inventory.AvailableQuantity > 0
-				} else if !product.TrackQuantity {
-					// If product doesn't track quantity, consider it in stock
-					quantity = 999
-					availableQuantity = 999
-					isInStock = true
 				} else {
-					// If product tracks quantity but no inventory record exists, it's out of stock
+					// If no inventory record exists, it's out of stock
 					quantity = 0
 					availableQuantity = 0
 					isInStock = false
@@ -392,10 +371,6 @@ func (s *productService) ListProducts(ctx context.Context, req *dto.ListProducts
 			IsActive:          product.IsActive,
 			IsDigital:         product.IsDigital,
 			RequiresShipping:  product.RequiresShipping,
-			Taxable:           product.Taxable,
-			TrackQuantity:     product.TrackQuantity,
-			MinQuantity:       product.MinQuantity,
-			MaxQuantity:       product.MaxQuantity,
 			MetaTitle:         product.MetaTitle,
 			MetaDescription:   product.MetaDesc,
 			Tags:              product.Tags,
@@ -467,13 +442,8 @@ func (s *productService) GetProductWithStockInfo(ctx context.Context, product *d
 				quantity = inventory.Quantity
 				availableQuantity = inventory.AvailableQuantity
 				isInStock = inventory.AvailableQuantity > 0
-			} else if !product.TrackQuantity {
-				// If product doesn't track quantity, consider it in stock
-				quantity = 999
-				availableQuantity = 999
-				isInStock = true
 			} else {
-				// If product tracks quantity but no inventory record exists, it's out of stock
+				// If no inventory record exists, it's out of stock
 				quantity = 0
 				availableQuantity = 0
 				isInStock = false
@@ -519,10 +489,6 @@ func (s *productService) GetProductWithStockInfo(ctx context.Context, product *d
 		IsActive:          product.IsActive,
 		IsDigital:         product.IsDigital,
 		RequiresShipping:  product.RequiresShipping,
-		Taxable:           product.Taxable,
-		TrackQuantity:     product.TrackQuantity,
-		MinQuantity:       product.MinQuantity,
-		MaxQuantity:       product.MaxQuantity,
 		MetaTitle:         product.MetaTitle,
 		MetaDescription:   product.MetaDesc,
 		Tags:              product.Tags,
@@ -575,10 +541,6 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 			IsActive:         product.IsActive,
 			IsDigital:        product.IsDigital,
 			RequiresShipping: product.RequiresShipping,
-			Taxable:          product.Taxable,
-			TrackQuantity:    product.TrackQuantity,
-			MinQuantity:      product.MinQuantity,
-			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
@@ -640,10 +602,6 @@ func (s *productService) SearchProducts(ctx context.Context, query string, page,
 			IsActive:         product.IsActive,
 			IsDigital:        product.IsDigital,
 			RequiresShipping: product.RequiresShipping,
-			Taxable:          product.Taxable,
-			TrackQuantity:    product.TrackQuantity,
-			MinQuantity:      product.MinQuantity,
-			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
@@ -705,10 +663,6 @@ func (s *productService) GetProductsByTags(ctx context.Context, tags []string, p
 			IsActive:         product.IsActive,
 			IsDigital:        product.IsDigital,
 			RequiresShipping: product.RequiresShipping,
-			Taxable:          product.Taxable,
-			TrackQuantity:    product.TrackQuantity,
-			MinQuantity:      product.MinQuantity,
-			MaxQuantity:      product.MaxQuantity,
 			MetaTitle:        product.MetaTitle,
 			MetaDescription:  product.MetaDesc,
 			Tags:             product.Tags,
@@ -821,18 +775,10 @@ func (s *productService) GetProductVariantsByProductIDWithInventory(ctx context.
 			// For physical products, check inventory
 			inventory, err := s.inventoryService.GetInventoryByProduct(ctx, productID, &variant.ID)
 			if err != nil {
-				// If no inventory record exists, check if product tracks quantity
-				if !product.TrackQuantity {
-					// If product doesn't track quantity, consider it in stock
-					quantity = 999
-					availableQuantity = 999
-					isInStock = true
-				} else {
-					// If product tracks quantity but no inventory record exists, it's out of stock
-					quantity = 0
-					availableQuantity = 0
-					isInStock = false
-				}
+				// If no inventory record exists, it's out of stock
+				quantity = 0
+				availableQuantity = 0
+				isInStock = false
 			} else {
 				// Use actual inventory data
 				quantity = inventory.Quantity

@@ -453,7 +453,7 @@ export const useCartStore = create<CartStore>()(
                 variant_name: variant?.name,
                 variant_sku: variant?.sku,
                 image: product.images && product.images.length > 0 ? product.images[0].url : undefined,
-                maxQuantity: product.max_quantity || 999
+                maxQuantity: product.available_quantity || 999
               }
             } catch (error) {
               console.warn(`Failed to fetch product details for product ${item.product_id}:`, error)

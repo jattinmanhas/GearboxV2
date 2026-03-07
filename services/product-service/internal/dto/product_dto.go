@@ -16,10 +16,6 @@ type CreateProductRequest struct {
 	IsActive         bool                  `json:"is_active"`
 	IsDigital        bool                  `json:"is_digital"`
 	RequiresShipping bool                  `json:"requires_shipping"`
-	Taxable          bool                  `json:"taxable"`
-	TrackQuantity    bool                  `json:"track_quantity"`
-	MinQuantity      int                   `json:"min_quantity" validate:"omitempty,min=0"`
-	MaxQuantity      int                   `json:"max_quantity" validate:"omitempty,min=0"`
 	MetaTitle        string                `json:"meta_title" validate:"omitempty,meta_title"`
 	MetaDescription  string                `json:"meta_description" validate:"omitempty,meta_description"`
 	Tags             string                `json:"tags" validate:"omitempty,tags"`
@@ -41,10 +37,6 @@ type UpdateProductRequest struct {
 	IsActive         *bool                 `json:"is_active"`
 	IsDigital        *bool                 `json:"is_digital"`
 	RequiresShipping *bool                 `json:"requires_shipping"`
-	Taxable          *bool                 `json:"taxable"`
-	TrackQuantity    *bool                 `json:"track_quantity"`
-	MinQuantity      *int                  `json:"min_quantity" validate:"omitempty,min=0"`
-	MaxQuantity      *int                  `json:"max_quantity" validate:"omitempty,min=0"`
 	MetaTitle        *string               `json:"meta_title" validate:"omitempty,meta_title"`
 	MetaDescription  *string               `json:"meta_description" validate:"omitempty,meta_description"`
 	Tags             *string               `json:"tags" validate:"omitempty,tags"`
@@ -67,10 +59,6 @@ type ProductResponse struct {
 	IsActive         bool                   `json:"is_active"`
 	IsDigital        bool                   `json:"is_digital"`
 	RequiresShipping bool                   `json:"requires_shipping"`
-	Taxable          bool                   `json:"taxable"`
-	TrackQuantity    bool                   `json:"track_quantity"`
-	MinQuantity      int                    `json:"min_quantity"`
-	MaxQuantity      int                    `json:"max_quantity"`
 	MetaTitle        string                 `json:"meta_title"`
 	MetaDescription  string                 `json:"meta_description"`
 	Tags             string                 `json:"tags"`

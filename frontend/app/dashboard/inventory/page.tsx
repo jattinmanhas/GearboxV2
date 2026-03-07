@@ -183,39 +183,39 @@ export default function InventoryDashboard() {
 
   const handleSaveInventory = async (data: CreateInventoryRequest) => {
     try {
-      const response = await fetch("/api/v1/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
+      const response = await inventoryApi.createInventory(data);
 
-      if (response.ok) {
+      if (response.success) {
         setShowInventoryForm(false);
         fetchInventory();
         fetchSummary();
+      } else {
+        const msg = response.message || "Failed to save inventory";
+        console.error("Error saving inventory:", msg);
+        showError(msg);
       }
     } catch (error) {
       console.error("Error saving inventory:", error);
+      showError(error instanceof Error ? error.message : "Failed to save inventory");
     }
   };
 
   const handleSaveStockMovement = async (data: StockMovementRequest) => {
     try {
-      const response = await fetch("/api/v1/inventory/movements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
+      const response = await inventoryApi.createStockMovement(data);
 
-      if (response.ok) {
+      if (response.success) {
         setShowStockMovementForm(false);
         fetchInventory();
         fetchSummary();
+      } else {
+        const msg = response.message || "Failed to record stock movement";
+        console.error("Error recording stock movement:", msg);
+        showError(msg);
       }
     } catch (error) {
       console.error("Error recording stock movement:", error);
+      showError(error instanceof Error ? error.message : "Failed to record stock movement");
     }
   };
 

@@ -48,10 +48,6 @@ export function ProductForm({
     is_active: true,
     is_digital: false,
     requires_shipping: true,
-    taxable: true,
-    track_quantity: true,
-    min_quantity: 0,
-    max_quantity: 0,
     meta_title: "",
     meta_description: "",
     tags: "",
@@ -78,10 +74,6 @@ export function ProductForm({
         is_active: product.is_active,
         is_digital: product.is_digital,
         requires_shipping: product.requires_shipping,
-        taxable: product.taxable,
-        track_quantity: product.track_quantity,
-        min_quantity: product.min_quantity,
-        max_quantity: product.max_quantity,
         meta_title: product.meta_title,
         meta_description: product.meta_description,
         tags: product.tags,
@@ -123,23 +115,6 @@ export function ProductForm({
 
     if (formData.weight < 0) {
       newErrors.weight = "Weight cannot be negative";
-    }
-
-    if (formData.min_quantity < 0) {
-      newErrors.min_quantity = "Minimum quantity cannot be negative";
-    }
-
-    if (formData.max_quantity < 0) {
-      newErrors.max_quantity = "Maximum quantity cannot be negative";
-    }
-
-    if (
-      formData.min_quantity > 0 &&
-      formData.max_quantity > 0 &&
-      formData.min_quantity > formData.max_quantity
-    ) {
-      newErrors.max_quantity =
-        "Maximum quantity must be greater than minimum quantity";
     }
 
     setErrors(newErrors);
@@ -430,54 +405,6 @@ export function ProductForm({
             </div>
           </div>
 
-          {/* Inventory */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Inventory</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="min_quantity">Minimum Quantity</Label>
-                <Input
-                  id="min_quantity"
-                  type="number"
-                  value={formData.min_quantity}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      min_quantity: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className={errors.min_quantity ? "border-destructive" : ""}
-                />
-                {errors.min_quantity && (
-                  <p className="text-sm text-destructive">
-                    {errors.min_quantity}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="max_quantity">Maximum Quantity</Label>
-                <Input
-                  id="max_quantity"
-                  type="number"
-                  value={formData.max_quantity}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      max_quantity: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className={errors.max_quantity ? "border-destructive" : ""}
-                />
-                {errors.max_quantity && (
-                  <p className="text-sm text-destructive">
-                    {errors.max_quantity}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Categories */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Categories</h3>
@@ -582,33 +509,6 @@ export function ProductForm({
                     }
                   />
                   <Label htmlFor="requires_shipping">Requires Shipping</Label>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="taxable"
-                    checked={formData.taxable}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({ ...prev, taxable: checked }))
-                    }
-                  />
-                  <Label htmlFor="taxable">Taxable</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="track_quantity"
-                    checked={formData.track_quantity}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        track_quantity: checked,
-                      }))
-                    }
-                  />
-                  <Label htmlFor="track_quantity">Track Quantity</Label>
                 </div>
               </div>
             </div>
