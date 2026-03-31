@@ -1,75 +1,19 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Databases
-  postgres-auth:
+  # Shared PostgreSQL Database
+  postgres:
     image: postgres:16-alpine
-    container_name: gearbox-postgres-auth
+    container_name: gearbox-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gearbox_auth
+      POSTGRES_PASSWORD: jm17manhas
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
     volumes:
-      - postgres-auth-data:/var/lib/postgresql/data
-    networks:
-      - gearbox-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-product:
-    image: postgres:16-alpine
-    container_name: gearbox-postgres-product
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gearbox_product
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres-product-data:/var/lib/postgresql/data
-    networks:
-      - gearbox-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-payment:
-    image: postgres:16-alpine
-    container_name: gearbox-postgres-payment
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gearbox_payment
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres-payment-data:/var/lib/postgresql/data
-    networks:
-      - gearbox-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-blog:
-    image: postgres:16-alpine
-    container_name: gearbox-postgres-blog
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gearbox_blog
-    ports:
-      - "5435:5432"
-    volumes:
-      - postgres-blog-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     networks:
       - gearbox-network
     healthcheck:
@@ -85,7 +29,7 @@ services:
       dockerfile: services/auth-service/Dockerfile
     container_name: gearbox-auth-service
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres-auth:5432/gearbox_auth?sslmode=disable
+      DATABASE_URL: postgres://postgres:jm17manhas@postgres:5432/gearbox_auth?sslmode=disable
       PORT: 8081
       ENVIRONMENT: development
       JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
@@ -100,7 +44,7 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      postgres-auth:
+      postgres:
         condition: service_healthy
     networks:
       - gearbox-network
@@ -113,10 +57,10 @@ services:
       dockerfile: services/product-service/Dockerfile
     container_name: gearbox-product-service
     environment:
-      DB_HOST: postgres-product
+      DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: jm17manhas
       DB_NAME: gearbox_product
       DB_SSL_MODE: disable
       SERVER_HOST: 0.0.0.0
@@ -129,7 +73,7 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      postgres-product:
+      postgres:
         condition: service_healthy
       auth-service:
         condition: service_started
@@ -144,10 +88,10 @@ services:
       dockerfile: services/payment-service/Dockerfile
     container_name: gearbox-payment-service
     environment:
-      DB_HOST: postgres-payment
+      DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: jm17manhas
       DB_NAME: gearbox_payment
       DB_SSL_MODE: disable
       HOST: 0.0.0.0
@@ -163,7 +107,7 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      postgres-payment:
+      postgres:
         condition: service_healthy
       auth-service:
         condition: service_started
@@ -178,7 +122,7 @@ services:
       dockerfile: services/blog-service/Dockerfile
     container_name: gearbox-blog-service
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres-blog:5432/gearbox_blog?sslmode=disable
+      DATABASE_URL: postgres://postgres:jm17manhas@postgres:5432/gearbox_blog?sslmode=disable
       PORT: 8084
       JWT_SECRET: your-super-secret-jwt-key-here-make-it-long-and-random-change-in-production
       FRONTEND_URL: http://localhost:3000
@@ -186,7 +130,7 @@ services:
     ports:
       - "8084:8084"
     depends_on:
-      postgres-blog:
+      postgres:
         condition: service_healthy
     networks:
       - gearbox-network
@@ -221,8 +165,5 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-auth-data:
-  postgres-product-data:
-  postgres-payment-data:
-  postgres-blog-data:
+  postgres-data:
 

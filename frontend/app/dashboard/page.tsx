@@ -11,7 +11,7 @@ import { BlogInsights } from "@/components/dashboard/blog-insights"
 import { Badge } from "@/components/ui/badge"
 
 export default function DashboardPage() {
-  const [period, setPeriod] = useState("30d")
+  const [period, setPeriod] = useState("7d")
   const periods = [
     { label: "7D", value: "7d" },
     { label: "30D", value: "30d" },

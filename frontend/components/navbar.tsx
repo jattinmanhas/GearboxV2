@@ -45,7 +45,7 @@ export const navLinks: NavItems[] = [
   },
 ]
 
-// Client-side only component to prevent hydration mismatch
+// Client-side only components to prevent hydration mismatch
 function WishlistBadge() {
   const { getWishlistItemCount } = useWishlistStore()
   const [mounted, setMounted] = useState(false)
@@ -54,14 +54,30 @@ function WishlistBadge() {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return null
-  }
+  if (!mounted) return null
 
   const count = getWishlistItemCount()
-  if (count === 0) {
-    return null
-  }
+  if (count === 0) return null
+
+  return (
+    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+      {count}
+    </span>
+  )
+}
+
+function CartBadge() {
+  const { getItemCount } = useCartStore()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  const count = getItemCount()
+  if (count === 0) return null
 
   return (
     <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
@@ -74,13 +90,17 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNavbarVisible, setIsNavbarVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
 
   // Get user data from Zustand store
   const { user, isAuthenticated, logout } = useUserStore()
-  const { getItemCount } = useCartStore()
   const { getWishlistItemCount } = useWishlistStore()
   const { clearAuth } = useAuth()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Debug: Log user data
   useEffect(() => {
@@ -179,8 +199,8 @@ export function Navbar() {
 
           {/* Right side - Cart, Wishlist, User menu and theme toggle */}
           <div className="flex items-center gap-4">
-            {/* Wishlist Icon */}
-            {isAuthenticated && (
+            {/* Wishlist Icon — only shown after mount to avoid hydration mismatch */}
+            {mounted && isAuthenticated && (
               <Button variant="ghost" size="sm" asChild className="relative">
                 <Link href="/wishlist">
                   <Heart className="h-4 w-4" />
@@ -194,11 +214,7 @@ export function Navbar() {
             <Button variant="ghost" size="sm" asChild className="relative">
               <Link href="/cart">
                 <ShoppingCart className="h-4 w-4" />
-                {getItemCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {getItemCount()}
-                  </span>
-                )}
+                <CartBadge />
                 <span className="sr-only">Shopping Cart</span>
               </Link>
             </Button>
@@ -206,8 +222,8 @@ export function Navbar() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* User Menu */}
-            {isAuthenticated && user ? (
+            {/* User Menu — gated behind mounted to prevent hydration mismatch */}
+            {mounted && isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -268,7 +284,7 @@ export function Navbar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : mounted ? (
               <div className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" asChild>
                   <Link href="/login">Sign in</Link>
@@ -277,7 +293,7 @@ export function Navbar() {
                   <Link href="/register">Sign up</Link>
                 </Button>
               </div>
-            )}
+            ) : null}
 
             {/* Mobile menu button */}
             <Button
@@ -334,7 +350,7 @@ export function Navbar() {
               )}
 
               {/* Mobile auth buttons */}
-              {!isAuthenticated && (
+              {mounted && !isAuthenticated && (
                 <div className="pt-4 space-y-2">
                   <Button variant="ghost" asChild className="w-full justify-start">
                     <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>

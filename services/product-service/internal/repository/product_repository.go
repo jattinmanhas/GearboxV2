@@ -1052,9 +1052,16 @@ func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.Pr
 	}
 	err = r.db.GetContext(ctx, &stockCounts, `
 		SELECT 
-			COUNT(CASE WHEN track_quantity = true AND quantity <= 10 THEN 1 END) as low_stock,
-			COUNT(CASE WHEN track_quantity = true AND quantity = 0 THEN 1 END) as out_of_stock
-		FROM products`)
+			COUNT(CASE WHEN total_qty <= 10 AND total_qty > 0 THEN 1 END) as low_stock,
+			COUNT(CASE WHEN total_qty = 0 THEN 1 END) as out_of_stock
+		FROM (
+			SELECT 
+				p.id,
+				COALESCE(SUM(i.available_quantity), 0) as total_qty
+			FROM products p
+			LEFT JOIN inventory i ON p.id = i.product_id
+			GROUP BY p.id
+		) as stock_stats`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stock products count: %w", err)
 	}
@@ -1075,9 +1082,11 @@ func (r *productRepository) GetProductAnalytics(ctx context.Context) (*domain.Pr
 
 	// Get total inventory value
 	err = r.db.GetContext(ctx, &analytics.TotalInventoryValue, `
-		SELECT COALESCE(SUM(price * quantity), 0) 
-		FROM products 
-		WHERE track_quantity = true AND is_active = true`)
+		SELECT COALESCE(SUM(COALESCE(pv.price, p.price) * i.available_quantity), 0)
+		FROM inventory i
+		INNER JOIN products p ON i.product_id = p.id
+		LEFT JOIN product_variants pv ON i.product_variant_id = pv.id
+		WHERE p.is_active = true`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total inventory value: %w", err)
 	}

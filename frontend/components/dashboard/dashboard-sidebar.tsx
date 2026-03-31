@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUserStore } from "@/lib/stores/user-store"
 import {
   LayoutDashboard,
@@ -68,9 +68,14 @@ const navigationSections = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const { user } = useUserStore()
+  const [mounted, setMounted] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["Overview", "Commerce", "Content"]) // Start with key sections expanded
   )
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const toggleSection = (sectionTitle: string) => {
     setExpandedSections(prev => {
@@ -159,15 +164,25 @@ export function DashboardSidebar() {
                 <User className="h-3 w-3" />
               </div>
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-xs font-semibold">
-                  {user?.firstName && user?.lastName
-                    ? `${user.firstName} ${user.lastName}`
-                    : user?.username || 'User'
-                  }
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user?.email || user?.username || 'No email'}
-                </span>
+                {mounted ? (
+                  <>
+                    <span className="truncate text-xs font-semibold">
+                      {user?.firstName && user?.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.username || 'User'
+                      }
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {user?.email || user?.username || 'No email'}
+                    </span>
+                  </>
+                ) : (
+                  // Skeleton placeholder — matches SSR output so no hydration mismatch
+                  <>
+                    <span className="h-3 w-24 rounded bg-muted animate-pulse" />
+                    <span className="h-2.5 w-32 rounded bg-muted animate-pulse mt-1" />
+                  </>
+                )}
               </div>
             </div>
           </SidebarMenuItem>

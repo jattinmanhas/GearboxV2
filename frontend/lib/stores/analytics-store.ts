@@ -114,10 +114,12 @@ interface AnalyticsState {
   // State
   analytics: DashboardAnalytics | null
   isLoading: boolean
+  isRetrying: boolean
+  retryCount: number
   error: string | null
   
   // Actions
-  loadAnalytics: (period?: string) => Promise<void>
+  loadAnalytics: (period?: string, attempt?: number) => Promise<void>
   loadOrderAnalytics: () => Promise<void>
   loadProductAnalytics: () => Promise<void>
   loadUserAnalytics: () => Promise<void>
@@ -130,11 +132,20 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       // Initial state
       analytics: null,
       isLoading: false,
+      isRetrying: false,
+      retryCount: 0,
       error: null,
 
-      // Load comprehensive analytics
-      loadAnalytics: async (period = '30d') => {
-        set({ isLoading: true, error: null })
+      // Load comprehensive analytics with automatic retry when services are starting
+      loadAnalytics: async (period = '30d', attempt = 0) => {
+        const MAX_RETRIES = 5
+        const RETRY_DELAYS = [2000, 4000, 8000, 16000, 30000]
+
+        if (attempt === 0) {
+          set({ isLoading: true, isRetrying: false, retryCount: 0, error: null })
+        } else {
+          set({ isLoading: false, isRetrying: true, retryCount: attempt })
+        }
         
         try {
           const result = await httpClient.get<{
@@ -146,20 +157,46 @@ export const useAnalyticsStore = create<AnalyticsState>()(
           }>(`/dashboard/analytics?period=${period}`)
           
           if (result.success && result.data) {
-            set({ 
-              analytics: result.data, 
-              isLoading: false,
-              error: null 
-            })
+            // Check if ALL sections failed (services still starting up)
+            const data = result.data
+            const hasAnyData = data.orders || data.products || data.users || data.payments
+            const allSectionsFailed = data.partial && !hasAnyData
+
+            if (allSectionsFailed && attempt < MAX_RETRIES) {
+              // Services are still starting, schedule a retry
+              console.log(`Analytics: all sections failed, retrying in ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+              set({ analytics: data, isLoading: false, isRetrying: true, retryCount: attempt + 1 })
+              setTimeout(() => {
+                get().loadAnalytics(period, attempt + 1)
+              }, RETRY_DELAYS[attempt])
+            } else {
+              set({ 
+                analytics: data, 
+                isLoading: false,
+                isRetrying: false,
+                retryCount: 0,
+                error: null 
+              })
+            }
           } else {
             throw new Error(result.message || 'Failed to load analytics')
           }
         } catch (error) {
           console.error('Error loading analytics:', error)
-          set({ 
-            error: error instanceof Error ? error.message : 'Unknown error',
-            isLoading: false 
-          })
+          if (attempt < MAX_RETRIES) {
+            // Network error - services likely still starting
+            console.log(`Analytics: network error, retrying in ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+            set({ isLoading: false, isRetrying: true, retryCount: attempt + 1 })
+            setTimeout(() => {
+              get().loadAnalytics(period, attempt + 1)
+            }, RETRY_DELAYS[attempt])
+          } else {
+            set({ 
+              error: error instanceof Error ? error.message : 'Unknown error',
+              isLoading: false,
+              isRetrying: false,
+            })
+          }
         }
       },
 
